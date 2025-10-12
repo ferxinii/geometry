@@ -1,4 +1,4 @@
-#include "point.h"
+#include "geometry.h"
 #include "predicates/include/predicates.h"
 #include <math.h>
 #include <assert.h>
