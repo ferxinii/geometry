@@ -14,6 +14,11 @@ typedef struct point {
 int orientation(const s_point *p3, s_point q);
 int in_sphere(const s_point *p4, s_point q);
 
+extern double orient2d(const double * pa, const double * pb, const double * pc);
+extern double orient3d(const double * pa, const double * pb, const double * pc, const double * pd);
+extern double incircle(const double * pa, const double * pb, const double * pc, const double * pd);
+extern double insphere(const double * pa, const double * pb, const double * pc, const double * pd, const double * pe);
+
 s_point sum_points(s_point p1, s_point p2);  // From BM
 s_point subtract_points(s_point u, s_point v);
 s_point spherical_to_cartesian(double r, double theta, double phi);
