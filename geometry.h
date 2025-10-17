@@ -1,5 +1,5 @@
-#ifndef POINT_H
-#define POINT_H
+#ifndef GEOMETRY_H
+#define GEOMETRY_H
 
 typedef struct point {
     union {
