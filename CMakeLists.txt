@@ -19,12 +19,6 @@ target_include_directories(geometry
         ${CMAKE_CURRENT_SOURCE_DIR}/predicates/src
 )
 
-target_link_libraries(geometry
-    PRIVATE 
-        predicates
-)
-
-
 target_compile_options(geometry
     PRIVATE
         -Wall -Werror -Wextra -O3
