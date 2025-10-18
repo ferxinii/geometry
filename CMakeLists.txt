@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(geometry LANGUAGE C)
+project(geometry LANGUAGES C)
 
 add_subdirectory(predicates)
 
