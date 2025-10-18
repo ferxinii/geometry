@@ -16,3 +16,9 @@ target_link_libraries(geometry
     PRIVATE 
         predicates
 )
+
+
+target_compile_options(geometry
+    PRIVATE
+        -Wall -Werror -Wextra -O3
+)
