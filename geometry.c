@@ -2,27 +2,35 @@
 #include "predicates/include/predicates.h"
 #include "string.h"
 #include "stdlib.h"
+#include "stdio.h"
 #include <math.h>
 #include <assert.h>
 
 
-int orientation(const s_point *p3, s_point q)
+static inline const_s_points const_points(s_points points)
 {
-    double aux = orient3d(p3[0].coords, p3[1].coords, p3[2].coords, q.coords);
+    const_s_points out = {points.N, points.p};
+    return out;
+}
+
+
+int orientation(const s_point p[3], s_point q)
+{
+    double aux = orient3d(p[0].coords, p[1].coords, p[2].coords, q.coords);
     if (aux > 0) return 1;
     else if (aux < 0) return -1;
     else return 0;
 }
 
 
-int in_sphere(const s_point *p4, s_point q)
+int in_sphere(const s_point p[4], s_point q)
 {   
 
     int factor;
-    if (orientation(p4, p4[3]) == 1) factor = 1;
+    if (orientation(p, p[3]) == 1) factor = 1;
     else factor = -1;
 
-    double aux = insphere(p4[0].coords, p4[1].coords, p4[2].coords, p4[3].coords, q.coords);
+    double aux = insphere(p[0].coords, p[1].coords, p[2].coords, p[3].coords, q.coords);
     
     if (aux > 0) return factor;
     else if (aux < 0) return -factor;
@@ -92,11 +100,11 @@ double distance(s_point a, s_point b)
 }
 
 
-double max_distance(const s_point *p, int N, s_point query)
+double max_distance(const_s_points points, s_point query)
 {   
     double maxd2 = 0;
-    for (int ii=0; ii<N; ii++) {
-        double d2 = distance_squared(p[ii], query);
+    for (int ii=0; ii<points.N; ii++) {
+        double d2 = distance_squared(points.p[ii], query);
         if (maxd2 < d2) maxd2 = d2;
     }
     return sqrt(maxd2);
@@ -110,17 +118,17 @@ s_point normalize_3d(s_point v)
 }
 
 
-s_point find_center_mass(const s_point *in, int N_points)
+s_point find_center_mass(const_s_points points)
 {
-    s_point out = in[0];
-    for (int ii=1; ii<N_points; ii++) {
-        out.x += in[ii].x;
-        out.y += in[ii].y;
-        out.z += in[ii].z;
+    s_point out = points.p[0];
+    for (int ii=1; ii<points.N; ii++) {
+        out.x += points.p[ii].x;
+        out.y += points.p[ii].y;
+        out.z += points.p[ii].z;
     }
-    out.x /= N_points;
-    out.y /= N_points;
-    out.z /= N_points;
+    out.x /= points.N;
+    out.y /= points.N;
+    out.z /= points.N;
     return out;
 }
 
@@ -135,7 +143,7 @@ int coord_with_largest_component_3d(s_point x)
 }
 
 
-int segment_crosses_triangle_3d(const s_point *triangle, s_point a, s_point b)
+int segment_crosses_triangle_3d(const s_point triangle[3], s_point a, s_point b)
 {
     if (orientation(triangle, a) == orientation(triangle, b)) return 0;
     s_point aux[3];
@@ -163,7 +171,7 @@ int between_1d(double x, double a, double b, double eps)
 }
 
 
-int segments_intersect_2d(const s_point *AB, const s_point *pd)
+int segments_intersect_2d(const s_point AB[2], const s_point pd[2])
 {
     const double EPS = 1e-9;
     double Ax = AB[0].x, Ay = AB[0].y;
@@ -212,7 +220,7 @@ int segments_intersect_2d(const s_point *AB, const s_point *pd)
 }
 
 
-s_point closest_point_on_triangle(const s_point *triangle, s_point p)
+s_point closest_point_on_triangle(const s_point triangle[3], s_point p)
 {
     s_point A = triangle[0], B = triangle[1], C = triangle[2];
     s_point AB = {{{B.x-A.x, B.y-A.y, B.z-A.z}}};
@@ -265,7 +273,7 @@ s_point closest_point_on_triangle(const s_point *triangle, s_point p)
 }
 
 
-s_point closest_point_on_segment(const s_point *segment, s_point p)
+s_point closest_point_on_segment(const s_point segment[2], s_point p)
 {
     s_point AB = subtract_points(segment[1], segment[0]);
     s_point pA = subtract_points(p, segment[0]);
@@ -280,7 +288,7 @@ s_point closest_point_on_segment(const s_point *segment, s_point p)
 }
 
 
-int point_in_triangle_2d(const s_point *triangle, s_point p)
+int point_in_triangle_2d(const s_point triangle[3], s_point p)
 {
     int o1 = orient2d(triangle[0].coords, triangle[1].coords, p.coords);
     int o2 = orient2d(triangle[1].coords, triangle[2].coords, p.coords);
@@ -304,7 +312,7 @@ int point_in_triangle_2d(const s_point *triangle, s_point p)
 }
 
 
-int point_in_triangle_3d(const s_point *triangle, s_point p)
+int point_in_triangle_3d(const s_point triangle[3], s_point p)
 {
     s_point aux = closest_point_on_triangle(triangle, p);
     if (distance_squared(aux, p) < 1e-6) return 1;
@@ -330,7 +338,7 @@ void remove_duplicate_points(const s_point *points, int N, double tol_dist, s_po
     for (int ii=0; ii<N; ii++) {
         if (mark_dup[ii] == 1) count_dup++;
     }
-    *Nout = count_dup;  
+    *Nout = N - count_dup;  
 
     *out = malloc(sizeof(s_point) * (N - count_dup));
     int jj = 0;
@@ -340,6 +348,80 @@ void remove_duplicate_points(const s_point *points, int N, double tol_dist, s_po
 
     free(mark_dup);
 } 
+
+
+static int count_lines(FILE* file)
+{
+    const int BUF_SIZE = 2048;
+    char buf[BUF_SIZE];
+    int counter = 0;
+    while(1) {
+        int nread = fread(buf, 1, BUF_SIZE, file);
+        if (ferror(file)) return -1;
+
+        for(int ii=0; ii<nread; ii++)
+            if (buf[ii] == '\n') counter++;
+
+        if (nread < BUF_SIZE && feof(file)) {
+            if (nread > 0 && buf[nread - 1] != '\n') counter++;
+            break;
+        }
+    }
+    rewind(file);
+    return counter;
+}
+
+
+s_points read_points_from_csv(const char *file)
+{
+    s_points out = {0, NULL};
+
+    FILE *f = fopen(file, "r");
+    if (!f) goto error;
+    
+    int Nlines = count_lines(f);
+    if (Nlines <= 0) goto error;
+
+    out.p = malloc(sizeof(s_point) * Nlines);
+    if (!out.p) goto error;
+
+    for (int ii=0; ii<Nlines; ii++) {
+        if (fscanf(f, "%lf,%lf,%lf", &out.p[ii].x, &out.p[ii].y, &out.p[ii].z) != 3) 
+            goto error;
+    }
+
+    if (fclose(f) == EOF) { f = NULL; goto error; }
+
+    out.N = Nlines;
+    return out;
+
+    error:
+        fprintf(stderr, "Error in 'read_points_from_csv'\n");
+        if (f) fclose(f);
+        if (out.p) { free(out.p);  out.p = NULL;  out.N = 0; }
+        return out;
+}
+
+
+int write_points_to_csv(const char *file, const char *f_access_mode, const const_s_points points)
+{
+    FILE *f = fopen(file, f_access_mode);
+    if (!f) goto error;
+
+    for (int ii=0; ii<points.N; ii++) {
+        if (fprintf(f, "%f, %f, %f\n", points.p[ii].x, points.p[ii].y, points.p[ii].z) < 0)
+            goto error;
+    }
+
+    if (fclose(f) == EOF) { f = NULL;  goto error; }
+    return EXIT_SUCCESS;
+
+    error:
+        fprintf(stderr, "Error in 'write_points_to_csv'\n");
+        if (f) fclose(f);
+        return EXIT_FAILURE;
+}
+
 
 
 
