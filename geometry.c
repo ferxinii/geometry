@@ -1,5 +1,7 @@
 #include "geometry.h"
 #include "predicates/include/predicates.h"
+#include "string.h"
+#include "stdlib.h"
 #include <math.h>
 #include <assert.h>
 
@@ -309,6 +311,35 @@ int point_in_triangle_3d(const s_point *triangle, s_point p)
     else return 0;
 }
 
+
+void remove_duplicate_points(const s_point *points, int N, double tol_dist, s_point **out, int *Nout)
+{
+    double tol2 = tol_dist * tol_dist;
+
+    int *mark_dup = malloc(sizeof(int) * N);
+    memset(mark_dup, 0, sizeof(int) * N);
+
+    for(int ii=0; ii<N-1; ii++) {
+        for (int jj=ii+1; jj<N; jj++) {
+            double d2 = distance_squared(points[ii], points[jj]);
+            if (d2 <= tol2) mark_dup[jj] = 1;
+        }
+    }
+
+    int count_dup = 0;
+    for (int ii=0; ii<N; ii++) {
+        if (mark_dup[ii] == 1) count_dup++;
+    }
+    *Nout = count_dup;  
+
+    *out = malloc(sizeof(s_point) * (N - count_dup));
+    int jj = 0;
+    for (int ii=0; ii<N; ii++) {
+        if (mark_dup[ii] == 0) (*out)[jj++] = points[ii];
+    }
+
+    free(mark_dup);
+} 
 
 
 

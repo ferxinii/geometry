@@ -47,4 +47,6 @@ int point_in_triangle_2d(const s_point *triangle, s_point p);
 int point_in_triangle_3d(const s_point *triangle, s_point p);
 
 
+void remove_duplicate_points(const s_point *points, int N, double tol_dist, s_point **out, int *Nout);
+
 #endif
