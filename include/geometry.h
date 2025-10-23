@@ -20,10 +20,14 @@ typedef struct const_points {
     const s_point *p;
 } const_s_points;
 
-static inline const_s_points make_const(s_points points);
 
+// Basic s_points
+static inline const_s_points make_const(s_points points);
 s_points copy_points(const_s_points points);
 void free_points(s_points points);
+s_points remove_duplicate_points(const_s_points points, double tol_dist);
+s_points read_points_from_csv(const char *file);
+int write_points_to_csv(const char *file, const char *f_access_mode, const_s_points points);  // f_access_mode: "w" or "a"
 
 
 // Basic geometrical operations
@@ -57,17 +61,12 @@ int point_in_triangle_3d(const s_point triangle[3], s_point p);
 // Predicates:
 int orientation(const s_point p[3], s_point q);
 int in_sphere(const s_point p[4], s_point q);
-
 extern double orient2d(const double *pa, const double *pb, const double *pc);
 extern double orient3d(const double *pa, const double *pb, const double *pc, const double *pd);
 extern double incircle(const double *pa, const double *pb, const double *pc, const double *pd);
 extern double insphere(const double *pa, const double *pb, const double *pc, const double *pd, const double *pe);
 
 
-// I/O:
-s_points remove_duplicate_points(const_s_points points, double tol_dist);
-s_points read_points_from_csv(const char *file);
-int write_points_to_csv(const char *file, const char *f_access_mode, const_s_points points);  // f_access_mode: "w" or "a"
-
+double volume_tetrahedron_approx(s_point p1, s_point p2, s_point p3, s_point p4);
 
 #endif

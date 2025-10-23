@@ -158,6 +158,19 @@ int coord_with_largest_component_3d(s_point x)
 }
 
 
+s_point random_point_uniform_3d(s_point min, s_point max)
+{
+    double ux = rand() / ((double) RAND_MAX + 1.0);
+    double uy = rand() / ((double) RAND_MAX + 1.0);
+    double uz = rand() / ((double) RAND_MAX + 1.0);
+    s_point out;
+    out.x = min.x + (max.x - min.x) * ux;
+    out.y = min.y + (max.y - min.y) * uy;
+    out.z = min.z + (max.z - min.z) * uz;
+    return out;
+}
+
+
 int segment_crosses_triangle_3d(const s_point triangle[3], s_point a, s_point b)
 {
     if (orientation(triangle, a) == orientation(triangle, b)) return 0;
@@ -438,5 +451,9 @@ int write_points_to_csv(const char *file, const char *f_access_mode, const const
 }
 
 
+double volume_tetrahedron_approx(s_point p1, s_point p2, s_point p3, s_point p4)
+{
+    return fabs(1.0/6.0 * orient3d(p1.coords, p2.coords, p3.coords, p4.coords));
+}
 
 
