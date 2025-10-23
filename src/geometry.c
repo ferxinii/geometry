@@ -1,5 +1,5 @@
 #include "geometry.h"
-#include "predicates/include/predicates.h"
+#include "predicates.h"
 #include "string.h"
 #include "stdlib.h"
 #include "stdio.h"
@@ -7,25 +7,20 @@
 #include <assert.h>
 
 
-static inline const_s_points make_const(s_points points)
-{
-    const_s_points out = {points.N, points.p};
-    return out;
-}
 
-
-s_points copy_points(const_s_points points)
+s_points copy_points(const s_points *points)
 {
-    s_points copy = {.N = points.N,
-                     .p = malloc(sizeof(s_point) * points.N)};
-    memcpy(copy.p, copy.p, sizeof(s_point) * points.N);
+    s_points copy = {.N = points->N,
+                     .p = malloc(sizeof(s_point) * points->N)};
+    memcpy(copy.p, copy.p, sizeof(s_point) * points->N);
     return copy;
 }
 
 
-void free_points(s_points points)
+void free_points(s_points *points)
 {
-    free(points.p);
+    free(points->p);
+    memset(points, 0, sizeof(s_points));
 }
 
 
@@ -115,11 +110,11 @@ double distance(s_point a, s_point b)
 }
 
 
-double max_distance(const_s_points points, s_point query)
+double max_distance(const s_points *points, s_point query)
 {   
     double maxd2 = 0;
-    for (int ii=0; ii<points.N; ii++) {
-        double d2 = distance_squared(points.p[ii], query);
+    for (int ii=0; ii<points->N; ii++) {
+        double d2 = distance_squared(points->p[ii], query);
         if (maxd2 < d2) maxd2 = d2;
     }
     return sqrt(maxd2);
@@ -133,17 +128,17 @@ s_point normalize_3d(s_point v)
 }
 
 
-s_point find_center_mass(const_s_points points)
+s_point find_center_mass(const s_points *points)
 {
-    s_point out = points.p[0];
-    for (int ii=1; ii<points.N; ii++) {
-        out.x += points.p[ii].x;
-        out.y += points.p[ii].y;
-        out.z += points.p[ii].z;
+    s_point out = points->p[0];
+    for (int ii=1; ii<points->N; ii++) {
+        out.x += points->p[ii].x;
+        out.y += points->p[ii].y;
+        out.z += points->p[ii].z;
     }
-    out.x /= points.N;
-    out.y /= points.N;
-    out.z /= points.N;
+    out.x /= points->N;
+    out.y /= points->N;
+    out.z /= points->N;
     return out;
 }
 
@@ -431,13 +426,13 @@ s_points read_points_from_csv(const char *file)
 }
 
 
-int write_points_to_csv(const char *file, const char *f_access_mode, const const_s_points points)
+int write_points_to_csv(const char *file, const char *f_access_mode, const s_points *points)
 {
     FILE *f = fopen(file, f_access_mode);
     if (!f) goto error;
 
-    for (int ii=0; ii<points.N; ii++) {
-        if (fprintf(f, "%f, %f, %f\n", points.p[ii].x, points.p[ii].y, points.p[ii].z) < 0)
+    for (int ii=0; ii<points->N; ii++) {
+        if (fprintf(f, "%f, %f, %f\n", points->p[ii].x, points->p[ii].y, points->p[ii].z) < 0)
             goto error;
     }
 

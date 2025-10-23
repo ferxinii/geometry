@@ -7,16 +7,16 @@
 #include <assert.h>
 
 
-static ch_vertex *malloc_points_to_chvertex(const_s_points points)
+static ch_vertex *malloc_points_to_chvertex(const s_points *points)
 {
-    if (points.N <= 0) return NULL;
-    ch_vertex *out = malloc((size_t)points.N * sizeof(ch_vertex));
+    if (points->N <= 0) return NULL;
+    ch_vertex *out = malloc((size_t)points->N * sizeof(ch_vertex));
     if (!out) { puts("ERROR: malloc_points_to_chvertex"); return NULL; }
 
-    for (int ii=0; ii<points.N; ii++) {
-        out[ii].x = (CH_FLOAT) points.p[ii].x;
-        out[ii].y = (CH_FLOAT) points.p[ii].y;
-        out[ii].z = (CH_FLOAT) points.p[ii].z;
+    for (int ii=0; ii<points->N; ii++) {
+        out[ii].x = (CH_FLOAT) points->p[ii].x;
+        out[ii].y = (CH_FLOAT) points->p[ii].y;
+        out[ii].z = (CH_FLOAT) points->p[ii].z;
     }
     return out;
 }
@@ -24,7 +24,7 @@ static ch_vertex *malloc_points_to_chvertex(const_s_points points)
 
 static void initialize_normals_convhull(s_convhull convh)  // Unnormalized
 {
-    s_point ch_CM = find_center_mass(convh.points);
+    s_point ch_CM = find_center_mass(&convh.points);
 
     convh.fnormals = malloc(sizeof(s_point) * convh.Nf);
     assert(convh.fnormals != NULL);
@@ -59,16 +59,16 @@ static void initialize_normals_convhull(s_convhull convh)  // Unnormalized
 }
 
 
-int is_inside_convhull(s_convhull convh, s_point query)
+int is_inside_convhull(const s_convhull *convh, s_point query)
 {   
     // 1: inside, 0: outise, -1: in boundary
-    assert(convh.Nf > 0 && "is_inside_convhull: Nf <= 0?");
+    assert(convh->Nf > 0 && "is_inside_convhull: Nf <= 0?");
 
     int prev_sign = 0;
-    for (int f = 0; f < convh.Nf; ++f) {
-        s_point pf[3] = { convh.points.p[convh.faces[3*f + 0]],
-                          convh.points.p[convh.faces[3*f + 1]],
-                          convh.points.p[convh.faces[3*f + 2]] };
+    for (int f = 0; f < convh->Nf; ++f) {
+        s_point pf[3] = { convh->points.p[convh->faces[3*f + 0]],
+                          convh->points.p[convh->faces[3*f + 1]],
+                          convh->points.p[convh->faces[3*f + 2]] };
         
         int sign = orientation(pf, query);
 
@@ -97,24 +97,27 @@ static int inarray(const int *arr1, int N, int a)
 }
 
 
-int is_in_boundary_convhull(s_convhull convh, int point_id)
+int is_in_boundary_convhull(const s_convhull *convh, int point_id)
 {
-    return inarray(convh.faces, convh.Nf * 3, point_id);
+    return inarray(convh->faces, convh->Nf * 3, point_id);
 }
 
 
-int mark_inside_convhull(s_convhull convh, const_s_points query, int *out_mark)
+int mark_inside_convhull(const s_convhull *convh, const s_points query, int *out_mark)
 {
-    memset(out_mark, 0, sizeof(int) * convh.points.N);
+    memset(out_mark, 0, sizeof(int) * query.N);
     int count = 0;
-    for (int ii=0; ii<convh.points.N; ii++) {
-        if (is_inside_convhull(convh, query.p[ii])) out_mark[ii] = 1;
+    for (int ii=0; ii<query.N; ii++) {
+        if (is_inside_convhull(convh, query.p[ii])) {
+            out_mark[ii] = 1;
+            count++;
+        }
     }
     return count;
 }
 
 
-s_point random_point_inside_convhull(s_convhull convh, s_point min, s_point max)
+s_point random_point_inside_convhull(const s_convhull *convh, s_point min, s_point max)
 {
     int MAX_IT = 10000;
     int it = 0;
@@ -128,34 +131,34 @@ s_point random_point_inside_convhull(s_convhull convh, s_point min, s_point max)
 }
 
 
-double volume_convhull(s_convhull convh)
+double volume_convhull(const s_convhull *convh)
 {
     double vol = 0;
-    for (int ii=0; ii<convh.Nf; ii++) {
-        double Nx = convh.fnormals[ii].x;
-        vol += Nx * (convh.points.p[convh.faces[ii*3 + 0]].x +
-                     convh.points.p[convh.faces[ii*3 + 1]].x +
-                     convh.points.p[convh.faces[ii*3 + 2]].x);
+    for (int ii=0; ii<convh->Nf; ii++) {
+        double Nx = convh->fnormals[ii].x;
+        vol += Nx * (convh->points.p[convh->faces[ii*3 + 0]].x +
+                     convh->points.p[convh->faces[ii*3 + 1]].x +
+                     convh->points.p[convh->faces[ii*3 + 2]].x);
     }
     return vol / 6;
 }
 
 
-double volume_convhull_from_points(const_s_points points)
+double volume_convhull_from_points(const s_points *points)
 {
     s_convhull convh = convhull_from_points(points);   
-    double volume = volume_convhull(convh);
+    double volume = volume_convhull(&convh);
     free_convhull(&convh);
     return volume;
 }
 
 
-s_convhull convhull_from_points(const_s_points points)
+s_convhull convhull_from_points(const s_points *points)
 {
     ch_vertex *ch_vertices = malloc_points_to_chvertex(points);
 
     s_convhull out;
-    convhull_3d_build(ch_vertices, points.N, &out.faces, &out.Nf);
+    convhull_3d_build(ch_vertices, points->N, &out.faces, &out.Nf);
     initialize_normals_convhull(out); 
 
     free(ch_vertices);

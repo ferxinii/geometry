@@ -15,19 +15,13 @@ typedef struct points {
     s_point *p;
 } s_points;
 
-typedef struct const_points {
-    int N;
-    const s_point *p;
-} const_s_points;
-
 
 // Basic s_points
-static inline const_s_points make_const(s_points points);
-s_points copy_points(const_s_points points);
-void free_points(s_points points);
-s_points remove_duplicate_points(const_s_points points, double tol_dist);
+s_points copy_points(const s_points *points);
+void free_points(s_points *points);
+s_points remove_duplicate_points(const s_points *points, double tol_dist);
 s_points read_points_from_csv(const char *file);
-int write_points_to_csv(const char *file, const char *f_access_mode, const_s_points points);  // f_access_mode: "w" or "a"
+int write_points_to_csv(const char *file, const char *f_access_mode, const s_points *points);  // f_access_mode: "w" or "a"
 
 
 // Basic geometrical operations
@@ -40,10 +34,10 @@ double norm_squared(s_point v);
 double norm(s_point v);
 double distance_squared(s_point a, s_point b);
 double distance(s_point a, s_point b);
-double max_distance(const_s_points points, s_point query);
+double max_distance(const s_points *points, s_point query);
 s_point normalize_3d(s_point v);
 
-s_point find_center_mass(const_s_points points);
+s_point find_center_mass(const s_points *points);
 int coord_with_largest_component_3d(s_point n);
 s_point random_point_uniform_3d(s_point min, s_point max);
 

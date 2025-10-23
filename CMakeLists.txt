@@ -17,8 +17,7 @@ target_include_directories(geometry
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}external/predicates/include
-        ${CMAKE_CURRENT_SOURCE_DIR}external/predicates/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/external/predicates/include
 )
 
 target_compile_options(geometry
