@@ -7,10 +7,25 @@
 #include <assert.h>
 
 
-static inline const_s_points const_points(s_points points)
+static inline const_s_points make_const(s_points points)
 {
     const_s_points out = {points.N, points.p};
     return out;
+}
+
+
+s_points copy_points(const_s_points points)
+{
+    s_points copy = {.N = points.N,
+                     .p = malloc(sizeof(s_point) * points.N)};
+    memcpy(copy.p, copy.p, sizeof(s_point) * points.N);
+    return copy;
+}
+
+
+void free_points(s_points points)
+{
+    free(points.p);
 }
 
 
