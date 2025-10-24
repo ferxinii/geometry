@@ -12,7 +12,7 @@ typedef struct convhull {
 } s_convhull;
 
 
-s_convhull convhull_from_points(const s_points *points); 
+s_convhull convhull_from_points(const s_points *points); // is all 0 / NULL if error 
 void free_convhull(s_convhull *convh);
 s_convhull copy_convhull(const s_convhull *in);
 

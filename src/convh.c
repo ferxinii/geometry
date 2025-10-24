@@ -22,17 +22,17 @@ static ch_vertex *malloc_points_to_chvertex(const s_points *points)
 }
 
 
-static void initialize_normals_convhull(s_convhull convh)  // Unnormalized
+static void initialize_normals_convhull(s_convhull *convh)  // Unnormalized
 {
-    s_point ch_CM = find_center_mass(&convh.points);
+    s_point ch_CM = find_center_mass(&convh->points);
 
-    convh.fnormals = malloc(sizeof(s_point) * convh.Nf);
-    assert(convh.fnormals != NULL);
+    convh->fnormals = malloc(sizeof(s_point) * convh->Nf);
+    assert(convh->fnormals != NULL);
 
-    for (int ii = 0; ii < convh.Nf; ii++) {
-        s_point v0 = convh.points.p[convh.faces[ii * 3 + 0]];
-        s_point v1 = convh.points.p[convh.faces[ii * 3 + 1]];
-        s_point v2 = convh.points.p[convh.faces[ii * 3 + 2]];
+    for (int ii = 0; ii < convh->Nf; ii++) {
+        s_point v0 = convh->points.p[convh->faces[ii * 3 + 0]];
+        s_point v1 = convh->points.p[convh->faces[ii * 3 + 1]];
+        s_point v2 = convh->points.p[convh->faces[ii * 3 + 2]];
 
         s_point d1 = subtract_points(v1, v0);
         s_point d2 = subtract_points(v2, v0);
@@ -49,12 +49,12 @@ static void initialize_normals_convhull(s_convhull convh)  // Unnormalized
         assert(o != 0);
         if (o < 0) {  // Correctly order face vertices (Right hand rule?)
             n.x = -n.x;  n.y = -n.y;  n.z = -n.z;
-            int tmp = convh.faces[ii * 3 + 1];
-            convh.faces[ii * 3 + 1] = convh.faces[ii * 3 + 2];
-            convh.faces[ii * 3 + 2] = tmp;
+            int tmp = convh->faces[ii * 3 + 1];
+            convh->faces[ii * 3 + 1] = convh->faces[ii * 3 + 2];
+            convh->faces[ii * 3 + 2] = tmp;
         }
 
-        convh.fnormals[ii] = n;
+        convh->fnormals[ii] = n;
     }
 }
 
@@ -161,7 +161,14 @@ s_convhull convhull_from_points(const s_points *points)
     out.points = copy_points(points);
 
     convhull_3d_build(ch_vertices, points->N, &out.faces, &out.Nf);
-    initialize_normals_convhull(out); 
+
+    if (!out.faces) {
+        out.Nf = 0;
+        free_points(&out.points);
+        out.fnormals = NULL;
+    } else {
+        initialize_normals_convhull(&out); 
+    }
 
     free(ch_vertices);
     return out;
