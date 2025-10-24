@@ -14,6 +14,9 @@ typedef struct convhull {
 
 s_convhull convhull_from_points(const s_points *points); 
 void free_convhull(s_convhull *convh);
+s_convhull copy_convhull(const s_convhull *in);
+
+void convh_get_face(const s_convhull *convh, int id, s_point out[3]);
 
 int is_inside_convhull(const s_convhull *convh, s_point query);  // 1: inside, 0: outise, -1: in boundary
 int is_in_boundary_convhull(const s_convhull *convh, int point_id);

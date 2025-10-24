@@ -158,6 +158,8 @@ s_convhull convhull_from_points(const s_points *points)
     ch_vertex *ch_vertices = malloc_points_to_chvertex(points);
 
     s_convhull out;
+    out.points = copy_points(points);
+
     convhull_3d_build(ch_vertices, points->N, &out.faces, &out.Nf);
     initialize_normals_convhull(out); 
 
@@ -175,3 +177,22 @@ void free_convhull(s_convhull *convh)
 }
 
 
+s_convhull copy_convhull(const s_convhull *in)
+{
+    s_convhull out;
+    out.points = copy_points(&in->points);
+    out.Nf = in->Nf;
+    out.faces = malloc(sizeof(int) * 3 * in->Nf);
+    memcpy(out.faces, in->faces, sizeof(int) * 3 * in->Nf);
+    out.fnormals = malloc(sizeof(s_point) * in->Nf);
+    memcpy(out.fnormals, in->fnormals, sizeof(s_point) * in->Nf);
+    return out;
+}
+
+
+void convh_get_face(const s_convhull *convh, int id, s_point *out)
+{
+    out[0] = convh->points.p[convh->faces[id*3+0]];
+    out[1] = convh->points.p[convh->faces[id*3+1]];
+    out[2] = convh->points.p[convh->faces[id*3+2]];
+}
