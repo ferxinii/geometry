@@ -163,6 +163,7 @@ s_convhull convhull_from_points(const s_points *points)
     convhull_3d_build(ch_vertices, points->N, &out.faces, &out.Nf);
 
     if (!out.faces) {
+        fprintf(stderr, "convhull_from_points: Error in convhull_3d_build\n");
         out.Nf = 0;
         free_points(&out.points);
         out.fnormals = NULL;
