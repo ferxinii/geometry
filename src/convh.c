@@ -147,6 +147,7 @@ double volume_convhull(const s_convhull *convh)
 double volume_convhull_from_points(const s_points *points)
 {
     s_convhull convh = convhull_from_points(points);   
+    if (convh.Nf == 0) return 0;
     double volume = volume_convhull(&convh);
     free_convhull(&convh);
     return volume;
