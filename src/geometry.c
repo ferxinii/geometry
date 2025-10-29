@@ -12,7 +12,7 @@ s_points copy_points(const s_points *points)
 {
     s_points copy = {.N = points->N,
                      .p = malloc(sizeof(s_point) * points->N)};
-    memcpy(copy.p, copy.p, sizeof(s_point) * points->N);
+    memcpy(copy.p, points->p, sizeof(s_point) * points->N);
     return copy;
 }
 
