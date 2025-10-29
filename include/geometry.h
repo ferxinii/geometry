@@ -22,6 +22,7 @@ void free_points(s_points *points);
 s_points remove_duplicate_points(const s_points *points, double tol_dist);
 s_points read_points_from_csv(const char *file);
 int write_points_to_csv(const char *file, const char *f_access_mode, const s_points *points);  // f_access_mode: "w" or "a"
+void print_points(const s_points *points);
 
 
 // Basic geometrical operations

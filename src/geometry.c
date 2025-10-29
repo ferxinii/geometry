@@ -24,6 +24,15 @@ void free_points(s_points *points)
 }
 
 
+void print_points(const s_points *points)
+{
+    for (int ii=0; ii<points->N; ii++) {
+        printf("%f, %f, %f\n", points->p[ii].x, points->p[ii].y, points->p[ii].z);
+    }
+}
+
+
+
 int orientation(const s_point p[3], s_point q)
 {
     double aux = orient3d(p[0].coords, p[1].coords, p[2].coords, q.coords);
