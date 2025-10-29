@@ -343,33 +343,34 @@ int point_in_triangle_3d(const s_point triangle[3], s_point p)
 }
 
 
-void remove_duplicate_points(const s_point *points, int N, double tol_dist, s_point **out, int *Nout)
+s_points remove_duplicate_points(const s_points *points, double tol_dist)
 {
     double tol2 = tol_dist * tol_dist;
 
-    int *mark_dup = malloc(sizeof(int) * N);
-    memset(mark_dup, 0, sizeof(int) * N);
+    int *mark_dup = malloc(sizeof(int) * points->N);
+    memset(mark_dup, 0, sizeof(int) * points->N);
 
-    for(int ii=0; ii<N-1; ii++) {
-        for (int jj=ii+1; jj<N; jj++) {
-            double d2 = distance_squared(points[ii], points[jj]);
+    for(int ii=0; ii<points->N-1; ii++) {
+        for (int jj=ii+1; jj<points->N; jj++) {
+            double d2 = distance_squared(points->p[ii], points->p[jj]);
             if (d2 <= tol2) mark_dup[jj] = 1;
         }
     }
 
     int count_dup = 0;
-    for (int ii=0; ii<N; ii++) {
+    for (int ii=0; ii<points->N; ii++) {
         if (mark_dup[ii] == 1) count_dup++;
     }
-    *Nout = N - count_dup;  
 
-    *out = malloc(sizeof(s_point) * (N - count_dup));
+    s_points out = { .N = points->N - count_dup, 
+                     .p = malloc(sizeof(s_point) * (points->N - count_dup)) };
     int jj = 0;
-    for (int ii=0; ii<N; ii++) {
-        if (mark_dup[ii] == 0) (*out)[jj++] = points[ii];
+    for (int ii=0; ii<points->N; ii++) {
+        if (mark_dup[ii] == 0) out.p[jj++] = points->p[ii];
     }
 
     free(mark_dup);
+    return out;
 } 
 
 
