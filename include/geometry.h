@@ -38,7 +38,7 @@ double distance(s_point a, s_point b);
 double max_distance(const s_points *points, s_point query);
 s_point normalize_3d(s_point v);
 
-s_point find_center_mass(const s_points *points);
+s_point point_average(const s_points *points);
 int coord_with_largest_component_3d(s_point n);
 s_point random_point_uniform_3d(s_point min, s_point max);
 
