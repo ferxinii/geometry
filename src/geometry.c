@@ -363,9 +363,26 @@ int point_in_triangle_2d(const s_point triangle[3], s_point p)
 
 int point_in_triangle_3d(const s_point triangle[3], s_point p)
 {
-    s_point aux = closest_point_on_triangle(triangle, p);
-    if (distance_squared(aux, p) < 1e-6) return 1;
-    else return 0;
+    s_point d1 = subtract_points(triangle[1], triangle[0]);
+    s_point d2 = subtract_points(triangle[2], triangle[0]);
+    s_point n = cross_prod(d1, d2);
+
+    int drop_coord = coord_with_largest_component_3d(n);
+
+    if (orientation(triangle, p) != 0) return 0;
+
+    int i1, i2;
+    if (drop_coord == 0) {      i1 = 1;     i2 = 2; }
+    else if (drop_coord == 1) { i1 = 2;     i2 = 0; }
+    else {                      i1 = 0;     i2 = 1; }
+    
+    s_point v1 = {{{triangle[0].coords[i1], triangle[0].coords[i2], 0}}};
+    s_point v2 = {{{triangle[1].coords[i1], triangle[1].coords[i2], 0}}};
+    s_point v3 = {{{triangle[2].coords[i1], triangle[2].coords[i2], 0}}};
+    s_point triangle2d[3] = {v1, v2, v3};
+    s_point paux = {{{p.coords[i1], p.coords[i2], 0}}};
+
+    return point_in_triangle_2d(triangle2d, paux);
 }
 
 
