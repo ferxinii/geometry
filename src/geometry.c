@@ -154,7 +154,7 @@ s_point normalize_3d(s_point v)
 }
 
 
-s_point find_center_mass(const s_points *points)
+s_point point_average(const s_points *points)
 {
     s_point out = points->p[0];
     for (int ii=1; ii<points->N; ii++) {
