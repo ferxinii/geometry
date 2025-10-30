@@ -100,7 +100,7 @@ int is_inside_convhull(const s_convhull *convh, s_point query)
         int sign = orientation(pf, query);
 
         if (sign == 0) {  // Point is coplanar
-            if (point_in_triangle_3d(pf, query)) {
+            if (in_triangle_3d(pf, query)) {
                 return -1;
             } else continue;
         }

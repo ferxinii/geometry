@@ -352,39 +352,37 @@ s_point closest_point_on_segment(const s_point segment[2], s_point p)
 }
 
 
-int point_in_triangle_2d(const s_point triangle[3], s_point p)
+int in_triangle_2d(const double a[2], const double b[2], const double c[2], const double p[2])
 {
-    int o1 = orient2d(triangle[0].coords, triangle[1].coords, p.coords);
-    int o2 = orient2d(triangle[1].coords, triangle[2].coords, p.coords);
-    int o3 = orient2d(triangle[2].coords, triangle[0].coords, p.coords);
-    
-    // Find reference sign (non-zero)
-    int signs[3] = {o1, o2, o3};
-    int ref_sign = 0;
-    for (int ii=0; ii<3; ii++) {
-        if (signs[ii] != 0) {
-            ref_sign = signs[ii];
-            break;
-        }
-    }
-    // if (ref_sign == 0) {
-    //     fprintf(stderr, "point_in_triangle_2d: ref_sign == 0\n");
-    //     fprintf(stderr, "%f, %f, %f\n", triangle[0].x, triangle[0].y, triangle[0].z);
-    //     fprintf(stderr, "%f, %f, %f\n", triangle[1].x, triangle[1].y, triangle[1].z);
-    //     fprintf(stderr, "%f, %f, %f\n", triangle[2].x, triangle[2].y, triangle[2].z);
-    //     fprintf(stderr, "%f, %f, %f\n", p.x, p.y, p.z);
-    //     exit(1);
-    // }
-    assert(ref_sign != 0);
+    assert(orient2d(a, b, c) != 0 && "Degenerate 2D triangle");
 
-    for (int ii=0; ii<3; ii++) {
-        if (signs[ii] != 0 && signs[ii] != ref_sign) return 0;
-    }
+    double o1 = orient2d(a, b, p);
+    double o2 = orient2d(b, c, p);
+    double o3 = orient2d(c, a, p);
+    int s1 = (o1 > 0) - (o1 < 0);
+    int s2 = (o2 > 0) - (o2 < 0);
+    int s3 = (o3 > 0) - (o3 < 0);
+    
+    // Find reference sign (non-zero) (guaranteed to exist because non_degenerate != 0)
+    int ref = (s1 != 0) ? s1 : ((s2 != 0) ? s2 : s3);
+    assert(ref != 0);
+    
+    // If any non-zero orientation disagrees, it's outside
+    if ((s1 != 0 && s1 != ref) || 
+        (s2 != 0 && s2 != ref) || 
+        (s3 != 0 && s3 != ref))
+        return 0;
+
+    // If any orientation is exactly zero, point is on an edge or vertex 
+    // However, we already know the point is NOT outside , so the only possibility is that 
+    // it lies in an edge or a vertex
+    if (s1 == 0 || s2 == 0 || s3 == 0) return -1;
+
     return 1;
 }
 
 
-int point_in_triangle_3d(const s_point triangle[3], s_point p)
+int in_triangle_3d(const s_point triangle[3], s_point p)
 {
     // First chacke if it is not coplanar
     if (orientation(triangle, p) != 0) return 0;
@@ -402,17 +400,16 @@ int point_in_triangle_3d(const s_point triangle[3], s_point p)
     s_point t2 = normalize_3d(cross_prod(n, t1));
 
     // Build new triangle (lives in 2D)   
-    s_point v1 = {{{dot_prod(triangle[0], t1), dot_prod(triangle[0], t2), 0}}};
-    s_point v2 = {{{dot_prod(triangle[1], t1), dot_prod(triangle[1], t2), 0}}};
-    s_point v3 = {{{dot_prod(triangle[2], t1), dot_prod(triangle[2], t2), 0}}};
-    s_point triangle2d[3] = {v1, v2, v3};
-    s_point paux = {{{dot_prod(p, t1), dot_prod(p, t2), 0}}};
+    double v1[2] = {dot_prod(triangle[0], t1), dot_prod(triangle[0], t2)};
+    double v2[2] = {dot_prod(triangle[1], t1), dot_prod(triangle[1], t2)};
+    double v3[2] = {dot_prod(triangle[2], t1), dot_prod(triangle[2], t2)};
+    double paux[2] = {dot_prod(p, t1), dot_prod(p, t2)};
 
-    return point_in_triangle_2d(triangle2d, paux);
+    return in_triangle_2d(v1, v2, v3, paux);
 }
 
 
-int point_in_tetrahedron(const s_point tetra[4], s_point query)
+int in_tetrahedron(const s_point tetra[4], s_point query)
 {
     s_point tmp[3];
 
@@ -429,7 +426,10 @@ int point_in_tetrahedron(const s_point tetra[4], s_point query)
     tmp[0] = tetra[0];   tmp[1] = tetra[2];   tmp[2] = tetra[1];
     int e3 = orientation(tmp, tetra[3]);
 
-    if (e0 == 0 || e1 == 0 || e2 == 0 || e3 == 0) return 0;  // Tetra degenerate -> treat as outside
+    if (e0 == 0 || e1 == 0 || e2 == 0 || e3 == 0) {
+        fprintf(stderr, "Tetrahedron is degenerate.\n");
+        exit(1);
+    }
 
     // Compute signs for the query
     tmp[0] = tetra[1];   tmp[1] = tetra[2];   tmp[2] = tetra[3];
@@ -457,7 +457,7 @@ int point_in_tetrahedron(const s_point tetra[4], s_point query)
     if (zeros == 2) return -2;  // on edge 
     if (zeros == 3) return -3;  // at vertex 
 
-    /* should not reach here (zeros can't be 4 because tetra not degenerate) */
+    // should not reach here (zeros can't be 4 because tetra not degenerate)
     fprintf(stderr, "Could not determine if point is inside tetrahedron.");
     exit(1);
 }

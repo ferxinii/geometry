@@ -50,9 +50,9 @@ int between_1d(double x, double a, double b, double eps);
 int segments_intersect_2d(const s_point AB[2], const s_point pd[2]);
 s_point closest_point_on_triangle(const s_point triangle[3], s_point p);
 s_point closest_point_on_segment(const s_point segment[2], s_point p);
-int point_in_triangle_2d(const s_point triangle[3], s_point p);
-int point_in_triangle_3d(const s_point triangle[3], s_point p);
-int point_in_tetrahedron(const s_point tetra[4], s_point query);
+int in_triangle_2d(const double a[2], const double b[2], const double c[2], const double p[2]);
+int in_triangle_3d(const s_point triangle[3], s_point p);
+int in_tetrahedron(const s_point tetra[4], s_point query);
 
 
 // Predicates:
