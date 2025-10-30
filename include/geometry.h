@@ -51,6 +51,7 @@ s_point closest_point_on_triangle(const s_point triangle[3], s_point p);
 s_point closest_point_on_segment(const s_point segment[2], s_point p);
 int point_in_triangle_2d(const s_point triangle[3], s_point p);
 int point_in_triangle_3d(const s_point triangle[3], s_point p);
+int point_in_tetrahedron(const s_point tetra[4], s_point query);
 
 
 // Predicates:

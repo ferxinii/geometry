@@ -386,6 +386,57 @@ int point_in_triangle_3d(const s_point triangle[3], s_point p)
 }
 
 
+int point_in_tetrahedron(const s_point tetra[4], s_point query)
+{
+    s_point tmp[3];
+
+    // First compute reference signs
+    tmp[0] = tetra[1];   tmp[1] = tetra[2];   tmp[2] = tetra[3];
+    int e0 = orientation(tmp, tetra[0]);
+
+    tmp[0] = tetra[0];   tmp[1] = tetra[3];   tmp[2] = tetra[2];
+    int e1 = orientation(tmp, tetra[1]);
+
+    tmp[0] = tetra[0];   tmp[1] = tetra[1];   tmp[2] = tetra[3];
+    int e2 = orientation(tmp, tetra[2]);
+
+    tmp[0] = tetra[0];   tmp[1] = tetra[2];   tmp[2] = tetra[1];
+    int e3 = orientation(tmp, tetra[3]);
+
+    if (e0 == 0 || e1 == 0 || e2 == 0 || e3 == 0) return 0;  // Tetra degenerate -> treat as outside
+
+    // Compute signs for the query
+    tmp[0] = tetra[1];   tmp[1] = tetra[2];   tmp[2] = tetra[3];
+    int s0 = orientation(tmp, query);
+
+    tmp[0] = tetra[0];   tmp[1] = tetra[3];   tmp[2] = tetra[2];
+    int s1 = orientation(tmp, query);
+
+    tmp[0] = tetra[0];   tmp[1] = tetra[1];   tmp[2] = tetra[3];
+    int s2 = orientation(tmp, query);
+
+    tmp[0] = tetra[0];   tmp[1] = tetra[2];   tmp[2] = tetra[1];
+    int s3 = orientation(tmp, query);
+
+    if ((s0 != 0 && s0 * e0 < 0) ||
+        (s1 != 0 && s1 * e1 < 0) ||
+        (s2 != 0 && s2 * e2 < 0) ||
+        (s3 != 0 && s3 * e3 < 0))
+        return 0;
+    
+    // Count how many face-orientations are exactly zero
+    int zeros = (s0 == 0) + (s1 == 0) + (s2 == 0) + (s3 == 0);
+    if (zeros == 0) return 1;   // strictly inside
+    if (zeros == 1) return -1;  // on face interior
+    if (zeros == 2) return -2;  // on edge 
+    if (zeros == 3) return -3;  // at vertex 
+
+    /* should not reach here (zeros can't be 4 because tetra not degenerate) */
+    fprintf(stderr, "Could not determine if point is inside tetrahedron.");
+    exit(1);
+}
+
+
 s_points remove_duplicate_points(const s_points *points, double tol_dist)
 {
     double tol2 = tol_dist * tol_dist;
