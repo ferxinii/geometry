@@ -14,6 +14,6 @@ set_target_properties(predicates PROPERTIES
 
 target_compile_options(predicates
     PRIVATE
-        -Wno-deprecated-non-prototype -O3 -fno-fast-math
+        -Wno-deprecated-non-prototype -fno-sanitize=address -fno-fast-math -O3 
 )
 

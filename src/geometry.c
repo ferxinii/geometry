@@ -4,6 +4,7 @@
 #include "stdio.h"
 #include <math.h>
 #include <assert.h>
+#include <stdatomic.h>
 
 
 
@@ -32,12 +33,57 @@ void print_points(const s_points *points)
 
 
 
+// --------- PREDICATES -------------
+static atomic_flag predicates_init_flag = ATOMIC_FLAG_INIT;
+static inline void ensure_predicates_initialized(void)
+{
+    if (!atomic_flag_test_and_set(&predicates_init_flag)) {
+        exactinit();
+    }
+
+}
+
+static double max_abs_coord_insphere(const s_point p[4], const s_point *q)
+{
+    double m = 0.0;
+    for (int i=0; i<4; i++) {
+        m = fmax(m, fabs(p[i].x));
+        m = fmax(m, fabs(p[i].y));
+        m = fmax(m, fabs(p[i].z));
+    }
+    m = fmax(m, fabs(q->x));
+    m = fmax(m, fabs(q->y));
+    m = fmax(m, fabs(q->z));
+    return m;
+}
+
+static double max_abs_coord_orientation(const s_point p[3], const s_point *q)
+{
+    double m = 0.0;
+    for (int i=0; i<3; i++) {
+        m = fmax(m, fabs(p[i].x));
+        m = fmax(m, fabs(p[i].y));
+        m = fmax(m, fabs(p[i].z));
+    }
+    m = fmax(m, fabs(q->x));
+    m = fmax(m, fabs(q->y));
+    m = fmax(m, fabs(q->z));
+    return m;
+}
+
 int orientation(const s_point p[3], s_point q)
 {
-    static int exact_init = 0;
-    if (exact_init == 0) {
-        exactinit();
-        exact_init = 1;
+    ensure_predicates_initialized();
+
+    // Check for duplicates
+    double EPS2 = 1e-24 * max_abs_coord_orientation(p, &q);
+    if ( norm_squared(subtract_points(p[0], q))    < EPS2 ||
+         norm_squared(subtract_points(p[1], q))    < EPS2 ||
+         norm_squared(subtract_points(p[2], q))    < EPS2 ||
+         norm_squared(subtract_points(p[0], p[1])) < EPS2 ||
+         norm_squared(subtract_points(p[0], p[2])) < EPS2 ||
+         norm_squared(subtract_points(p[1], p[2])) < EPS2 ) {
+        return 0;
     }
 
     double aux = orient3d(p[0].coords, p[1].coords, p[2].coords, q.coords);
@@ -49,14 +95,27 @@ int orientation(const s_point p[3], s_point q)
 
 int in_sphere(const s_point p[4], s_point q)
 {   
-    static int exact_init = 0;
-    if (exact_init == 0) {
-        exactinit();
-        exact_init = 1;
+    ensure_predicates_initialized();
+
+    // Check for duplicates
+    double EPS2 = 1e-24 * max_abs_coord_insphere(p, &q);
+    if ( norm_squared(subtract_points(p[0], q))    < EPS2 ||
+         norm_squared(subtract_points(p[1], q))    < EPS2 ||
+         norm_squared(subtract_points(p[2], q))    < EPS2 ||
+         norm_squared(subtract_points(p[3], q))    < EPS2 ||
+         norm_squared(subtract_points(p[0], p[1])) < EPS2 ||
+         norm_squared(subtract_points(p[0], p[2])) < EPS2 ||
+         norm_squared(subtract_points(p[0], p[3])) < EPS2 ||
+         norm_squared(subtract_points(p[1], p[2])) < EPS2 ||
+         norm_squared(subtract_points(p[1], p[3])) < EPS2 ||
+         norm_squared(subtract_points(p[2], p[3])) < EPS2 ) {
+        return 0;
     }
 
+    int o = orientation(p, p[3]);
     int factor;
-    if (orientation(p, p[3]) == 1) factor = 1;
+    if (o == 0) return 0;
+    else if (o == 1) factor = 1;
     else factor = -1;
 
     double aux = insphere(p[0].coords, p[1].coords, p[2].coords, p[3].coords, q.coords);
@@ -67,6 +126,7 @@ int in_sphere(const s_point p[4], s_point q)
 }
 
 
+// ------ POINTS -------
 s_point sum_points(s_point u, s_point v)
 {
     return (s_point){{{u.x + v.x, u.y + v.y, u.z + v.z}}};
