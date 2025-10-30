@@ -24,7 +24,7 @@ static ch_vertex *malloc_points_to_chvertex(const s_points *points)
 
 static void initialize_normals_convhull(s_convhull *convh)  // Unnormalized
 {
-    s_point ch_CM = find_center_mass(&convh->points);
+    s_point ch_CM = point_average(&convh->points);
 
     convh->fnormals = malloc(sizeof(s_point) * convh->Nf);
     assert(convh->fnormals != NULL);
@@ -61,7 +61,7 @@ int convex_hull_winding_valid(const s_convhull *convh)
 {
 	assert(convh && convh->Nf > 0 && convh->points.N > 0);
 
-	s_point ch_CM = find_center_mass(&convh->points);
+	s_point ch_CM = point_average(&convh->points);
 
 	for (int ii=0; ii<convh->Nf; ii++) {
 		s_point v0 = convh->points.p[convh->faces[3*ii + 0]];
@@ -78,7 +78,7 @@ int convex_hull_winding_valid(const s_convhull *convh)
 		s_point to_center = subtract_points(ch_CM, fc);
 		double dp = dot_prod(n, to_center);
 		if (dp > 0.0) {
-			printf("Face %d likely inward-facing (dot = %g)\n", ii, dp);
+			fprintf(stderr, "Face %d likely inward-facing (dot = %g)\n", ii, dp);
             return 0;
 		}
 	}
