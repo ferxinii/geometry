@@ -7,17 +7,17 @@ add_library(geometry STATIC
     src/convh.c
 
     # Include the predicates .c files directly
-    external/predicates/src/constants.c
-    external/predicates/src/predicates.c
-    external/predicates/src/random.c
-    external/predicates/src/printing.c
+    # external/predicates/src/constants.c
+    # external/predicates/src/predicates.c
+    # external/predicates/src/random.c
+    # external/predicates/src/printing.c
 )
 
 target_include_directories(geometry
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/external/predicates/include
+    # PRIVATE
+        # ${CMAKE_CURRENT_SOURCE_DIR}/external/predicates/include
 )
 
 target_compile_options(geometry
@@ -29,8 +29,13 @@ if (NOT TARGET convhull_3d)
     add_subdirectory(external/convhull_3d)
 endif()
 
+if (NOT TARGET predicates)
+    add_subdirectory(external/predicates_shewchuck)
+endif()
+
 target_link_libraries(geometry
     PRIVATE
         convhull_3d
+        predicates
 )
 

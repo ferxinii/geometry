@@ -1,5 +1,4 @@
 #include "geometry.h"
-#include "predicates.h"
 #include "string.h"
 #include "stdlib.h"
 #include "stdio.h"
@@ -35,6 +34,12 @@ void print_points(const s_points *points)
 
 int orientation(const s_point p[3], s_point q)
 {
+    static int exact_init = 0;
+    if (exact_init == 0) {
+        exactinit();
+        exact_init = 1;
+    }
+
     double aux = orient3d(p[0].coords, p[1].coords, p[2].coords, q.coords);
     if (aux > 0) return 1;
     else if (aux < 0) return -1;
@@ -44,6 +49,11 @@ int orientation(const s_point p[3], s_point q)
 
 int in_sphere(const s_point p[4], s_point q)
 {   
+    static int exact_init = 0;
+    if (exact_init == 0) {
+        exactinit();
+        exact_init = 1;
+    }
 
     int factor;
     if (orientation(p, p[3]) == 1) factor = 1;

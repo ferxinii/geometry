@@ -56,6 +56,7 @@ int point_in_triangle_3d(const s_point triangle[3], s_point p);
 // Predicates:
 int orientation(const s_point p[3], s_point q);
 int in_sphere(const s_point p[4], s_point q);
+extern void exactinit(void);
 extern double orient2d(const double *pa, const double *pb, const double *pc);
 extern double orient3d(const double *pa, const double *pb, const double *pc, const double *pd);
 extern double incircle(const double *pa, const double *pb, const double *pc, const double *pd);

@@ -10,7 +10,7 @@ target_include_directories(convhull_3d
 )
 
 target_compile_options(convhull_3d
-    PUBLIC
+    PRIVATE
         -Wall -Wextra -Werror -O3
 )
 
