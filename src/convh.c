@@ -59,8 +59,37 @@ static void initialize_normals_convhull(s_convhull *convh)  // Unnormalized
 }
 
 
+void test_convex_hull_winding(const s_convhull *convh)
+{
+	assert(convh && convh->Nf > 0 && convh->points.N > 0);
+
+	s_point ch_CM = find_center_mass(&convh->points);
+
+	for (int ii=0; ii<convh->Nf; ii++) {
+		s_point v0 = convh->points.p[convh->faces[3*ii + 0]];
+		s_point v1 = convh->points.p[convh->faces[3*ii + 1]];
+		s_point v2 = convh->points.p[convh->faces[3*ii + 2]];
+
+		s_point n = cross_prod(subtract_points(v1, v0), subtract_points(v2, v0));
+		s_point fc = {{{
+			(v0.x + v1.x + v2.x) / 3.0,
+			(v0.y + v1.y + v2.y) / 3.0,
+			(v0.z + v1.z + v2.z) / 3.0
+		}}};
+
+		s_point to_center = subtract_points(ch_CM, fc);
+		double dp = dot_prod(n, to_center);
+		if (dp > 0.0) {
+			printf("Face %d likely inward-facing (dot = %g)\n", ii, dp);
+		}
+	}
+	printf("Winding test complete.\n");
+}
+
+
 int is_inside_convhull(const s_convhull *convh, s_point query)
 {   
+    test_convex_hull_winding(convh);
     // 1: inside, 0: outise, -1: in boundary
     assert(convh->Nf > 0 && "is_inside_convhull: Nf <= 0?");
 
@@ -135,7 +164,7 @@ double volume_convhull(const s_convhull *convh)
 {
     double vol = 0;
     for (int ii=0; ii<convh->Nf; ii++) {
-        double Nx = convh->fnormals[ii].x;
+        double Nx = convh->fnormals[ii].x / norm(convh->fnormals[ii]);
         vol += Nx * (convh->points.p[convh->faces[ii*3 + 0]].x +
                      convh->points.p[convh->faces[ii*3 + 1]].x +
                      convh->points.p[convh->faces[ii*3 + 2]].x);
