@@ -40,6 +40,7 @@ s_point normalize_3d(s_point v);
 
 s_point point_average(const s_points *points);
 int coord_with_largest_component_3d(s_point n);
+int coord_with_smallest_component_3d(s_point v);
 s_point random_point_uniform_3d(s_point min, s_point max);
 
 

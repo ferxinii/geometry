@@ -150,6 +150,7 @@ double max_distance(const s_points *points, s_point query)
 s_point normalize_3d(s_point v)
 {
     double n = norm(v);
+    assert(n > 1e-14 && "Degenerate vector"); 
     return (s_point){{{v.x/n, v.y/n, v.z/n}}};
 }
 
@@ -169,13 +170,27 @@ s_point point_average(const s_points *points)
 }
 
 
-int coord_with_largest_component_3d(s_point x)
+int coord_with_largest_component_3d(s_point v)
 {
-    double *n = x.coords;
-    int out = 2;
-    if (fabs(n[0]) > fabs(n[1]) && fabs(n[0]) > fabs(n[2])) out = 0;
-    else if (fabs(n[1]) > fabs(n[0]) && fabs(n[1]) > fabs(n[2])) out = 1;
-    return out;
+    double a = fabs(v.coords[0]);
+    double b = fabs(v.coords[1]);
+    double c = fabs(v.coords[2]);
+
+    if (a >= b && a >= c) return 0;
+    if (b >= a && b >= c) return 1;
+    return 2;
+}
+
+
+int coord_with_smallest_component_3d(s_point v)
+{
+    double a = fabs(v.coords[0]);
+    double b = fabs(v.coords[1]);
+    double c = fabs(v.coords[2]);
+
+    if (a <= b && a <= c) return 0;
+    if (b <= a && b <= c) return 1;
+    return 2;
 }
 
 
@@ -352,6 +367,14 @@ int point_in_triangle_2d(const s_point triangle[3], s_point p)
             break;
         }
     }
+    // if (ref_sign == 0) {
+    //     fprintf(stderr, "point_in_triangle_2d: ref_sign == 0\n");
+    //     fprintf(stderr, "%f, %f, %f\n", triangle[0].x, triangle[0].y, triangle[0].z);
+    //     fprintf(stderr, "%f, %f, %f\n", triangle[1].x, triangle[1].y, triangle[1].z);
+    //     fprintf(stderr, "%f, %f, %f\n", triangle[2].x, triangle[2].y, triangle[2].z);
+    //     fprintf(stderr, "%f, %f, %f\n", p.x, p.y, p.z);
+    //     exit(1);
+    // }
     assert(ref_sign != 0);
 
     for (int ii=0; ii<3; ii++) {
@@ -363,24 +386,27 @@ int point_in_triangle_2d(const s_point triangle[3], s_point p)
 
 int point_in_triangle_3d(const s_point triangle[3], s_point p)
 {
-    s_point d1 = subtract_points(triangle[1], triangle[0]);
-    s_point d2 = subtract_points(triangle[2], triangle[0]);
-    s_point n = cross_prod(d1, d2);
-
-    int drop_coord = coord_with_largest_component_3d(n);
-
+    // First chacke if it is not coplanar
     if (orientation(triangle, p) != 0) return 0;
 
-    int i1, i2;
-    if (drop_coord == 0) {      i1 = 1;     i2 = 2; }
-    else if (drop_coord == 1) { i1 = 2;     i2 = 0; }
-    else {                      i1 = 0;     i2 = 1; }
-    
-    s_point v1 = {{{triangle[0].coords[i1], triangle[0].coords[i2], 0}}};
-    s_point v2 = {{{triangle[1].coords[i1], triangle[1].coords[i2], 0}}};
-    s_point v3 = {{{triangle[2].coords[i1], triangle[2].coords[i2], 0}}};
+    // If it is coplanar, change to 2D coordinates in the plane
+    s_point d1 = subtract_points(triangle[1], triangle[0]);
+    s_point d2 = subtract_points(triangle[2], triangle[0]);
+    s_point n = normalize_3d(cross_prod(d1, d2));
+
+    int ref_coord = coord_with_smallest_component_3d(n);
+    s_point ref = (ref_coord == 0) ?   (s_point){{{1,0,0}}} :
+                  ( (ref_coord == 1) ? (s_point){{{0,1,0}}} :
+                                       (s_point){{{0,0,1}}} );
+    s_point t1 = normalize_3d(cross_prod(ref, n));
+    s_point t2 = normalize_3d(cross_prod(n, t1));
+
+    // Build new triangle (lives in 2D)   
+    s_point v1 = {{{dot_prod(triangle[0], t1), dot_prod(triangle[0], t2), 0}}};
+    s_point v2 = {{{dot_prod(triangle[1], t1), dot_prod(triangle[1], t2), 0}}};
+    s_point v3 = {{{dot_prod(triangle[2], t1), dot_prod(triangle[2], t2), 0}}};
     s_point triangle2d[3] = {v1, v2, v3};
-    s_point paux = {{{p.coords[i1], p.coords[i2], 0}}};
+    s_point paux = {{{dot_prod(p, t1), dot_prod(p, t2), 0}}};
 
     return point_in_triangle_2d(triangle2d, paux);
 }
