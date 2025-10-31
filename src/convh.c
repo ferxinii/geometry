@@ -130,7 +130,16 @@ int is_in_boundary_convhull(const s_convhull *convh, int point_id)
 }
 
 
-int mark_inside_convhull(const s_convhull *convh, const s_points query, int *out_mark)
+void indicator_boundary_convhull(const s_convhull *convh, int out[convh->points.N])
+{
+    memset(out, 0, sizeof(int) * convh->points.N);
+    for (int ii=0; ii<convh->points.N; ii++) {
+        if (is_in_boundary_convhull(convh, ii)) out[ii] = 1;       
+    }
+}
+
+
+int points_inside_convhull(const s_convhull *convh, const s_points query, int out_mark[query.N])
 {
     memset(out_mark, 0, sizeof(int) * query.N);
     int count = 0;

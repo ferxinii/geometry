@@ -1,1 +1,2 @@
 [ ] Revise "is inside XXX functions..." what if point is coplanar with a face, but not inside it? Make an enum to determine which case is happening?
+[ ] Make into smaller .c files?

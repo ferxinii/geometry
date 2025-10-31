@@ -20,7 +20,8 @@ void convh_get_face(const s_convhull *convh, int id, s_point out[3]);
 
 int is_inside_convhull(const s_convhull *convh, s_point query);  // 1: inside, 0: outise, -1: in boundary
 int is_in_boundary_convhull(const s_convhull *convh, int point_id);
-int mark_inside_convhull(const s_convhull *convh, const s_points query, int *out_mark);
+void mark_boundary_convhull(const s_convhull *convh, int out[convh->points.N]);
+int points_inside_convhull(const s_convhull *convh, const s_points query, int out_mark[query.N]);
 
 s_point random_point_inside_convhull(const s_convhull *convh, s_point min, s_point max);
 
