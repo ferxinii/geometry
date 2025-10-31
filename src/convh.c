@@ -99,10 +99,10 @@ int is_inside_convhull(const s_convhull *convh, s_point query)
         
         int sign = orientation(pf, query);
 
-        if (sign == 0) {  // Point is coplanar
+        if (sign == 0) {  // Point is coplanar, so it is either on the face or not
             if (in_triangle_3d(pf, query) != 0) {
                 return -1;
-            } else continue;
+            } else return 0;
         }
 
         // if we've already seen a non-zero sign, it must match
