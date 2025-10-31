@@ -147,12 +147,23 @@ double max_distance(const s_points *points, s_point query)
 }
 
 
+s_point scale_point(s_point a, double s)
+{
+    s_point out = a;
+    out.x *= s;
+    out.y *= s;
+    out.z *= s;
+    return out;
+}
+
+
 s_point normalize_3d(s_point v)
 {
     double n = norm(v);
     assert(n > 1e-14 && "Degenerate vector"); 
-    return (s_point){{{v.x/n, v.y/n, v.z/n}}};
+    return scale_point(v, 1.0/n);
 }
+
 
 
 s_point point_average(const s_points *points)
@@ -572,4 +583,72 @@ double volume_tetrahedron_approx(s_point p1, s_point p2, s_point p3, s_point p4)
     return fabs(1.0/6.0 * orient3d(p1.coords, p2.coords, p3.coords, p4.coords));
 }
 
+
+
+
+int points_inside_halfspace(const s_point plane_ordered[3], s_points points, int out[points.N])
+{   // Right hand rule: normal outwards
+    int count = 0;
+    memset(out, 0, sizeof(int) * points.N);
+
+    for (int ii=0; ii<points.N; ii++) {
+        int o = orientation(plane_ordered, points.p[ii]);
+        if (o == 1) {
+            out[ii] = 1;
+            count++;
+        } else if (o == 0) {
+            out[ii] = -1;
+            count++;
+        }
+    }
+    return count;
+}
+
+
+s_point interpolate_points(s_point a, s_point b, double t)
+{
+    s_point diff = subtract_points(b, a);
+    return sum_points(a, scale_point(diff, t));
+}
+
+
+int segment_plane_intersection(const s_point segment[2], const s_point plane[3], s_point out[2])
+{
+    // Check degenerate cases:
+    int o1 = orientation(plane, segment[0]);
+    int o2 = orientation(plane, segment[1]);
+    if (o1 == 0 && o2 == 0) {  // Whole segment in plane
+        out[0] = segment[0];
+        out[1] = segment[1];
+        return 2;
+    } else if (o1 == 0 && o2 != 0) {  // One end in plane
+        out[0] = segment[0];
+        return 1;
+    } else if (o2 == 0 && o1 != 0) {  // The other end in plane
+        out[0] = segment[1];
+        return 1;
+    } else if (o1 == o2) {  // Both ends in same side of plane
+        return 0;
+    }
+
+    // If we reach here, it means that there is a single intersection
+    // Form unit normal and unit d so s=n_unit*x-d_unit is approx signed distance
+    s_point n = cross_prod(subtract_points(plane[1], plane[0]), 
+                           subtract_points(plane[2], plane[0]));
+    s_point n_unit = normalize_3d(n);
+    double d_unit = dot_prod(n_unit, plane[0]);
+
+    // Compute signed distances (approx distances)
+    double sA = dot_prod(segment[0], n_unit) - d_unit;
+    double sB = dot_prod(segment[1], n_unit) - d_unit;
+
+    double denom = (sA - sB);
+    assert(fabs(denom) > 1e-12 && "denom is too small");
+
+    double t = sA / denom;
+    assert(t < 1 && t > 0 && "interpolation parameter out of range");
+
+    out[0] = interpolate_points(segment[0], segment[1], t);
+    return 1;
+}
 

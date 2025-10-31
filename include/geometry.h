@@ -36,7 +36,10 @@ double norm(s_point v);
 double distance_squared(s_point a, s_point b);
 double distance(s_point a, s_point b);
 double max_distance(const s_points *points, s_point query);
+s_point scale_point(s_point a, double s);
 s_point normalize_3d(s_point v);
+s_point interpolate_points(s_point a, s_point b, double t);
+
 
 s_point point_average(const s_points *points);
 int coord_with_largest_component_3d(s_point n);
@@ -55,6 +58,7 @@ int in_triangle_3d(const s_point triangle[3], s_point p);
 int in_tetrahedron(const s_point tetra[4], s_point query);
 
 
+
 // Predicates:
 int orientation(const s_point p[3], s_point q);
 int in_sphere(const s_point p[4], s_point q);
@@ -66,5 +70,11 @@ extern double insphere(const double *pa, const double *pb, const double *pc, con
 
 
 double volume_tetrahedron_approx(s_point p1, s_point p2, s_point p3, s_point p4);
+
+
+int points_inside_halfspace(const s_point abc_ordered[3], s_points points, int out[points.N]);
+int segment_plane_intersection(const s_point segment[2], const s_point plane[3], s_point out[2]);
+
+
 
 #endif

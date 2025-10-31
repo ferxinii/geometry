@@ -193,6 +193,8 @@ s_point random_point_inside_convhull(const s_convhull *convh, s_point min, s_poi
 
 double volume_convhull(const s_convhull *convh)
 {
+    if (convh->Nf == 0) return 0;
+
     double vol = 0;
     for (int ii=0; ii<convh->Nf; ii++) {
         double Nx = convh->fnormals[ii].x;
@@ -259,9 +261,259 @@ s_convhull copy_convhull(const s_convhull *in)
 }
 
 
-void convh_get_face(const s_convhull *convh, int id, s_point *out)
+void convh_get_face(const s_convhull *convh, int id, s_point out[3])
 {
     out[0] = convh->points.p[convh->faces[id*3+0]];
     out[1] = convh->points.p[convh->faces[id*3+1]];
     out[2] = convh->points.p[convh->faces[id*3+2]];
 }
+
+
+
+
+
+
+int mark_faces_incident_to_vertex(const s_convhull *C, int vid, int out[C->Nf])
+{
+    int count = 0;
+    memset(out, 0, sizeof(int) * C->Nf);
+    for (int ii=0; ii<C->Nf; ii++) {
+        if (inarray(&C->faces[ii*3], 3, vid)) {
+            out[ii] = 1;
+            count++;
+        }
+    }
+    return count;
+}
+
+
+typedef struct edge_test {
+    int v[2];
+} s_edge_test;
+
+
+static int edge_exists(const s_edge_test *edges, int N, s_edge_test query)
+{
+    for (int ii=0; ii<N; ii++) {
+        if ( (edges[ii].v[0] == query.v[0] && edges[ii].v[1] == query.v[1]) ||
+             (edges[ii].v[0] == query.v[1] && edges[ii].v[1] == query.v[0]) )
+            return 1;
+    }
+    return 0;
+}
+
+
+static void extract_edges_face(const s_convhull *C, int fid, s_edge_test out[3])
+{
+    out[0].v[0] = C->faces[fid*3 + 0];
+    out[0].v[1] = C->faces[fid*3 + 1];
+
+    out[1].v[0] = C->faces[fid*3 + 1];
+    out[1].v[1] = C->faces[fid*3 + 2];
+
+    out[2].v[0] = C->faces[fid*3 + 2];
+    out[2].v[1] = C->faces[fid*3 + 0];
+}
+
+
+static void extract_edges_to_test(const s_convhull *C, int vid, s_edge_test **out, int *Nout)
+{
+    int marked_faces[C->Nf];
+    int Nmarked = mark_faces_incident_to_vertex(C, vid, marked_faces);
+    
+    s_edge_test *edges = malloc(sizeof(s_edge_test) * Nmarked * 3);
+    int Nedges = 0;
+
+    for (int ii=0; ii<C->Nf; ii++) {
+        if (!marked_faces[ii]) continue;
+
+        s_edge_test edges_face[3];
+        extract_edges_face(C, ii, edges_face);
+        if (!edge_exists(edges, Nedges, edges_face[0])) 
+            edges[Nedges++] = edges_face[0];
+        if (!edge_exists(edges, Nedges, edges_face[1])) 
+            edges[Nedges++] = edges_face[1];
+        if (!edge_exists(edges, Nedges, edges_face[2])) 
+            edges[Nedges++] = edges_face[2];
+    }
+
+    *Nout = Nedges;
+    *out = realloc(edges, sizeof(s_edge_test) * Nedges);
+}
+
+
+static s_points clip_faces_incident_to_vertex_with_plane(const s_convhull *C, int vid, const s_point plane[3])
+{
+    int Nedges;
+    s_edge_test *edges;
+    extract_edges_to_test(C, vid, &edges, &Nedges);
+    if (Nedges == 0) {
+        s_points empty = {0, NULL};
+        return empty;
+    }
+
+    s_points out = {.N = 0, 
+                    .p = malloc(sizeof(s_point) * Nedges * 2)};
+
+    for (int ii=0; ii<Nedges; ii++) {
+        s_point segment[2] = {C->points.p[edges[ii].v[0]], 
+                              C->points.p[edges[ii].v[1]]};
+        s_point intersections[2];
+        int Nintersections = segment_plane_intersection(segment, plane, intersections);
+        for (int jj=0; jj<Nintersections; jj++) {
+            assert(out.N < Nedges*2 && "Too many cliping vertices");
+            out.p[out.N++] = intersections[jj];
+        }
+    }
+
+    out.p = realloc(out.p, sizeof(s_point) * out.N);
+    free(edges);
+    return out;
+}
+
+
+static s_convhull clip_convhull_against_halfspace(const s_convhull *C, const s_point plane_ordered[3])
+{
+    int inside[C->points.N];
+    int Nin = points_inside_halfspace(plane_ordered, C->points, inside);
+    int Nout = C->points.N - Nin;
+
+    if (Nout == 0) return copy_convhull(C);
+
+    s_points array_points[Nout];
+    int jj = 0, N_added_vertices = 0;
+    for (int ii=0; ii<C->points.N; ii++) {
+        if (inside[ii] == 0) {
+            array_points[jj] = clip_faces_incident_to_vertex_with_plane(C, ii, plane_ordered);
+            N_added_vertices += array_points[jj].N;
+            jj++;
+        }
+    }
+
+    int Nnew = Nin + N_added_vertices;
+    s_points new_points = {.N = Nnew,
+                           .p = malloc(sizeof(s_point) * Nnew)};
+    int count = 0;
+    for (int ii=0; ii<C->points.N; ii++) {
+        if (inside[ii] == 1) new_points.p[count++] = C->points.p[ii];
+    }
+    for (int ii=0; ii<Nout; ii++) {
+        for (int jj=0; jj<array_points[ii].N; jj++) {
+            new_points.p[count++] = array_points[ii].p[jj];
+        }
+        free_points(&array_points[ii]);
+    }
+
+    s_points no_duplicates = remove_duplicate_points(&new_points, 1e-9);
+    free_points(&new_points);
+    s_convhull new_C = convhull_from_points(&no_duplicates);
+    free_points(&no_duplicates);
+    return new_C;
+}
+
+
+s_convhull intersection_convhulls(const s_convhull *A, const s_convhull *B)
+{
+    s_convhull I = copy_convhull(A);
+    for (int ii=0; ii<B->Nf; ii++) {
+        s_point face[3]; 
+        convh_get_face(B, ii, face);
+
+        s_convhull tmp = clip_convhull_against_halfspace(&I, face);
+        free_convhull(&I);
+        I = tmp;
+        if (I.points.N == 0) break;
+    }
+    return I;
+}
+
+
+static void bisector_plane(const s_convhull *A, const s_convhull *B, const s_convhull *I, s_point out[3])
+{
+    s_point cA = point_average(&A->points);
+    s_point cB = point_average(&B->points);
+    s_point cI = point_average(&I->points);
+    s_point n = subtract_points(cB, cA);
+    assert(norm(n) > 1e-9 && "Centroids are coincidental!");
+    s_point normal_n = normalize_3d(n);
+
+    int ref_coord = coord_with_smallest_component_3d(n);
+    s_point ref = (ref_coord == 0) ?   (s_point){{{1,0,0}}} :
+                  ( (ref_coord == 1) ? (s_point){{{0,1,0}}} :
+                                       (s_point){{{0,0,1}}} );
+    s_point u = normalize_3d(cross_prod(normal_n, ref));
+    s_point v = normalize_3d(cross_prod(normal_n, u));
+    s_point t1 = sum_points(cI, u);
+    s_point t2 = sum_points(cI, v);
+
+    out[0] = cI;  out[1] = t1;  out[2] = t2;
+}
+
+
+void remove_intersection_convhulls(s_convhull *A, s_convhull *B)
+{
+    s_convhull I = intersection_convhulls(A, B);
+    if (volume_convhull(&I) < 1e-9) {
+        free_convhull(&I);
+        return;
+    }
+
+    s_point plane[3];
+    bisector_plane(A, B, &I, plane);
+    
+    // Clip I against the plane
+    s_convhull IA = clip_convhull_against_halfspace(&I, plane);
+
+    s_point tmp = plane[0];
+    plane[0] = plane[1];  plane[1] = tmp;
+    s_convhull IB = clip_convhull_against_halfspace(&I, plane);
+    assert(IA.points.N > 0 && IB.points.N > 0 &&
+           "Invalid clipping of intersection with plane.");
+
+
+    
+    // Remove intersection
+    int A_mark_inside_B[A->points.N];
+    int N_A_inside_B = points_inside_convhull(B, A->points, A_mark_inside_B);
+    int N_newA = A->points.N - N_A_inside_B + IA.points.N;
+    s_points p_newA = {.N = N_newA,
+                       .p = malloc(sizeof(s_point) * N_newA)};
+    int jj=0;
+    for (int ii=0; ii<A->points.N; ii++) {
+        if (A_mark_inside_B[ii] == 0) p_newA.p[jj++] = A->points.p[ii];
+    }
+    for (int ii=0; ii<IA.points.N; ii++) {
+        p_newA.p[jj++] = IA.points.p[ii];
+    }
+    s_points p_newA_noduplicate = remove_duplicate_points(&p_newA, 1e-9);
+    s_convhull new_A = convhull_from_points(&p_newA_noduplicate);
+    free_points(&p_newA);
+    free_points(&p_newA_noduplicate);
+
+    int B_mark_inside_A[B->points.N];
+    int N_B_inside_A = points_inside_convhull(A, B->points, B_mark_inside_A);
+    int N_newB = B->points.N - N_B_inside_A + IB.points.N;
+    s_points p_newB = {.N = N_newB,
+                       .p = malloc(sizeof(s_point) * N_newB)};
+    jj=0;
+    for (int ii=0; ii<B->points.N; ii++) {
+        if (B_mark_inside_A[ii] == 0) p_newB.p[jj++] = B->points.p[ii];
+    }
+    for (int ii=0; ii<IB.points.N; ii++) {
+        p_newB.p[jj++] = IB.points.p[ii];
+    }
+    s_points p_newB_noduplicate = remove_duplicate_points(&p_newB, 1e-9);
+    s_convhull new_B = convhull_from_points(&p_newB_noduplicate);
+    free_points(&p_newB);
+    free_points(&p_newB_noduplicate);
+
+    free_convhull(A);
+    *A = new_A;
+    free_convhull(B);
+    *B = new_B;
+
+    free_convhull(&I);
+    free_convhull(&IA);
+    free_convhull(&IB);
+}
+
