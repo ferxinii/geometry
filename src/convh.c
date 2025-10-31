@@ -144,6 +144,25 @@ int mark_boundary_convhull(const s_convhull *convh, int out[convh->points.N])
 }
 
 
+s_points boundary_convhull(const s_convhull *convh)
+{
+    int is_boundary[convh->points.N];
+    int count_boundary = mark_boundary_convhull(convh, is_boundary);
+
+    s_points boundary = { .N = count_boundary, 
+                          .p = malloc(sizeof(s_point) * count_boundary)};
+
+    int jj = 0;
+    for (int ii=0; ii<convh->points.N; ii++) {
+        if (is_boundary[ii]) 
+            boundary.p[jj++] = convh->points.p[ii];
+    }
+
+    return boundary;
+}
+
+
+
 int points_inside_convhull(const s_convhull *convh, const s_points query, int out_mark[query.N])
 {
     memset(out_mark, 0, sizeof(int) * query.N);
