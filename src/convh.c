@@ -130,12 +130,17 @@ int is_in_boundary_convhull(const s_convhull *convh, int point_id)
 }
 
 
-void indicator_boundary_convhull(const s_convhull *convh, int out[convh->points.N])
+int mark_boundary_convhull(const s_convhull *convh, int out[convh->points.N])
 {
+    int count = 0;
     memset(out, 0, sizeof(int) * convh->points.N);
     for (int ii=0; ii<convh->points.N; ii++) {
-        if (is_in_boundary_convhull(convh, ii)) out[ii] = 1;       
+        if (is_in_boundary_convhull(convh, ii)) { 
+            out[ii] = 1;       
+            count++;
+        }
     }
+    return count;
 }
 
 
