@@ -237,7 +237,7 @@ int between_1d(double x, double a, double b, double eps)
 
 int segments_intersect_2d(const s_point AB[2], const s_point pd[2])
 {
-    const double EPS = 1e-9;
+    const double EPS = 1e-12;
     double Ax = AB[0].x, Ay = AB[0].y;
     double Bx = AB[1].x, By = AB[1].y;
     double px = pd[0].x, py = pd[0].y;
