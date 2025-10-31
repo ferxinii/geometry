@@ -450,12 +450,12 @@ static void bisector_plane(const s_convhull *A, const s_convhull *B, const s_con
 }
 
 
-void remove_intersection_convhulls(s_convhull *A, s_convhull *B)
+int remove_intersection_convhulls(s_convhull *A, s_convhull *B)
 {
     s_convhull I = intersection_convhulls(A, B);
     if (volume_convhull(&I) < 1e-9) {
         free_convhull(&I);
-        return;
+        return 0;
     }
 
     s_point plane[3];
@@ -515,5 +515,7 @@ void remove_intersection_convhulls(s_convhull *A, s_convhull *B)
     free_convhull(&I);
     free_convhull(&IA);
     free_convhull(&IB);
+
+    return 1;
 }
 
