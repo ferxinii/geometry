@@ -220,7 +220,9 @@ s_convhull convhull_from_points(const s_points *points)
 {
     ch_vertex *ch_vertices = malloc_points_to_chvertex(points);
 
-    s_convhull out;
+    s_convhull out = {0};
+    if (points->N == 0) return out;
+
     out.points = copy_points(points);
 
     convhull_3d_build(ch_vertices, points->N, &out.faces, &out.Nf);
@@ -378,6 +380,7 @@ static s_convhull clip_convhull_against_halfspace(const s_convhull *C, const s_p
     int Nin = points_inside_halfspace(plane_ordered, C->points, inside);
     int Nout = C->points.N - Nin;
 
+    if (Nin == 0) return (s_convhull){0};
     if (Nout == 0) return copy_convhull(C);
 
     s_points array_points[Nout];
