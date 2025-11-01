@@ -22,8 +22,9 @@ target_include_directories(geometry
 
 target_compile_options(geometry
     PRIVATE
-        -Wall -Werror -Wextra -O3
+        -Wall -Werror -Wextra
 )
+
 
 if (NOT TARGET convhull_3d)
     add_subdirectory(external/convhull_3d)
