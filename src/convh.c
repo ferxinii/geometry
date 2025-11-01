@@ -223,7 +223,8 @@ s_convhull convhull_from_points(const s_points *points)
     s_convhull out = {0};
     if (points->N == 0) return out;
 
-    out.points = copy_points(points);
+    // out.points = copy_points(points);
+    out.points = remove_duplicate_points(points, 1e-12);
 
     convhull_3d_build(ch_vertices, points->N, &out.faces, &out.Nf);
 
