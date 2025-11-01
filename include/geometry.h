@@ -73,6 +73,7 @@ double volume_tetrahedron_approx(s_point p1, s_point p2, s_point p3, s_point p4)
 
 
 int points_inside_halfspace(const s_point abc_ordered[3], s_points points, int out[points.N]);
+s_point project_point_to_plane(s_point p, const s_point plane[3]);
 int segment_plane_intersection(const s_point segment[2], const s_point plane[3], s_point out[2]);
 
 

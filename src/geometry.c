@@ -612,6 +612,20 @@ s_point interpolate_points(s_point a, s_point b, double t)
 }
 
 
+s_point project_point_to_plane(s_point p, const s_point plane[3]) 
+{
+    s_point n = cross_prod(subtract_points(plane[1], plane[0]),
+                           subtract_points(plane[2], plane[0]));
+    s_point n_unit = normalize_3d(n);
+    double d = dot_prod(n_unit, plane[0]);
+
+    double dist = dot_prod(p, n_unit) - d;
+    s_point out = subtract_points(p, scale_point(n_unit, dist));  // snap to plane
+    assert(orientation(plane, out) == 0 && "Point is not coplanar after projecting!");
+    return out;
+}
+
+
 int segment_plane_intersection(const s_point segment[2], const s_point plane[3], s_point out[2])
 {
     // Check degenerate cases:
@@ -632,26 +646,26 @@ int segment_plane_intersection(const s_point segment[2], const s_point plane[3],
     }
 
     // Near-repeated points (not captured by orientation)
-    double EPS2 = 1e-14;
+    double EPS = 1e-12;
     int s0 = 0, s1 = 0;
-    if (norm_squared(subtract_points(plane[0], segment[0])) < EPS2 ||
-        norm_squared(subtract_points(plane[1], segment[0])) < EPS2 ||
-        norm_squared(subtract_points(plane[2], segment[0])) < EPS2 )
+    if (norm(subtract_points(plane[0], segment[0])) < EPS ||
+        norm(subtract_points(plane[1], segment[0])) < EPS ||
+        norm(subtract_points(plane[2], segment[0])) < EPS )
         s0 = 1;
-    if (norm_squared(subtract_points(plane[0], segment[1])) < EPS2 ||
-        norm_squared(subtract_points(plane[1], segment[1])) < EPS2 ||
-        norm_squared(subtract_points(plane[2], segment[1])) < EPS2 )
+    if (norm(subtract_points(plane[0], segment[1])) < EPS ||
+        norm(subtract_points(plane[1], segment[1])) < EPS ||
+        norm(subtract_points(plane[2], segment[1])) < EPS )
        s1 = 1;
 
     if (s0 == 1 && s1 == 0) {
-        out[0] = segment[0];
+        out[0] = project_point_to_plane(segment[0], plane);
         return 1;
     } else if (s0 == 0 && s1 == 1) {
-        out[0] = segment[1];
+        out[0] = project_point_to_plane(segment[1], plane);
         return 1;
     } else if (s0 == 1 && s1 == 1) {
-        out[0] = segment[0];
-        out[1] = segment[1];
+        out[0] = project_point_to_plane(segment[0], plane);
+        out[1] = project_point_to_plane(segment[1], plane);
         return 2;
     }
 
@@ -665,9 +679,25 @@ int segment_plane_intersection(const s_point segment[2], const s_point plane[3],
     // Compute signed distances (approx distances)
     double sA = dot_prod(segment[0], n_unit) - d_unit;
     double sB = dot_prod(segment[1], n_unit) - d_unit;
+    
+    s0 = 0;  s1 = 0;
+    if (fabs(sA) < EPS) s0 = 1;   // segment[0] is almost on the plane
+    if (fabs(sB) < EPS) s1 = 1;   // segment[1] is almost on the plane
+    if (s0 == 1 && s1 == 0) {
+        out[0] = project_point_to_plane(segment[0], plane);
+        return 1;
+    } else if (s0 == 0 && s1 == 1) {
+        out[0] = project_point_to_plane(segment[1], plane);
+        return 1;
+    } else if (s0 == 1 && s1 == 1) {
+        out[0] = project_point_to_plane(segment[0], plane);
+        out[1] = project_point_to_plane(segment[1], plane);
+        return 2;
+    }
+
 
     double denom = (sA - sB);
-    assert(fabs(denom) > 1e-12 && "denom is too small");
+    assert(fabs(denom) > EPS && "denom is too small");
 
     double t = sA / denom;
     assert(t < 1 && t > 0 && "interpolation parameter out of range");
