@@ -11,7 +11,7 @@ target_include_directories(convhull_3d
 
 target_compile_options(convhull_3d
     PRIVATE
-        -Wall -Wextra -Werror -O3
+        -Wall -Wextra -Werror
 )
 
 target_link_libraries(convhull_3d
