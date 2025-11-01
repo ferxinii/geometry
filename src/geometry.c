@@ -631,6 +631,30 @@ int segment_plane_intersection(const s_point segment[2], const s_point plane[3],
         return 0;
     }
 
+    // Near-repeated points (not captured by orientation)
+    double EPS2 = 1e-14;
+    int s0 = 0, s1 = 0;
+    if (norm_squared(subtract_points(plane[0], segment[0])) < EPS2 ||
+        norm_squared(subtract_points(plane[1], segment[0])) < EPS2 ||
+        norm_squared(subtract_points(plane[2], segment[0])) < EPS2 )
+        s0 = 1;
+    if (norm_squared(subtract_points(plane[0], segment[1])) < EPS2 ||
+        norm_squared(subtract_points(plane[1], segment[1])) < EPS2 ||
+        norm_squared(subtract_points(plane[2], segment[1])) < EPS2 )
+       s1 = 1;
+
+    if (s0 == 1 && s1 == 0) {
+        out[0] = segment[0];
+        return 1;
+    } else if (s0 == 0 && s1 == 1) {
+        out[0] = segment[1];
+        return 1;
+    } else if (s0 == 1 && s1 == 1) {
+        out[0] = segment[0];
+        out[1] = segment[1];
+        return 2;
+    }
+
     // If we reach here, it means that there is a single intersection
     // Form unit normal and unit d so s=n_unit*x-d_unit is approx signed distance
     s_point n = cross_prod(subtract_points(plane[1], plane[0]), 
