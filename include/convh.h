@@ -28,10 +28,12 @@ double volume_convhull(const s_convhull *convh);
 double volume_convhull_from_points(const s_points *points);
 
 
+int convex_hull_winding_valid(const s_convhull *convh);
 void convh_get_face(const s_convhull *convh, int id, s_point out[3]);
 int mark_faces_incident_to_vertex(const s_convhull *C, int vid, int out[C->Nf]);
 
 s_convhull intersection_convhulls(const s_convhull *A, const s_convhull *B);
+int remove_intersection_convhulls(s_convhull *A, s_convhull *B);
 
 
 
