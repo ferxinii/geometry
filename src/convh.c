@@ -7,21 +7,6 @@
 #include <assert.h>
 
 
-static ch_vertex *malloc_points_to_chvertex(const s_points *points)
-{
-    if (points->N <= 0) return NULL;
-    ch_vertex *out = malloc((size_t)points->N * sizeof(ch_vertex));
-    if (!out) { puts("ERROR: malloc_points_to_chvertex"); return NULL; }
-
-    for (int ii=0; ii<points->N; ii++) {
-        out[ii].x = (CH_FLOAT) points->p[ii].x;
-        out[ii].y = (CH_FLOAT) points->p[ii].y;
-        out[ii].z = (CH_FLOAT) points->p[ii].z;
-    }
-    return out;
-}
-
-
 static void initialize_normals_convhull(s_convhull *convh)  // Unnormalized
 {
     s_point ch_CM = point_average(&convh->points);
@@ -218,15 +203,12 @@ double volume_convhull_from_points(const s_points *points)
 
 s_convhull convhull_from_points(const s_points *points)
 {
-    ch_vertex *ch_vertices = malloc_points_to_chvertex(points);
-
     s_convhull out = {0};
     if (points->N == 0) return out;
 
-    // out.points = copy_points(points);
     out.points = remove_duplicate_points(points, 1e-12);
 
-    convhull_3d_build(ch_vertices, points->N, &out.faces, &out.Nf);
+    convhull_3d_build(&out.points, &out.faces, &out.Nf);
 
     if (!out.faces) {
         fprintf(stderr, "convhull_from_points: Error in convhull_3d_build\n");
@@ -237,7 +219,6 @@ s_convhull convhull_from_points(const s_points *points)
         initialize_normals_convhull(&out); 
     }
 
-    free(ch_vertices);
     return out;
 }
 
@@ -408,10 +389,9 @@ static s_convhull clip_convhull_against_halfspace(const s_convhull *C, const s_p
         free_points(&array_points[ii]);
     }
 
-    s_points no_duplicates = remove_duplicate_points(&new_points, 1e-9);
+    s_convhull new_C = convhull_from_points(&new_points);
     free_points(&new_points);
-    s_convhull new_C = convhull_from_points(&no_duplicates);
-    free_points(&no_duplicates);
+
     return new_C;
 }
 

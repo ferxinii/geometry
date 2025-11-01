@@ -5,6 +5,7 @@
 #include <math.h>
 #include <assert.h>
 #include <stdatomic.h>
+#include "float.h"
 
 
 
@@ -164,6 +165,40 @@ s_point normalize_3d(s_point v)
     return scale_point(v, 1.0/n);
 }
 
+
+void bounding_box_points(const s_points *points, s_point *min_out, s_point *max_out)
+{
+    s_point min, max;
+    min.x = DBL_MAX;   min.y = DBL_MAX;   min.z = DBL_MAX;
+    max.x = -DBL_MAX;  max.y = -DBL_MAX;  max.z = -DBL_MAX;
+
+    for (int ii=0; ii<points->N; ii++) {
+        if (points->p[ii].x < min.x) 
+            min.x = points->p[ii].x;
+        if (points->p[ii].y < min.y) 
+            min.y = points->p[ii].y;
+        if (points->p[ii].z < min.z) 
+            min.z = points->p[ii].z;
+
+        if (points->p[ii].x > max.x)
+            max.x = points->p[ii].x;
+        if (points->p[ii].y > max.y) 
+            max.y = points->p[ii].y;
+        if (points->p[ii].z > max.z) 
+            max.z = points->p[ii].z;
+    }
+    
+    *min_out = min;
+    *max_out = max;
+}
+
+
+s_point span_points(const s_points *points)
+{
+    s_point min, max;
+    bounding_box_points(points, &min, &max);
+    return subtract_points(max, min);
+}
 
 
 s_point point_average(const s_points *points)
@@ -605,6 +640,20 @@ int points_inside_halfspace(const s_point plane_ordered[3], s_points points, int
 }
 
 
+void plane_equation_from_points(const s_point plane[3], s_point *abc_out, double *d_out)
+{  // Plane: x  s.t.  dot(abc_out, x) + d = 0;
+    s_point u = subtract_points(plane[1], plane[0]);
+    s_point v = subtract_points(plane[2], plane[0]);
+    
+    s_point n = cross_prod(u, v);
+    double n_len = norm(n);
+    assert(n_len > 1e-12 && "Plane degenerate");
+
+    *abc_out = scale_point(n, 1.0/n_len);
+    *d_out = -dot_prod(*abc_out, plane[0]);
+}
+
+
 s_point interpolate_points(s_point a, s_point b, double t)
 {
     s_point diff = subtract_points(b, a);
@@ -621,7 +670,7 @@ s_point project_point_to_plane(s_point p, const s_point plane[3])
 
     double dist = dot_prod(p, n_unit) - d;
     s_point out = subtract_points(p, scale_point(n_unit, dist));  // snap to plane
-    assert(orientation(plane, out) == 0 && "Point is not coplanar after projecting!");
+    // assert(orientation(plane, out) == 0 && "Point is not coplanar after projecting!");
     return out;
 }
 

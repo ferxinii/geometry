@@ -39,6 +39,8 @@ double max_distance(const s_points *points, s_point query);
 s_point scale_point(s_point a, double s);
 s_point normalize_3d(s_point v);
 s_point interpolate_points(s_point a, s_point b, double t);
+void bounding_box_points(const s_points *points, s_point *min_out, s_point *max_out);
+s_point span_points(const s_points *points);
 
 
 s_point point_average(const s_points *points);
@@ -72,6 +74,7 @@ extern double insphere(const double *pa, const double *pb, const double *pc, con
 double volume_tetrahedron_approx(s_point p1, s_point p2, s_point p3, s_point p4);
 
 
+void plane_equation_from_points(const s_point plane[3], s_point *abc_out, double *d_out);
 int points_inside_halfspace(const s_point abc_ordered[3], s_points points, int out[points.N]);
 s_point project_point_to_plane(s_point p, const s_point plane[3]);
 int segment_plane_intersection(const s_point segment[2], const s_point plane[3], s_point out[2]);
