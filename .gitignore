@@ -2,3 +2,4 @@
 *.o
 build/
 .cache
+compile_flags.txt
