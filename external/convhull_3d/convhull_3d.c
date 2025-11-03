@@ -1,3 +1,8 @@
+// TODO: Change name of dbl_w_idx
+// Better mallocing of arrays...
+// Deal with degenerate faces... simply exit?
+// Sometimes the output results in degenerate vectors: norm(face_normal) < 1e-14
+
 #include "../../include/geometry.h"  // TODO temporal
 
 #include "convhull_3d.h"
@@ -27,8 +32,8 @@ typedef struct dbl_w_idx {
 /* internal functions */
 static void* default_memory_resize(void* ptr, size_t size);
 static int cmp_dbl_w_idx_desc(const void *pa, const void *pb);
-static void ismember(int*, int*, int*, int, int);
-static void vertices_face(const s_points *points, const int *faces, int face_id, s_point out[3]);
+// static void ismember(int*, int*, int*, int, int);
+// static void vertices_face(const s_points *points, const int *faces, int face_id, s_point out[3]);
 
 static void* default_memory_resize(void* ptr, size_t size)
 {
@@ -44,22 +49,22 @@ static int cmp_dbl_w_idx_desc(const void *pa, const void *pb) {
 	return 0;
 }
 
-static void ismember
-(
-    int* pLeft,          /* left vector; nLeftElements x 1 */
-    int* pRight,         /* right vector; nRightElements x 1 */
-    int* pOut,           /* 0, unless pRight elements are present in pLeft then 1; nLeftElements x 1 */
-    int nLeftElements,   /* number of elements in pLeft */
-    int nRightElements   /* number of elements in pRight */
-)
-{
-    int i, j;
-    memset(pOut, 0, nLeftElements*sizeof(int));
-    for(i=0; i< nLeftElements; i++)
-        for(j=0; j< nRightElements; j++)
-            if(pLeft[i] == pRight[j] )
-                pOut[i] = 1;
-}
+// static void ismember
+// (
+//     int* pLeft,          /* left vector; nLeftElements x 1 */
+//     int* pRight,         /* right vector; nRightElements x 1 */
+//     int* pOut,           /* 0, unless pRight elements are present in pLeft then 1; nLeftElements x 1 */
+//     int nLeftElements,   /* number of elements in pLeft */
+//     int nRightElements   /* number of elements in pRight */
+// )
+// {
+//     int i, j;
+//     memset(pOut, 0, nLeftElements*sizeof(int));
+//     for(i=0; i< nLeftElements; i++)
+//         for(j=0; j< nRightElements; j++)
+//             if(pLeft[i] == pRight[j] )
+//                 pOut[i] = 1;
+// }
 
 
 
@@ -253,81 +258,58 @@ static int visible_faces_from_point(const s_points *points, int Nfaces, int face
 }
 
 
-static void extract_visible_nonvisible(int Nfaces, int faces[Nfaces*3], int isvisible_indicator[Nfaces],
-                                       int *out_visible_ids, int *out_invisible_faces)
-{
-    for (int i=0, v=0, n=0; i<Nfaces; i++) {
-        if (isvisible_indicator[i] == 1) {
-            out_visible_ids[v++] = i;
-        } else {
-            out_invisible_faces[n*3+0] = faces[i*3+0];
-            out_invisible_faces[n*3+1] = faces[i*3+1];
-            out_invisible_faces[n*3+2] = faces[i*3+2];
-            n++;
-        }
+static void nonvisible_faces_sharing_edge_with_face(int Nfaces, int faces[Nfaces], int is_visible[Nfaces], int query_faceid, int out_indicator[Nfaces])
+{ 
+    memset(out_indicator, 0, Nfaces*sizeof(int));
+
+    for (int i=0; i<Nfaces; i++) {
+        if (is_visible[i]) continue;
+        
+        /* Count shared vertices */
+        int N_shared_vertices = 0;
+        for (int a=0; a<3; a++)
+            for (int b=0; b<3; b++)
+                if (faces[query_faceid*3+a] == faces[i*3+b])
+                    N_shared_vertices++;
+
+        if (N_shared_vertices == 2) out_indicator[i] = 1;
+        assert(N_shared_vertices < 3);  /* Non-manifold? */
     }
 }
 
 
-static void extract_horizon( int N_vf,                  /* Number of visible faces */
-                             int vf_ids[N_vf],          /* Face ids of the visible faces */
-                             int N_nvf,                 /* Number of non visible faces */
-                             int nvf[3*N_nvf],          /* Vertex ids of the non visible faces */
-                             int faces[3*(N_vf+N_nvf)], /* Vertex ids of all faces */
-                             int *out_Nhorizon,         /* out: Number of edges that form the horizon */
-                             int **out_horizon)         /* out: horizon. size: 2*out_Nhorizon */
-{
+static void extract_horizon(int Nfaces, int faces[Nfaces], int is_visible[Nfaces], int *out_Nhorizon, int **out_horizon)         
+{   /* size of horizon: 2*out_Nhorizon */
     free(*out_horizon);
 
     int Nhorizon = 0;
     int *horizon = NULL;
-    int *v_shared = malloc(N_nvf * 3 * sizeof(int));  // Indicates if non_visible vertex is shared with the current visible face
-    for (int j=0; j<N_vf; j++) {
-        /* visible face */
-        int visible_id = vf_ids[j];
-        int visible_vids[3] = {faces[visible_id*3+0], faces[visible_id*3+1], faces[visible_id*3+2]};
+    int *nvf_sharing_edge = malloc(Nfaces * sizeof(int));  // Indicates if non_visible vertex is shared with the current visible face
+    
+    for (int i=0; i<Nfaces; i++) {
+        if (!is_visible[i]) continue;
+        /* Mark faces that are nonvisible and share an edge with current face */
+        nonvisible_faces_sharing_edge_with_face(Nfaces, faces, is_visible, i, nvf_sharing_edge);
+        for (int j=0; j<Nfaces; j++) {
+            if (!nvf_sharing_edge[j]) continue;
 
-        /* Find nonvisible faces connected to this particular visible face */
-        ismember(nvf, visible_vids, v_shared, N_nvf*3, 3);
-        for (int k=0; k<N_nvf; k++) {
-            if ((v_shared[k*3+0] + v_shared[k*3+1] + v_shared[k*3+2]) == 2) {
-                /* This means that non visible face shares edge with current visible face */
-                /* Insert that edge into the horizon */
-                horizon = default_memory_resize(horizon, (Nhorizon+1)*2*sizeof(int));
-                int h = 0;
-                if( v_shared[k*3+0] ) horizon[Nhorizon*2 + h++] = nvf[k*3+0];
-                if( v_shared[k*3+1] ) horizon[Nhorizon*2 + h++] = nvf[k*3+1];
-                if( v_shared[k*3+2] ) horizon[Nhorizon*2 + h++] = nvf[k*3+2];
-                assert(h == 2);
-                Nhorizon++;
-            }
+            /* This means that non visible face j shares edge with visible face i */
+            /* But which edge ? */
+            horizon = default_memory_resize(horizon, (Nhorizon+1)*2*sizeof(int));
+            int h = 0;
+            for (int a=0; a<3; a++)
+                for (int b=0; b<3; b++)
+                    if (faces[i*3+a] == faces[j*3+b])
+                        horizon[Nhorizon*2+h++] = faces[j*3+b];
+            assert(h == 2);
+            Nhorizon++;
         }
     }
+
     *out_Nhorizon = Nhorizon;
     *out_horizon = horizon;
-    free(v_shared);
+    free(nvf_sharing_edge);
 }
-
-
-// static int mark_points_used(const s_points *points, int Nfaces, int faces[3*Nfaces], int out_indicator[points->N])
-// {
-//     memset(out_indicator, 0, points->N * sizeof(int));
-//
-//     for (int f = 0; f < Nfaces; f++) {
-//         for (int t = 0; t < 3; t++) {
-//             int vid = faces[f*3+t];
-//             assert(vid >= 0 && vid < points->N);
-//             out_indicator[vid] = 1;
-//         }
-//     }
-//
-//     int count = 0;
-//     for (int ii=0; ii<points->N; ii++) {
-//         if (out_indicator[ii] == 1) count++;
-//     }
-//
-//     return count;
-// }
 
 
 void quickhull_3d(const s_points *in_vertices, int **out_faces, int *N_out_faces) 
@@ -364,7 +346,7 @@ void quickhull_3d(const s_points *in_vertices, int **out_faces, int *N_out_faces
 
 
     /* The main loop for the quickhull algorithm */
-    /* Use no mallocs inside, only reallocs.     */
+    /* Use no mallocs inside, only reallocs. (TODO!) */
     int FUCKED = 0;
     int *faces_isvisible = NULL, *vf_ids = NULL, *nvf = NULL, *horizon = NULL;
     while (N_pleft > 0) {
@@ -382,20 +364,14 @@ void quickhull_3d(const s_points *in_vertices, int **out_faces, int *N_out_faces
         /* Mark visible faces from this point */
         faces_isvisible = realloc(faces_isvisible, Nfaces * sizeof(int));
         int N_vf = visible_faces_from_point(in_vertices, Nfaces, faces, current_p, faces_isvisible);
-        if (N_vf == 0) continue;  /* Proceed if N_visible_faces > 0 */
 
+        /* Proceed if N_visible_faces > 0 */
+        if (N_vf == 0) continue;  
         isused[current_id] = 1;
 
-        /* Extract visible faces ids and nonvisible_faces vertices ids */
-        vf_ids = realloc(vf_ids, N_vf * sizeof(int));   /* visible faces ids */
-        int N_nvf = Nfaces - N_vf;                      /* N non visible faces */
-        nvf = realloc(nvf, N_nvf * 3 * sizeof(int));    /* non visible faces */
-        extract_visible_nonvisible(Nfaces, faces, faces_isvisible, vf_ids, nvf);
-
-
-        /* Create horizon (Ncount: number of edges of the horizon) */
+        /* Create horizon */
         int Nhorizon;
-        extract_horizon(N_vf, vf_ids, N_nvf, nvf, faces, &Nhorizon, &horizon);
+        extract_horizon(Nfaces, faces, faces_isvisible, &Nhorizon, &horizon);
 
 
         /* Check if any new face would be degenerate */
