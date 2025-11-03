@@ -208,7 +208,7 @@ s_convhull convhull_from_points(const s_points *points)
 
     out.points = remove_duplicate_points(points, 1e-12);
 
-    convhull_3d_build(&out.points, &out.faces, &out.Nf);
+    quickhull_3d(&out.points, &out.faces, &out.Nf);
 
     if (!out.faces) {
         fprintf(stderr, "convhull_from_points: Error in convhull_3d_build\n");
@@ -218,6 +218,7 @@ s_convhull convhull_from_points(const s_points *points)
     } else {
         initialize_normals_convhull(&out); 
     }
+
 
     return out;
 }

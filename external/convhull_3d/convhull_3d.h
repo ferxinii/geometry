@@ -55,9 +55,9 @@
 
 
 /* builds the 3-D convexhull */
-void convhull_3d_build(const s_points *in_vertices, 
-                       int **out_faces,                         /* & of empty int*, output face indices; flat: nOut_faces x 3 */
-                       int *nOut_faces);          
+void quickhull_3d(const s_points *in_vertices, 
+                  int **out_faces,                         /* & of empty int*, output face indices; flat: nOut_faces x 3 */
+                  int *nOut_faces);          
     
 /* exports the vertices, face indices, and face normals, as an 'obj' file, ready for GPU (for 3d convexhulls only) */
 void convhull_3d_export_obj(/* input arguments */
