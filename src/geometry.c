@@ -430,13 +430,15 @@ int in_triangle_2d(const double a[2], const double b[2], const double c[2], cons
 
 int in_triangle_3d(const s_point triangle[3], s_point p)
 {
-    // First chacke if it is not coplanar
+    // First chack if it is not coplanar
     if (orientation(triangle, p) != 0) return 0;
 
     // If it is coplanar, change to 2D coordinates in the plane
     s_point d1 = subtract_points(triangle[1], triangle[0]);
     s_point d2 = subtract_points(triangle[2], triangle[0]);
-    s_point n = normalize_3d(cross_prod(d1, d2));
+    s_point n = cross_prod(d1, d2);
+    if (norm(n) < 1e-14) return 0;  // If too small, return 0
+    n = normalize_3d(n);
 
     int ref_coord = coord_with_smallest_component_3d(n);
     s_point ref = (ref_coord == 0) ?   (s_point){{{1,0,0}}} :

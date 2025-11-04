@@ -208,9 +208,8 @@ s_convhull convhull_from_points(const s_points *points)
 
     out.points = remove_duplicate_points(points, 1e-12);
 
-    quickhull_3d(&out.points, 1e-14, &out.faces, &out.Nf);
-
-    if (!out.faces) {
+    
+    if (quickhull_3d(&out.points, 0, &out.faces, &out.Nf) == -1) {
         fprintf(stderr, "convhull_from_points: Error in convhull_3d_build\n");
         out.Nf = 0;
         free_points(&out.points);
