@@ -210,7 +210,7 @@ s_convhull convhull_from_points(const s_points *points)
 
     
     if (quickhull_3d(&out.points, 0, &out.faces, &out.Nf) == -1) {
-        fprintf(stderr, "convhull_from_points: Error in convhull_3d_build\n");
+        fprintf(stderr, "convhull_from_points: Error in quickhull_3d\n");
         out.Nf = 0;
         free_points(&out.points);
         out.fnormals = NULL;
