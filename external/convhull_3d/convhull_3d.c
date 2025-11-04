@@ -1,4 +1,4 @@
-// TODO: Change name of dbl_w_idx
+// Deal with better way of list of priority... order by ascending, and read from last to first?
 // Better mallocing of arrays...
 // Deal with degenerate faces... simply exit?
 // Sometimes the output results in degenerate vectors: norm(face_normal) < 1e-14
@@ -24,16 +24,14 @@
 #define CH_MAX_NUM_FACES 50000
 
 /* structs for qsort */
-typedef struct dbl_w_idx {
+typedef struct indexed_double {
     double val;
     int idx;
-} dbl_w_idx;
+} s_indexed_double;
 
 /* internal functions */
 static void* default_memory_resize(void* ptr, size_t size);
-static int cmp_dbl_w_idx_desc(const void *pa, const void *pb);
-// static void ismember(int*, int*, int*, int, int);
-// static void vertices_face(const s_points *points, const int *faces, int face_id, s_point out[3]);
+static int cmp_indexed_double_desc(const void *pa, const void *pb);
 
 static void* default_memory_resize(void* ptr, size_t size)
 {
@@ -41,32 +39,13 @@ static void* default_memory_resize(void* ptr, size_t size)
     return realloc(ptr, size);
 }
 
-static int cmp_dbl_w_idx_desc(const void *pa, const void *pb) {
-	const dbl_w_idx *a = (const dbl_w_idx*)pa;
-	const dbl_w_idx *b = (const dbl_w_idx*)pb;
+static int cmp_indexed_double_desc(const void *pa, const void *pb) {
+	const s_indexed_double *a = (const s_indexed_double*)pa;
+	const s_indexed_double *b = (const s_indexed_double*)pb;
 	if (a->val < b->val) return  1;  /* b before a => descending */
 	if (a->val > b->val) return -1;
 	return 0;
 }
-
-// static void ismember
-// (
-//     int* pLeft,          /* left vector; nLeftElements x 1 */
-//     int* pRight,         /* right vector; nRightElements x 1 */
-//     int* pOut,           /* 0, unless pRight elements are present in pLeft then 1; nLeftElements x 1 */
-//     int nLeftElements,   /* number of elements in pLeft */
-//     int nRightElements   /* number of elements in pRight */
-// )
-// {
-//     int i, j;
-//     memset(pOut, 0, nLeftElements*sizeof(int));
-//     for(i=0; i< nLeftElements; i++)
-//         for(j=0; j< nRightElements; j++)
-//             if(pLeft[i] == pRight[j] )
-//                 pOut[i] = 1;
-// }
-
-
 
 
 static void vertices_face(const s_points *points, const int *faces, int face_id, s_point out[3])
@@ -108,7 +87,8 @@ static int next_vid_isused_notinface(int Np, int isused[Np], int face_ids[3], in
 
 
 static int orient_face_if_needed(const s_points *points, int isused[points->N], int Nfaces, int faces[3*Nfaces], int face_id)
-{   /* Returns 1 if reoriented, 0 if not, -1 if error (Could not orient it!) */
+{   /* Face is oriented if its normal points outside the convex hull (Right hand rule) */ 
+    /* Returns 1 if reoriented, 0 if not, -1 if error (Could not orient it!) */
     int face_vids[3] = {faces[face_id*3+0], faces[face_id*3+1], faces[face_id*3+2]};
     s_point face_vertices[3];
     vertices_face(points, faces, face_id, face_vertices);
@@ -128,10 +108,10 @@ static int orient_face_if_needed(const s_points *points, int isused[points->N], 
     /* Orient faces so that each point on the original simplex can't see the opposite face */
     if (o < 0) {
         flip_face(faces, face_id);
-        return 1;
         /* Check DEBUG (TODO remove assert? I think unnecessary)*/
-        vertices_face(points, faces, face_id, face_vertices);
-        assert(orientation(face_vertices, points->p[p]) > 0);
+        // vertices_face(points, faces, face_id, face_vertices);
+        // assert(orientation(face_vertices, points->p[p]) > 0);
+        return 1;
     }
 
     return 0;
@@ -193,7 +173,7 @@ static void priority_vertices_ignoring_initial_tetra(const s_points *points,
                                                      const int isused[points->N],
                                                      int out_indices[points->N-4])
 {
-    /* Coordinates of the center of the remaining point set */
+    /* Coordinates of the centre of the remaining point set */
     int N_aux = points->N - 4;
     s_point meanp = {0};
     int aux_count = 0;
@@ -213,7 +193,7 @@ static void priority_vertices_ignoring_initial_tetra(const s_points *points,
            fabs(span.y) > EPS &&
            fabs(span.z) > EPS && "Points do not span the 3 dimensions. TODO");
 
-    dbl_w_idx *reldist2 = malloc(N_aux * sizeof(dbl_w_idx));
+    s_indexed_double *reldist2 = malloc(N_aux * sizeof(s_indexed_double));
     for (int ii=0, jj=0; ii<points->N; ii++) {
         if (!isused[ii]) {
             s_point scaled = {{{(points->p[ii].x-meanp.x)/span.x, 
@@ -226,7 +206,7 @@ static void priority_vertices_ignoring_initial_tetra(const s_points *points,
     }
     
     /* Sort by relative distance descending */
-    qsort(reldist2, N_aux, sizeof(dbl_w_idx), &cmp_dbl_w_idx_desc);
+    qsort(reldist2, N_aux, sizeof(s_indexed_double), &cmp_indexed_double_desc);
 
     /* Rescue original indexing */
     for (int i=0; i<N_aux; i++) out_indices[i] = reldist2[i].idx;
@@ -235,7 +215,7 @@ static void priority_vertices_ignoring_initial_tetra(const s_points *points,
 }
 
 
-static int visible_faces_from_point(const s_points *points, int Nfaces, int faces[Nfaces*3], s_point p, int out_indicator[Nfaces])
+static int visible_faces_from_point_robust(const s_points *points, int Nfaces, int faces[Nfaces*3], s_point p, int out_indicator[Nfaces])
 {   /* A face is visible if its normal points to the halfspace containing the point,
         or if it is coplanar and the point lies strictly outside the triangle */
     memset(out_indicator, 0, Nfaces*sizeof(int));
@@ -312,12 +292,67 @@ static void extract_horizon(int Nfaces, int faces[Nfaces], int is_visible[Nfaces
 }
 
 
-void quickhull_3d(const s_points *in_vertices, int **out_faces, int *N_out_faces) 
+static int would_any_new_face_be_too_small(const s_points *points, int N_newfaces, int horizon[N_newfaces*2], int query_pid, double min_face_area)
 {
+    if (min_face_area == 0) return 0;
+
+    for (int j=0; j<N_newfaces; j++) {
+        int v0 = horizon[j*2+0];  int v1 = horizon[j*2+1];  int v2 = query_pid;
+        double face_area = norm(cross_prod(subtract_points(points->p[v1], points->p[v0]),
+                                           subtract_points(points->p[v2], points->p[v0])));
+        if (face_area < min_face_area) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+
+static void delete_visible_faces(int Nfaces, int faces[Nfaces*3], int faces_isvisible[Nfaces])
+{
+    for (int j=0, l=0; j<Nfaces; j++){
+        if (!faces_isvisible[j]) {  // i.e. keep those which are non visible
+            faces[l*3+0] = faces[j*3+0];
+            faces[l*3+1] = faces[j*3+1];
+            faces[l*3+2] = faces[j*3+2];
+            l++;
+        }
+    }
+}
+
+
+static int add_faces_from_horizon(const s_points *points, int isused[points->N], int Nfaces, int **faces, int Nhorizon, int horizon[Nhorizon*2], int query_pid)
+{
+    int start = Nfaces;  /* start is the first row of the new faces */
+    int N_realloc_faces = Nfaces + Nhorizon;
+    if (N_realloc_faces >= CH_MAX_NUM_FACES) return 0;
+
+    *faces = realloc(*faces, N_realloc_faces * 3 * sizeof(int));
+    for (int j=0; j<Nhorizon; j++) {
+        (*faces)[Nfaces*3+0] = horizon[j*2+0];
+        (*faces)[Nfaces*3+1] = horizon[j*2+1];
+        (*faces)[Nfaces*3+2] = query_pid;
+        Nfaces++;
+    }
+    
+    /* Orient each new face properly */
+    for (int k=start; k<Nfaces; k++) {
+        orient_face_if_needed(points, isused, Nfaces, *faces, k);
+    }
+    
+    return 1;
+}
+
+int quickhull_3d(const s_points *in_vertices, double min_face_area, int **out_faces, int *N_out_faces) 
+{   /* Returns:
+       -1 if error
+       1 if output hull is exact (All faces are big enough)
+       0 if output hull is non-exact (ignored any face with too small area) 
+    */
     *out_faces = NULL;
     *N_out_faces = 0;
 
-    if(in_vertices == NULL || in_vertices->N <= 3 ) return;
+    if(in_vertices == NULL || in_vertices->N <= 3 ) return -1;
 
     /* The initial convex hull is a tetrahedron with 4 faces (simplex) */
     int Nfaces = 4;
@@ -327,14 +362,14 @@ void quickhull_3d(const s_points *in_vertices, int **out_faces, int *N_out_faces
         free(faces);
         free(isused);
         printf("DEBUG: could not construct initial tetrahedron\n");
-        return;
+        return -1;
     }
 
-    if (in_vertices->N == 4) {
+    if (in_vertices->N == 4) {  // TODO: Check all faces are big enough?
         *out_faces = faces;
         *N_out_faces = 4;
         free(isused);
-        return;
+        return 1;
     }
     
 
@@ -347,8 +382,8 @@ void quickhull_3d(const s_points *in_vertices, int **out_faces, int *N_out_faces
 
     /* The main loop for the quickhull algorithm */
     /* Use no mallocs inside, only reallocs. (TODO!) */
-    int FUCKED = 0;
     int *faces_isvisible = NULL, *vf_ids = NULL, *nvf = NULL, *horizon = NULL;
+    int out_is_robust = 1;
     while (N_pleft > 0) {
         /* Process the first element of pleft */
         int current_id = pleft[0];
@@ -363,9 +398,10 @@ void quickhull_3d(const s_points *in_vertices, int **out_faces, int *N_out_faces
 
         /* Mark visible faces from this point */
         faces_isvisible = realloc(faces_isvisible, Nfaces * sizeof(int));
-        int N_vf = visible_faces_from_point(in_vertices, Nfaces, faces, current_p, faces_isvisible);
+        int N_vf = visible_faces_from_point_robust(in_vertices, Nfaces, faces, current_p, faces_isvisible);
 
         /* Proceed if N_visible_faces > 0 */
+        assert(N_vf != Nfaces && "Point sees all faces?");
         if (N_vf == 0) continue;  
         isused[current_id] = 1;
 
@@ -373,79 +409,27 @@ void quickhull_3d(const s_points *in_vertices, int **out_faces, int *N_out_faces
         int Nhorizon;
         extract_horizon(Nfaces, faces, faces_isvisible, &Nhorizon, &horizon);
 
-
-        /* Check if any new face would be degenerate */
-        // int N_newfaces = Nhorizon;
-        // int degenerate = 0;
-        // for (int j=0; j<N_newfaces; j++) {
-        //     int v0 = horizon[j*2+0];  int v1 = horizon[j*2+1];  int v2 = current_id;
-        //     int degenerate_1 = (orient2d(in_vertices->p[v0].coords, in_vertices->p[v1].coords, in_vertices->p[v2].coords) == 0);
-        //     int degenerate_2 = (fabs(norm(cross_prod(subtract_points(in_vertices->p[v1], in_vertices->p[v0]),
-        //                                              subtract_points(in_vertices->p[v2], in_vertices->p[v0])))) < 1e-14);
-        //     if (degenerate_1 || degenerate_2) {
-        //         degenerate = 1;
-        //         break;
-        //     }
-        // }
-        // (void)degenerate;
-        // if (degenerate) continue;  /* Simply ignore the point */
-
+        /* Check if any new face would be too small */
+        if (would_any_new_face_be_too_small(in_vertices, Nhorizon, horizon, current_id, min_face_area)) 
+            continue;  /* Simply ignore the point */
 
         /* Delete visible faces */
-        if (N_vf == Nfaces) {
-            fprintf(stderr, "WARNING: point %d sees ALL faces! N_pleft=%d\n", current_id, N_pleft);
-            exit(1);
-        }
-        for (int j=0, l=0; j<Nfaces; j++){
-            if (!faces_isvisible[j]) {  // i.e. keep those which are non visible
-                faces[l*3+0] = faces[j*3+0];
-                faces[l*3+1] = faces[j*3+1];
-                faces[l*3+2] = faces[j*3+2];
-                l++;
-            }
-        }
+        delete_visible_faces(Nfaces, faces, faces_isvisible);
         Nfaces -= N_vf;
         
-
         /* Add faces connecting horizon to the new point */
-        int N_newfaces = Nhorizon;
-        int start = Nfaces;  /* start is the first row of the new faces */
-        int N_realloc_faces = Nfaces + N_newfaces;
-        if (N_realloc_faces > CH_MAX_NUM_FACES) N_realloc_faces = CH_MAX_NUM_FACES+1;
-
-        faces = realloc(faces, N_realloc_faces * 3 * sizeof(int));
-        for (int j=0; j<N_newfaces; j++) {
-            faces[Nfaces*3+0] = horizon[j*2+0];
-            faces[Nfaces*3+1] = horizon[j*2+1];
-            faces[Nfaces*3+2] = current_id;
-            Nfaces++;
-
-            if (Nfaces > CH_MAX_NUM_FACES) {
-                FUCKED = 1;
-                Nfaces = 0;
-                break;
-            }
+        if(!add_faces_from_horizon(in_vertices, isused, Nfaces, &faces, Nhorizon, horizon, current_id)) {
+            /* Reached maximum number of faces. TODO, cleanup and return */
+            printf("DEBUG convhull_3d_build FUCKED! TODO\n");
         }
+        Nfaces += Nhorizon;
         
-        /* Orient each new face properly */
-        for (int k=start; k<Nfaces; k++) {
-            orient_face_if_needed(in_vertices, isused, Nfaces, faces, k);
-        }
-   
-        if(FUCKED){
-            break;
-        }
     }
     
-    /* output */
-    if (FUCKED) {
-        printf("DEBUG convhull_3d_build FUCKED!\n");
-    } else {
-        printf("DEBUG convhull_3d_build OK, nfaces=%d\n", Nfaces);
-        *out_faces = malloc(Nfaces * 3 * sizeof(int));
-        memcpy(*out_faces, faces, Nfaces * 3 * sizeof(int));
-        *N_out_faces = Nfaces;
-    }
+    // printf("DEBUG convhull_3d_build OK, nfaces=%d\n", Nfaces);
+    *out_faces = malloc(Nfaces * 3 * sizeof(int));
+    memcpy(*out_faces, faces, Nfaces * 3 * sizeof(int));
+    *N_out_faces = Nfaces;
     
     /* clean-up */
     free(faces);
@@ -454,6 +438,8 @@ void quickhull_3d(const s_points *in_vertices, int **out_faces, int *N_out_faces
     free(nvf);
     free(horizon);
     free(isused);
+
+    return out_is_robust;
 }
 
 

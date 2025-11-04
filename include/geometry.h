@@ -80,5 +80,6 @@ s_point project_point_to_plane(s_point p, const s_point plane[3]);
 int segment_plane_intersection(const s_point segment[2], const s_point plane[3], s_point out[2]);
 
 
+double point_plane_distance(s_point p, const s_point plane[3]);
 
 #endif

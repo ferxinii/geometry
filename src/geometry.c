@@ -755,3 +755,13 @@ int segment_plane_intersection(const s_point segment[2], const s_point plane[3],
     return 1;
 }
 
+
+double point_plane_distance(s_point p, const s_point plane[3]) 
+{
+    s_point n = cross_prod(subtract_points(plane[1], plane[0]),
+                           subtract_points(plane[2], plane[0]));
+    s_point n_unit = normalize_3d(n);
+    double d = dot_prod(n_unit, plane[0]);
+
+    return dot_prod(p, n_unit) - d;
+}
