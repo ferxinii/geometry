@@ -1,6 +1,6 @@
 #include "convh.h"
+#include "quickhull3d.h"
 #include "geometry.h"
-#include "convhull_3d.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

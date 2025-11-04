@@ -1,18 +1,15 @@
-#include "geometry.h"  // TODO temporal
+#include "geometry.h"  
+#include "quickhull3d.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <float.h>
+#include <math.h>
 #include <ctype.h>
 #include <string.h>
 #include <errno.h> 
 #include <assert.h>
-
-
-
-#define CH_MAX_NUM_FACES 10000
-#define CH_N_INIT_INT_LIST 50
 
 
 /* Sorting by distance and remembering original index */
@@ -442,157 +439,4 @@ int quickhull_3d(const s_points *in_vertices, double min_face_area, int **out_fa
 
     return out_is_exact;
 }
-
-
-
-
-
-// void convhull_3d_export_obj(
-//     ch_vertex* const vertices,
-//     const int nVert,
-//     int* const faces,
-//     const int Nfaces,
-//     const int keepOnlyUsedVerticesFLAG,
-//     char* const obj_filename)
-// {
-//     int i, j;
-//     char path[256] = "\0";
-//     strncpy(path, obj_filename, strlen(obj_filename));
-//     FILE* obj_file;
-//
-//     errno = 0;
-//     obj_file = fopen(strcat(path, ".obj"), "wt");
-//
-//     if (obj_file==NULL) {
-//         printf("Error %d \n", errno);
-//         printf("It's null");
-//     }
-//     fprintf(obj_file, "o\n");
-//     double scale;
-//     s_point v1, v2, normal;
-//
-//     /* export vertices */
-//     if(keepOnlyUsedVerticesFLAG){
-//         for (i = 0; i < Nfaces; i++)
-//             for(j=0; j<3; j++)
-//                 fprintf(obj_file, "v %f %f %f\n", vertices[faces[i*3+j]].x,
-//                         vertices[faces[i*3+j]].y, vertices[faces[i*3+j]].z);
-//     }
-//     else {
-//         for (i = 0; i < nVert; i++)
-//             fprintf(obj_file, "v %f %f %f\n", vertices[i].x,
-//                     vertices[i].y, vertices[i].z);
-//     }
-//     
-//     /* export the face normals */
-//     for (i = 0; i < Nfaces; i++){
-//         /* calculate cross product between v1-v0 and v2-v0 */
-//         v1 = vertices[faces[i*3+1]];
-//         v2 = vertices[faces[i*3+2]];
-//         v1.x -= vertices[faces[i*3]].x;
-//         v1.y -= vertices[faces[i*3]].y;
-//         v1.z -= vertices[faces[i*3]].z;
-//         v2.x -= vertices[faces[i*3]].x;
-//         v2.y -= vertices[faces[i*3]].y;
-//         v2.z -= vertices[faces[i*3]].z;
-//         normal = cross_prod(&v1, &v2);
-//         
-//         /* normalise to unit length */
-//         scale = ((double)1.0)/(sqrt(pow(normal.x, (double)2.0)+pow(normal.y, (double)2.0)+pow(normal.z, (double)2.0))+(double)2.23e-9);
-//         normal.x *= scale;
-//         normal.y *= scale;
-//         normal.z *= scale;
-//         fprintf(obj_file, "vn %f %f %f\n", normal.x, normal.y, normal.z);
-//     }
-//     
-//     /* export the face indices */
-//     if(keepOnlyUsedVerticesFLAG){
-//         for (i = 0; i < Nfaces; i++){
-//             /* vertices are in same order as the faces, and normals are in order */
-//             fprintf(obj_file, "f %u//%u %u//%u %u//%u\n",
-//                     i*3 + 1, i + 1,
-//                     i*3+1 + 1, i + 1,
-//                     i*3+2 + 1, i + 1);
-//         }
-//     }
-//     else {
-//         /* just normals are in order  */
-//         for (i = 0; i < Nfaces; i++){
-//             fprintf(obj_file, "f %u//%u %u//%u %u//%u\n",
-//                     faces[i*3] + 1, i + 1,
-//                     faces[i*3+1] + 1, i + 1,
-//                     faces[i*3+2] + 1, i + 1);
-//         }
-//     }
-//     fclose(obj_file);
-// }
-//
-//
-// void extract_vertices_from_obj_file (
-//     char* const obj_filename,
-//     ch_vertex** out_vertices,
-//     int* out_nVert)
-// {
-//     extract_vertices_from_obj_file_alloc(obj_filename, out_vertices, out_nVert, NULL);
-// }
-//
-//
-// void extract_vertices_from_obj_file_alloc
-// (
-//     char* const obj_filename,
-//     ch_vertex** out_vertices,
-//     int* out_nVert,
-//     void* allocator
-// )
-// {
-//     FILE* obj_file;
-//     obj_file = fopen(strcat(obj_filename, ".obj"), "r");
-//     
-//     /* determine number of vertices */
-//     unsigned int nVert = 0;
-//     char line[256];
-//     while (fgets(line, sizeof(line), obj_file)) {
-//         char* vexists = strstr(line, "v ");
-//         if(vexists!=NULL)
-//             nVert++;
-//     }
-//     (*out_nVert) = nVert;
-//     (*out_vertices) = (ch_vertex*)ch_stateful_malloc(allocator, nVert*sizeof(ch_vertex));
-//     
-//     /* extract the vertices */
-//     rewind(obj_file);
-//     int i=0;
-//     int vertID, prev_char_isDigit, current_char_isDigit;
-//     char vert_char[256] = { 0 }; 
-//     while (fgets(line, sizeof(line), obj_file)) {
-//         char* vexists = strstr(line, "v ");
-//         if(vexists!=NULL){
-//             prev_char_isDigit = 0;
-//             vertID = -1;
-//             for(size_t j=0; j<strlen(line)-1; j++){
-//                 if(isdigit(line[j])||line[j]=='.'||line[j]=='-'||line[j]=='+'||line[j]=='E'||line[j]=='e'){
-//                     vert_char[strlen(vert_char)] = line[j];
-//                     current_char_isDigit = 1;
-//                 }
-//                 else
-//                     current_char_isDigit = 0;
-//                 if((prev_char_isDigit && !current_char_isDigit) || j ==strlen(line)-2 ){
-//                     vertID++;
-//                     if(vertID>4){
-//                         /* not a valid file */
-//                         ch_stateful_free(allocator, (*out_vertices));
-//                         (*out_vertices) = NULL;
-//                         (*out_nVert) = 0;
-//                         return;
-//                     }
-//                     (*out_vertices)[i].v[vertID] = (double)atof(vert_char);
-//                     memset(vert_char, 0, 256 * sizeof(char));
-//                 }
-//                 prev_char_isDigit = current_char_isDigit;
-//             }
-//             i++;
-//         }
-//     }
-// }
-
 

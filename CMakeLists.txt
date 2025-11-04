@@ -5,6 +5,7 @@ project(geometry LANGUAGES C)
 add_library(geometry STATIC
     src/geometry.c
     src/convh.c
+    src/quickhull3d.c
 
     # Include the predicates .c files directly
     # external/predicates/src/constants.c
@@ -26,13 +27,10 @@ target_compile_options(geometry
 )
 
 
-if (NOT TARGET convhull_3d)
-    add_subdirectory(external/convhull_3d)
-endif()
-
 if (NOT TARGET predicates)
     add_subdirectory(external/predicates_shewchuck)
 endif()
+
 
 target_link_libraries(geometry
     PRIVATE
