@@ -1,22 +1,15 @@
-// Better mallocing of arrays...
-
-#include "../../include/geometry.h"  // TODO temporal
-
-#include "convhull_3d.h"
+#include "geometry.h"  // TODO temporal
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <float.h>
-#include <math.h>
 #include <ctype.h>
 #include <string.h>
 #include <errno.h> 
 #include <assert.h>
 
 
-#define MIN(a,b) (( (a) < (b) ) ? (a) : (b) )
-#define MAX(a,b) (( (a) > (b) ) ? (a) : (b) )
 
 #define CH_MAX_NUM_FACES 10000
 #define CH_N_INIT_INT_LIST 50
