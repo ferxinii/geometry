@@ -34,7 +34,6 @@ endif()
 
 target_link_libraries(geometry
     PRIVATE
-        convhull_3d
         predicates
 )
 
