@@ -26,6 +26,7 @@ int mark_boundary_convhull(const s_convh *convh, int out[convh->points.N]);
 s_points points_boundary_convhull(const s_convh *convh, int buff_isboundary[convh->points.N]);
 
 s_point random_point_inside_convhull(const s_convh *convh, double EPS_degenerate_face, s_point min, s_point max);  /* min max can be point_NAN: computed inside */
+s_point closest_point_on_convhull_boundary(const s_convh *convh, s_point query, double EPS_degenerate);
 
 
 

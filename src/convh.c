@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <math.h>
+#include <float.h>
 
 
 int convhull_is_valid(const s_convh *convh) 
@@ -315,6 +316,27 @@ s_point random_point_inside_convhull(const s_convh *convh, double EPS_degenerate
         it++;
     }
     return out;
+}
+
+
+s_point closest_point_on_convhull_boundary(const s_convh *convh, s_point query, double EPS_degenerate) 
+{
+    s_point out_point = {{{0, 0, 0}}};
+    double best_d2 = DBL_MAX;
+
+    for (int f=0; f<convh->Nf; f++) {
+        s_point triangle[3];
+        convh_get_face(convh, f, triangle);
+        s_point tmp = closest_point_on_triangle(triangle, EPS_degenerate, query);
+        double d2 = distance_squared(query, tmp);
+        if ( d2 < best_d2) {
+            out_point = tmp;
+            best_d2 = d2; 
+        }
+    }
+
+    if (best_d2 != DBL_MAX) return out_point;
+    else return point_NAN;
 }
 
 
