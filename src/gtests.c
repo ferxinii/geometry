@@ -46,24 +46,60 @@ int insphere_robust(const s_point p[4], s_point q)
 }
 
 
-// int segment_crosses_triangle_robust_3D(const s_point triangle[3], s_point a, s_point b)
-// {
-//     if (orientation_robust(triangle, a) == orientation_robust(triangle, b)) return 0;
-//     s_point aux[3];
-//     aux[2] = a; 
-//
-//     aux[0] = triangle[0];   aux[1] = triangle[1];
-//     int s1 = orientation_robust(aux, b);
-//
-//     aux[0] = triangle[1];   aux[1] = triangle[2];
-//     int s2 = orientation_robust(aux, b);
-//
-//     aux[0] = triangle[2];   aux[1] = triangle[0];
-//     int s3 = orientation_robust(aux, b);
-//     
-//     if (s1 == s2 && s2 == s3 && s3 == s1) return 1;
-//     else return 0;
-// }
+int segment_crosses_triangle_3D_robust(const s_point segment[2], const s_point triangle[3], double EPS_degenerate)
+{
+    int oa = orientation_robust(triangle, segment[0]);
+    int ob = orientation_robust(triangle, segment[1]);
+    if (oa == 0 && ob == 0) {
+        if (clip_segment_with_triangle_coplanar3D(segment, triangle, EPS_degenerate, 0, NULL) > 0) return 1;
+        else return 0;
+    }
+    if (oa == 0) {
+        e_geom_test test = test_point_in_triangle_3D(triangle, segment[0], EPS_degenerate, 0);
+        if (test == IN || test == BOUNDARY) return 1; 
+        else return 0;
+    }
+    if (ob == 0) {
+        e_geom_test test = test_point_in_triangle_3D(triangle, segment[1], EPS_degenerate, 0);
+        if (test == IN || test == BOUNDARY) return 1; 
+        else return 0;
+    }
+    if (oa == ob) return 0;  /* Same side of the plane */
+    
+    /* Find segment plane intersection, project to 2D and make test in 2D */
+    s_point pi[2];
+    int Npi = segment_plane_intersection(segment, triangle, EPS_degenerate, 0, pi);
+    assert(Npi == 1);
+    s_point n, t1, t2;
+    if (!basis_vectors_plane(triangle, EPS_degenerate, &n, &t1, &t2)) return ERROR;
+    double v1[2] = { dot_prod(triangle[0], t1), dot_prod(triangle[0], t2) };
+    double v2[2] = { dot_prod(triangle[1], t1), dot_prod(triangle[1], t2) };
+    double v3[2] = { dot_prod(triangle[2], t1), dot_prod(triangle[2], t2) };
+    double p2d[2] = { dot_prod(pi[0], t1), dot_prod(pi[0], t2) };
+
+    e_geom_test res = test_point_in_triangle_2D(v1, v2, v3, p2d, EPS_degenerate, 0);
+    if (res == IN || res == BOUNDARY) return 1;
+    else return 0;
+}
+
+
+int segment_crosses_triangle_3D(const s_point segment[2], const s_point triangle[3], double EPS_degenerate, double TOL)
+{
+    if (area_triangle(triangle) < EPS_degenerate) return 0;
+
+    if (TOL == 0)  return segment_crosses_triangle_3D_robust(segment, triangle, EPS_degenerate);
+
+    /* Non-robust branch */
+    double TOL2 = TOL*TOL;
+    s_point i_plane[2];
+    int Ni_plane = segment_plane_intersection(segment, triangle, EPS_degenerate, TOL, i_plane);
+    /* Intersection(s) close enought to closest point on triangle? */
+    for (int ii=0; ii<Ni_plane; ii++) {
+        s_point closest = closest_point_on_triangle(triangle, EPS_degenerate, i_plane[ii]);
+        if (distance_squared(closest, i_plane[ii]) < TOL2) return 1;
+    }
+    return 0;
+}
 
 
 e_geom_test test_point_in_interval_1D(double x, double a, double b, double EPS_degenerate, double TOL)
@@ -503,5 +539,29 @@ int clip_segment_with_triangle_2D(const double s1[2], const double s2[2], const 
 
     if (h == 1) return 1;       
     else return 0;
+}
+
+
+int clip_segment_with_triangle_coplanar3D(const s_point segment[2], const s_point face[3], double EPS_degenerate, double TOL, s_point out[2])
+{
+    s_point n, t1, t2;
+    if (!basis_vectors_plane(face, EPS_degenerate, &n, &t1, &t2)) return 0;
+
+    /* Build new triangle (lives in 2D) */
+    double v1[2] = {dot_prod(face[0], t1), dot_prod(face[0], t2)};
+    double v2[2] = {dot_prod(face[1], t1), dot_prod(face[1], t2)};
+    double v3[2] = {dot_prod(face[2], t1), dot_prod(face[2], t2)};
+    double s1[2] = {dot_prod(segment[0], t1), dot_prod(segment[0], t2)};
+    double s2[2] = {dot_prod(segment[1], t1), dot_prod(segment[1], t2)};
+    
+    double clips[4];
+    int Nclips = clip_segment_with_triangle_2D(s1, s2, v1, v2, v3, EPS_degenerate, TOL, clips);
+    if (out) {
+        for (int ii=0; ii<Nclips; ii++)  /* List back to 3D */
+            out[ii] = sum_points(face[0], sum_points(scale_point(t1, clips[ii*2+0]-v1[0]),
+                                                     scale_point(t2, clips[ii*2+1]-v1[1])));
+    }
+
+    return Nclips;
 }
 

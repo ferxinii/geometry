@@ -119,28 +119,6 @@ static void list_edges_convhull(const s_convh *C, int *out_Nedges, s_edge_list *
 
 
 /* Clip segment with convhull */
-static int coplanar_clip_segment_triangle(const s_point segment[2], const s_point face[3], double EPS_degenerate, double TOL, s_point out[2])
-{
-    s_point n, t1, t2;
-    if (!basis_vectors_plane(face, EPS_degenerate, &n, &t1, &t2)) return 0;
-
-    /* Build new triangle (lives in 2D) */
-    double v1[2] = {dot_prod(face[0], t1), dot_prod(face[0], t2)};
-    double v2[2] = {dot_prod(face[1], t1), dot_prod(face[1], t2)};
-    double v3[2] = {dot_prod(face[2], t1), dot_prod(face[2], t2)};
-    double s1[2] = {dot_prod(segment[0], t1), dot_prod(segment[0], t2)};
-    double s2[2] = {dot_prod(segment[1], t1), dot_prod(segment[1], t2)};
-    
-    double clips[4];
-    int Nclips = clip_segment_with_triangle_2D(s1, s2, v1, v2, v3, EPS_degenerate, TOL, clips);
-    for (int ii=0; ii<Nclips; ii++)  /* List back to 3D */
-        out[ii] = sum_points(face[0], sum_points(scale_point(t1, clips[ii*2+0]-v1[0]),
-                                                 scale_point(t2, clips[ii*2+1]-v1[1])));
-
-    return Nclips;
-}
-
-
 int segment_convhull_intersection(const s_convh *C, const s_point segment[2], double EPS_degenerate, double TOL, s_point out[2])
 {
     e_geom_test i0 = test_point_in_convhull(C, segment[0], EPS_degenerate, TOL);
@@ -172,7 +150,7 @@ int segment_convhull_intersection(const s_convh *C, const s_point segment[2], do
             }
         } else if (N == 2) {  /* Segment is coplanar with face */
             s_point tmp_cop[2];
-            int Ncop = coplanar_clip_segment_triangle(segment, face, EPS_degenerate, TOL, tmp_cop);
+            int Ncop = clip_segment_with_triangle_coplanar3D(segment, face, EPS_degenerate, TOL, tmp_cop);
             for (int jj=0; jj<Ncop; jj++) {
                 intersections = realloc(intersections, (Nintersections+1) * sizeof(s_point));
                 intersections[Nintersections++] = tmp_cop[jj];
