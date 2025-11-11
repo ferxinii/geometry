@@ -1,0 +1,7 @@
+#ifndef GEOMETRY_CH_INTERSECT_H
+#define GEOMETRY_CH_INTERSECT_H
+
+#define CH_N_INIT_EDGE_LIST 50
+#define CH_N_INIT_POINT_LIST 50
+
+#endif

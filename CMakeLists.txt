@@ -3,9 +3,11 @@ project(geometry LANGUAGES C)
 
 
 add_library(geometry STATIC
-    src/geometry.c
+    src/points.c
+    src/gtests.c
     src/convh.c
-    src/quickhull3d.c
+    src/ch_quickhull3D.c
+    src/ch_intersect.c
 
     # Include the predicates .c files directly
     # external/predicates/src/constants.c
