@@ -593,13 +593,15 @@ int segment_triangle_intersection_3D(const s_point segment[2], const s_point tri
 
     /* Non-robust branch */
     double TOL2 = TOL*TOL;
-    int Ni_plane = segment_plane_intersection(segment, triangle, EPS_degenerate, TOL, out);
+    s_point tmp[2];
+    int Ni_plane = segment_plane_intersection(segment, triangle, EPS_degenerate, TOL, tmp);
     int count = 0;
     /* Intersection(s) close enought to closest point on triangle? */
     for (int ii=0; ii<Ni_plane; ii++) {
-        s_point closest = closest_point_on_triangle(triangle, EPS_degenerate, out[ii]);
-        if (distance_squared(closest, out[ii]) < TOL2) count++;
+        s_point closest = closest_point_on_triangle(triangle, EPS_degenerate, tmp[ii]);
+        if (distance_squared(closest, tmp[ii]) < TOL2) count++;
     }
+    if (out) { out[0] = tmp[0]; out[1] = tmp[1]; }
     return count;
 }
 
