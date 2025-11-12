@@ -66,20 +66,31 @@ int segment_crosses_triangle_3D_robust(const s_point segment[2], const s_point t
     }
     if (oa == ob) return 0;  /* Same side of the plane */
     
-    /* Find segment plane intersection, project to 2D and make test in 2D */
-    s_point pi[2];
-    int Npi = segment_plane_intersection(segment, triangle, EPS_degenerate, 0, pi);
-    assert(Npi == 1);
-    s_point n, t1, t2;
-    if (!basis_vectors_plane(triangle, EPS_degenerate, &n, &t1, &t2)) return ERROR;
-    double v1[2] = { dot_prod(triangle[0], t1), dot_prod(triangle[0], t2) };
-    double v2[2] = { dot_prod(triangle[1], t1), dot_prod(triangle[1], t2) };
-    double v3[2] = { dot_prod(triangle[2], t1), dot_prod(triangle[2], t2) };
-    double p2d[2] = { dot_prod(pi[0], t1), dot_prod(pi[0], t2) };
 
-    e_geom_test res = test_point_in_triangle_2D(v1, v2, v3, p2d, EPS_degenerate, 0);
-    if (res == IN || res == BOUNDARY) return 1;
-    else return 0;
+    /* Find segment plane intersection, project to 2D and make test in 2D */
+    s_point p[2];
+    int Np = segment_plane_intersection(segment, triangle, EPS_degenerate, 0, p);
+    assert(Np == 1);
+
+    s_point AB = subtract_points(triangle[1], triangle[0]);
+    s_point BC = subtract_points(triangle[2], triangle[1]);
+    s_point CA = subtract_points(triangle[0], triangle[2]);
+
+    s_point PA = subtract_points(p[0], triangle[0]);
+    s_point PB = subtract_points(p[0], triangle[1]);
+    s_point PC = subtract_points(p[0], triangle[2]);
+
+    s_point n = cross_prod(AB, subtract_points(triangle[2], triangle[0])); // cross(AB, AC)
+
+    // Dot of cross with n (scalar triple) — no normalization needed
+    double s1 = dot_prod(cross_prod(AB, PA), n);
+    double s2 = dot_prod(cross_prod(BC, PB), n);
+    double s3 = dot_prod(cross_prod(CA, PC), n);
+
+    // Accept points on boundary
+    if ( (s1>=0 && s2>=0 && s3>=0) || (s1<=0 && s2<=0 && s3<=0) )
+        return 1;
+    return 0;
 }
 
 
