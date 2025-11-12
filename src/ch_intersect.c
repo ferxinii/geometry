@@ -140,21 +140,11 @@ int segment_convhull_intersection(const s_convh *C, const s_point segment[2], do
         int o1 = orientation_robust(face, segment[1]);
         if (o0 != 0 && o1 != 0 && o0 == o1) continue;  /* Skip if on same side of plane */
 
-        s_point tmp[2];
-        int N = segment_plane_intersection(segment, face, EPS_degenerate, TOL, tmp);
-        if (N == 1) {
-            e_geom_test intri = test_point_in_triangle_3D(face, tmp[0], EPS_degenerate, TOL);
-            if (intri == IN || intri == BOUNDARY) {
-                intersections = realloc(intersections, (Nintersections+1) * sizeof(s_point));
-                intersections[Nintersections++] = tmp[0];
-            }
-        } else if (N == 2) {  /* Segment is coplanar with face */
-            s_point tmp_cop[2];
-            int Ncop = clip_segment_with_triangle_coplanar3D(segment, face, EPS_degenerate, TOL, tmp_cop);
-            for (int jj=0; jj<Ncop; jj++) {
-                intersections = realloc(intersections, (Nintersections+1) * sizeof(s_point));
-                intersections[Nintersections++] = tmp_cop[jj];
-            }
+        s_point face_intersections[2];
+        int N_fi = segment_triangle_intersection_3D(segment, face, EPS_degenerate, TOL, face_intersections);
+        for (int jj=0; jj<N_fi; jj++) {
+            intersections = realloc(intersections, (Nintersections+1) * sizeof(s_point));
+            intersections[Nintersections++] = face_intersections[jj];
         }
     }
     if (Nintersections == 0) return 0;
