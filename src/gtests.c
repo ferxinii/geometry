@@ -48,27 +48,18 @@ int insphere_robust(const s_point p[4], s_point q)
 
 
 /* HELPERS */
-static int robust_coord_to_drop_from_plane(const s_point plane[3])
+static int coord_to_drop_from_plane(const s_point plane[3])
 {
-    s_point A = plane[0], B = plane[1], C = plane[2];
-    double areaYZ = fabs(orient2d(
-        (double[2]){A.coords[1], A.coords[2]},
-        (double[2]){B.coords[1], B.coords[2]},
-        (double[2]){C.coords[1], C.coords[2]}));
+    s_point AB = subtract_points(plane[1], plane[0]);
+    s_point AC = subtract_points(plane[2], plane[0]);
+    s_point n  = cross_prod(AB, AC);
 
-    double areaZX = fabs(orient2d(
-        (double[2]){A.coords[2], A.coords[0]},
-        (double[2]){B.coords[2], B.coords[0]},
-        (double[2]){C.coords[2], C.coords[0]}));
+    double ax = fabs(n.coords[0]);
+    double ay = fabs(n.coords[1]);
+    double az = fabs(n.coords[2]);
 
-    double areaXY = fabs(orient2d(
-        (double[2]){A.coords[0], A.coords[1]},
-        (double[2]){B.coords[0], B.coords[1]},
-        (double[2]){C.coords[0], C.coords[1]}));
-
-    /* Pick largest projected area */
-    if (areaYZ >= areaZX && areaYZ >= areaXY) return 0;  // drop X
-    else if (areaZX >= areaYZ && areaZX >= areaXY) return 1;  // drop Y
+    if (ax >= ay && ax >= az) return 0;  // drop X
+    else if (ay >= ax && ay >= az) return 1;  // drop Y
     else return 2;  // drop Z
 }
 
@@ -130,7 +121,7 @@ static double area_triangle_2D(const double a[2], const double b[2], const doubl
 
 static int points_close_2D(const double a[2], const double b[2], double TOL) 
 {
-    if ((a[0]-b[0])*(a[0]-b[0]) + (a[1]-b[1])*(a[1]-b[1]) < TOL*TOL) return 1;
+    if ((a[0]-b[0])*(a[0]-b[0]) + (a[1]-b[1])*(a[1]-b[1]) <= TOL*TOL) return 1;
     else return 0;
 }
 
@@ -208,7 +199,7 @@ static e_geom_test test_point_in_triangle_3D_robust(const s_point triangle[3], s
     if (orientation_robust(triangle, p) != 0) return OUT;
 
     /* Point coplanr. Project to 2D and check */   
-    int drop = robust_coord_to_drop_from_plane(triangle);
+    int drop = coord_to_drop_from_plane(triangle);
     double A2[2]; drop_to_2D(triangle[0], drop, A2);
     double B2[2]; drop_to_2D(triangle[1], drop, B2);
     double C2[2]; drop_to_2D(triangle[2], drop, C2);
@@ -229,7 +220,7 @@ e_geom_test test_point_in_triangle_3D(const s_point triangle[3], s_point p, doub
     if (distance_squared(closest, p) > TOL*TOL) return OUT;
     
     /* Point is TOL close to plane. Project to 2D and check */
-    int drop = robust_coord_to_drop_from_plane(triangle);
+    int drop = coord_to_drop_from_plane(triangle);
     double A2[2]; drop_to_2D(triangle[0], drop, A2);
     double B2[2]; drop_to_2D(triangle[1], drop, B2);
     double C2[2]; drop_to_2D(triangle[2], drop, C2);
@@ -341,6 +332,123 @@ s_points_test test_points_in_halfspace(const s_point plane_ordered[3], const s_p
 }
 
 
+e_geom_test test_segment_segment_intersect_2D_robust(const double A1[2], const double A2[2], const double B1[2], const double B2[2])
+{
+    double d1 = orient2d(A1, A2, B1);
+    double d2 = orient2d(A1, A2, B2);
+    double d3 = orient2d(B1, B2, A1);
+    double d4 = orient2d(B1, B2, A2);
+
+    /* 2a) Check if both collinear. Works for robust and non-robust cases */
+    if (d1 == 0 && d2 == 0 && d3 == 0 && d4 == 0) {
+        /* collinear: overlapping test via projections */
+        double min_x = fmax(fmin(A1[0], A2[0]), fmin(B1[0], B2[0]));
+        double max_x = fmin(fmax(A1[0], A2[0]), fmax(B1[0], B2[0]));
+        double min_y = fmax(fmin(A1[1], A2[1]), fmin(B1[1], B2[1]));
+        double max_y = fmin(fmax(A1[1], A2[1]), fmax(B1[1], B2[1]));
+        if (min_x <= max_x  && min_y <= max_y) {
+            return BOUNDARY; /* overlapping collinear segments */
+        }
+        return OUT;
+    }
+    
+    /* 2b) Check proper intersection via straddling. Works for robust and non-robust cases. */
+     if ( ((d1>0 && d2<0) || (d1<0 && d2>0)) &&
+          ((d3>0 && d4<0) || (d3<0 && d4>0)) ) {
+        return IN;
+    }
+    
+    /* 2c) Single end colinear with segment. Check if point lies within the other segment */
+    if (d1 == 0 &&
+        test_point_in_interval_1D(B1[0], A1[0], A2[0], 0, 0) != OUT &&
+        test_point_in_interval_1D(B1[1], A1[1], A2[1], 0, 0) != OUT) {
+        return BOUNDARY;
+    }
+    if (d2 == 0 &&
+        test_point_in_interval_1D(B2[0], A1[0], A2[0], 0, 0) != OUT &&
+        test_point_in_interval_1D(B2[1], A1[1], A2[1], 0, 0) != OUT) {
+        return BOUNDARY;
+    }
+    if (d3 == 0 &&
+        test_point_in_interval_1D(A1[0], B1[0], B2[0], 0, 0) != OUT &&
+        test_point_in_interval_1D(A1[1], B1[1], B2[1], 0, 0) != OUT) {
+        return BOUNDARY;
+    }
+    if (d4 == 0 &&
+        test_point_in_interval_1D(A2[0], B1[0], B2[0], 0, 0) != OUT &&
+        test_point_in_interval_1D(A2[1], B1[1], B2[1], 0, 0) != OUT) {
+        return BOUNDARY;
+    }
+    return OUT;
+}
+
+
+e_geom_test test_segment_triangle_intersect_2D_robust(const double S1[2], const double S2[2], const double A[2], const double B[2], const double C[2])
+{
+    e_geom_test i1 = test_point_in_triangle_2D(A, B, C, S1, 0, 0);
+    e_geom_test i2 = test_point_in_triangle_2D(A, B, C, S2, 0, 0);
+    if (i1 == ERROR || i2 == ERROR) return ERROR;
+    if (i1 == IN || i2 == IN) return IN;
+    if (i1 == BOUNDARY && i2 == BOUNDARY) return BOUNDARY;  /* None is inside */
+
+    /* Check segment_segment intersections in 2D. Already considers robust / non-robust cases! */
+    e_geom_test t1 = test_segment_segment_intersect_2D_robust(S1, S2, A, B);
+    e_geom_test t2 = test_segment_segment_intersect_2D_robust(S1, S2, B, C);
+    e_geom_test t3 = test_segment_segment_intersect_2D_robust(S1, S2, C, A);
+
+    if (t1 == BOUNDARY || t2 == BOUNDARY || t3 == BOUNDARY) return BOUNDARY;
+    if (t1 == IN || t2 == IN || t3 == IN) return IN;
+    return OUT;
+}
+
+
+e_geom_test test_segment_triangle_intersect_3D_robust(const s_point segment[2], const s_point triangle[3])
+{   
+    /* Check if any end of segment coplanar with triangle */
+    int o1 = orientation_robust(triangle, segment[0]);
+    int o2 = orientation_robust(triangle, segment[1]);
+
+    if (o1 == 0 && o2 == 0) {  /* Whole segment complanar with triangle */
+        int drop = coord_to_drop_from_plane(triangle);
+        double A2[2]; drop_to_2D(triangle[0], drop, A2);
+        double B2[2]; drop_to_2D(triangle[1], drop, B2);
+        double C2[2]; drop_to_2D(triangle[2], drop, C2);
+        double P2[2]; drop_to_2D(segment[0], drop, P2);
+        double D2[2]; drop_to_2D(segment[1], drop, D2);
+
+        return test_segment_triangle_intersect_2D_robust(P2, D2, A2, B2, C2);
+    }
+    else if (o1 == 0) return test_point_in_triangle_3D_robust(triangle, segment[0]);
+    else if (o2 == 0) return test_point_in_triangle_3D_robust(triangle, segment[1]);
+    
+    if (o1 == o2) return OUT;
+
+
+    /* Segura's algorithm */
+    s_point v1 = triangle[0], v2 = triangle[1], v3 = triangle[2];
+
+    int index_q1 = orientation_robust(triangle, segment[0]) == 1 ? 0 : 1;
+    int index_q2 = index_q1 == 0 ? 1 : 0;
+    s_point q1 = segment[index_q1];
+    s_point q2 = segment[index_q2];
+
+    s_point aux[3];
+    aux[0] = q2; aux[1] = v1; aux[2] = v2;
+    int s1 = orientation_robust(aux, q1);
+
+    aux[0] = q2; aux[1] = v3; aux[2] = v2;
+    int s2 = orientation_robust(aux, q1);
+
+    aux[0] = q2; aux[1] = v1; aux[2] = v3;
+    int s3 = orientation_robust(aux, q1);
+
+    if (s1 < 0 || s2 < 0 || s3 < 0) return OUT;
+    /* All >= 0 */
+    if (s1 == 0 || s2 == 0 || s3 == 0) return BOUNDARY;  
+    return IN;  
+}
+
+
 
 /* INTERSECTIONS */
 /* Even though the count should be robust, the point of intersection need not be robust... */
@@ -348,10 +456,10 @@ int segment_segment_intersection_2D(const double A1[2], const double A2[2], cons
 {   /* RETURNS: abs(output) = number of intersections
        If positive, we could compute the intersection respecting EPS_degenerate */
     /* 1) Degeneracy handling */
-    int A_is_point = (fabs(A1[0]-A2[0])<=EPS_degenerate && fabs(A1[1]-A2[1])<=EPS_degenerate);
-    int B_is_point = (fabs(B1[0]-B2[0])<=EPS_degenerate && fabs(B1[1]-B2[1])<=EPS_degenerate);
+    int A_is_point = points_close_2D(A1, A2, EPS_degenerate);
+    int B_is_point = points_close_2D(B1, B2, EPS_degenerate);
     if (A_is_point && B_is_point) {
-        if (fabs(A1[0]-B1[0])<=TOL && fabs(A1[1]-B1[1])<=TOL) {
+        if (fabs(A1[0]-B1[0])<=TOL && fabs(A1[1]-B1[1])<=TOL) {  /* Both are same point */
             if (out) { out[0] = A1[0]; out[1] = A1[1]; } return 1;
         } else return 0;
     } else if (A_is_point) {
@@ -404,7 +512,7 @@ int segment_segment_intersection_2D(const double A1[2], const double A2[2], cons
             double B_c = B_a*B1[0] + B_b*B1[1];
 
             double det = A_a*B_b - B_a*A_b;
-            if (fabs(det) <= EPS_degenerate) return -2;  /* nearly parallel */
+            if (fabs(det) <= EPS_degenerate) return -1;  /* nearly parallel */
             out[0] = (B_b*A_c - A_b*B_c)/det;
             out[1] = (A_a*B_c - B_a*A_c)/det;
         }
@@ -495,7 +603,7 @@ int segment_plane_intersection(const s_point seg[2], const s_point plane[3], dou
     if (fabs(sA) < TOL && fabs(sB) < TOL) {
         out[0] = project_point_to_plane(seg[0], plane, EPS_degenerate);
         out[1] = project_point_to_plane(seg[1], plane, EPS_degenerate);
-        if (!point_is_valid(out[0]) || !point_is_valid(out[1])) return 0;
+        if (!point_is_valid(out[0]) || !point_is_valid(out[1])) return -2;
         return 2;
     }
 
@@ -531,6 +639,7 @@ int segment_triangle_intersection_2D(const double s1[2], const double s2[2], con
     int n1 = segment_segment_intersection_2D(s1, s2, a, b, EPS_degenerate, TOL, intersection1);
     int n2 = segment_segment_intersection_2D(s1, s2, b, c, EPS_degenerate, TOL, intersection2);
     int n3 = segment_segment_intersection_2D(s1, s2, c, a, EPS_degenerate, TOL, intersection3);
+    if (!out && (n1>0 || n2>0 || n3>0)) return (int)fmax(n1, fmax(n2, n3)); 
 
     int h = 0;
     double TOL2 = TOL*TOL;
@@ -567,7 +676,7 @@ static int segment_triangle_intersection_3D_robust(const s_point segment[2], con
     int o2 = orientation_robust(triangle, segment[1]);
     if (o1 != 0 && o2 != 0 && o1 == o2) return 0;  /* Both on the same side of plane */
 
-    int drop = robust_coord_to_drop_from_plane(triangle);
+    int drop = coord_to_drop_from_plane(triangle);
     double A2[2]; drop_to_2D(triangle[0], drop, A2);
     double B2[2]; drop_to_2D(triangle[1], drop, B2);
     double C2[2]; drop_to_2D(triangle[2], drop, C2);

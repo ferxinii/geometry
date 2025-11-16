@@ -35,6 +35,11 @@ e_geom_test test_point_in_triangle_2D(const double a[2], const double b[2], cons
 e_geom_test test_point_in_triangle_3D(const s_point triangle[3], s_point p, double EPS_degenerate, double TOL);
 e_geom_test test_point_in_tetrahedron(const s_point tetra[4], s_point query, double EPS_degenerate, double TOL);
 s_points_test test_points_in_halfspace(const s_point plane_ordered[3], const s_points *points, double EPS_degenerate, double TOL, e_geom_test out_buff[points->N]);
+e_geom_test test_segment_segment_intersect_2D_robust(const double A1[2], const double A2[2], const double B1[2], const double B2[2]);
+e_geom_test test_segment_triangle_intersect_2D_robust(const double S1[2], const double S2[2], const double A[2], const double B[2], const double C[2]);
+e_geom_test test_segment_triangle_intersect_3D_robust(const s_point segment[2], const s_point triangle[3]);
+
+e_geom_test test_segment_triangle_intersect_robust(const s_point segment[2], const s_point triangle[3]);
 
 
 int segment_segment_intersection_2D(const double A1[2], const double A2[2], const double B1[2], const double B2[2], double EPS_degenerate, double TOL, double out[4]);
