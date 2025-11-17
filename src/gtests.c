@@ -12,7 +12,7 @@
 #include <float.h>
 
 
-static atomic_flag predicates_init_flag = ATOMIC_FLAG_TEST_INIT;
+static atomic_flag predicates_init_flag = ATOMIC_FLAG_INIT;
 static inline void ensure_predicates_initialized(void)
 {
     if (!atomic_flag_test_and_set(&predicates_init_flag))
@@ -204,7 +204,7 @@ static e_geom_test test_point_in_triangle_3D_robust(const s_point triangle[3], s
 {
     if (orientation_robust(triangle, p) != 0) return TEST_OUT;
 
-    /* Point coplanr. Project to 2D and check */   
+    /* Point coplanar. Project to 2D and check */   
     int drop = coord_to_drop_from_plane(triangle);
     double A2[2]; drop_to_2D(triangle[0], drop, A2);
     double B2[2]; drop_to_2D(triangle[1], drop, B2);
@@ -265,10 +265,9 @@ static e_geom_test test_point_in_tetrahedron_robust(const s_point tetra[4], s_po
         (s3 != 0 && s3 * e3 < 0))
         return TEST_OUT;
     
-    /* Count how many face-orientation_robusts are exactly zero */
-    int zeros = (s0 == 0) + (s1 == 0) + (s2 == 0) + (s3 == 0);
-    if (zeros == 0) return TEST_IN;   // strictly inside
-    return TEST_BOUNDARY;
+
+    if (s0 == 0 || s1 == 0 || s2 == 0 || s3 == 0) return TEST_BOUNDARY;
+    return TEST_IN;
 }
 
 
@@ -359,7 +358,6 @@ e_intersect_type test_segment_segment_intersect_2D_robust(const double A1[2], co
             return INTERSECT_DEGENERATE;
         return INTERSECT_EMPTY;
     }
-
 
     /* 2) Segments are non-degenerate */
     double d1 = orient2d(A1, A2, B1);
