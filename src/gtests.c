@@ -12,7 +12,7 @@
 #include <float.h>
 
 
-static atomic_flag predicates_init_flag = ATOMIC_FLAG_INIT;
+static atomic_flag predicates_init_flag = ATOMIC_FLAG_TEST_INIT;
 static inline void ensure_predicates_initialized(void)
 {
     if (!atomic_flag_test_and_set(&predicates_init_flag))
@@ -125,6 +125,12 @@ static int points_close_2D(const double a[2], const double b[2], double TOL)
     else return 0;
 }
 
+static int points_equal_2D(const double a[2], const double b[2])
+{
+    if (a[0] == b[0] && a[1] == b[1]) return 1;
+    else return 0;
+}
+
 static int append_unique_2D_lim2(double out[4], int *count, const double p[2], double TOL)
 {
     if ((*count)<2 && TOL > 0) {
@@ -146,11 +152,11 @@ static int append_unique_2D_lim2(double out[4], int *count, const double p[2], d
 /* Geometrical tests */
 e_geom_test test_point_in_interval_1D(double x, double a, double b, double EPS_degenerate, double TOL)
 {
-    if (fabs(b - a) < EPS_degenerate) return ERROR;
-    if (fabs(x - a) <= TOL|| fabs(x - b) <= TOL) return BOUNDARY;
+    if (fabs(b - a) < EPS_degenerate) return TEST_ERROR;
+    if (fabs(x - a) <= TOL|| fabs(x - b) <= TOL) return TEST_BOUNDARY;
     if (a > b) { double tmp = a; a = b; b = tmp; }
-    if (x + TOL>= a && x - TOL<= b) return IN;
-    return OUT;
+    if (x + TOL>= a && x - TOL<= b) return TEST_IN;
+    return TEST_OUT;
 }
 
 
@@ -158,16 +164,16 @@ static e_geom_test test_point_in_triangle_2D_robust_from_orientations(int o1, in
 {
     /* If any non-zero orientation disagrees, p is outside */
     int ref = (o1 != 0) ? o1 : ((o2 != 0) ? o2 : o3);
-    if (ref == 0) return ERROR;
-    if ((o1 != 0 && o1 != ref) || (o2 != 0 && o2 != ref) || (o3 != 0 && o3 != ref)) return OUT;
-    if (o1 == 0 || o2 == 0 || o3 == 0) return BOUNDARY;
-    return IN;
+    if (ref == 0) return TEST_ERROR;
+    if ((o1 != 0 && o1 != ref) || (o2 != 0 && o2 != ref) || (o3 != 0 && o3 != ref)) return TEST_OUT;
+    if (o1 == 0 || o2 == 0 || o3 == 0) return TEST_BOUNDARY;
+    return TEST_IN;
 }
 
 
 e_geom_test test_point_in_triangle_2D(const double a[2], const double b[2], const double c[2], const double p[2], double EPS_degenerate, double TOL)
 {
-    if (area_triangle_2D(a, b, c) < EPS_degenerate) return ERROR;
+    if (area_triangle_2D(a, b, c) < EPS_degenerate) return TEST_ERROR;
 
     /* Robust orientation tests of p vs each edge */
     int o1 = orient2d(a, b, p);
@@ -181,22 +187,22 @@ e_geom_test test_point_in_triangle_2D(const double a[2], const double b[2], cons
     double d2, t;
     /* Check distance to edges */
     d2 = point_segment_dist2_2D(p, a, b, EPS_degenerate, &t);
-    if (d2 <= TOL2 && t >= -EPS_degenerate && t <= 1.0 + EPS_degenerate) return BOUNDARY;
+    if (d2 <= TOL2 && t >= -EPS_degenerate && t <= 1.0 + EPS_degenerate) return TEST_BOUNDARY;
 
     d2 = point_segment_dist2_2D(p, b, c, EPS_degenerate, &t);
-    if (d2 <= TOL2 && t >= -EPS_degenerate && t <= 1.0 + EPS_degenerate) return BOUNDARY;
+    if (d2 <= TOL2 && t >= -EPS_degenerate && t <= 1.0 + EPS_degenerate) return TEST_BOUNDARY;
 
     d2 = point_segment_dist2_2D(p, c, a, EPS_degenerate, &t);
-    if (d2 <= TOL2 && t >= -EPS_degenerate && t <= 1.0 + EPS_degenerate) return BOUNDARY;
+    if (d2 <= TOL2 && t >= -EPS_degenerate && t <= 1.0 + EPS_degenerate) return TEST_BOUNDARY;
 
-    /* If not on boundary, check robust orientation to determine IN/OUT */
+    /* If not on boundary, check robust orientation to determine TEST_IN/TEST_OUT */
     return test_point_in_triangle_2D_robust_from_orientations(o1, o2, o3);
 }
 
 
 static e_geom_test test_point_in_triangle_3D_robust(const s_point triangle[3], s_point p)
 {
-    if (orientation_robust(triangle, p) != 0) return OUT;
+    if (orientation_robust(triangle, p) != 0) return TEST_OUT;
 
     /* Point coplanr. Project to 2D and check */   
     int drop = coord_to_drop_from_plane(triangle);
@@ -211,13 +217,13 @@ static e_geom_test test_point_in_triangle_3D_robust(const s_point triangle[3], s
 
 e_geom_test test_point_in_triangle_3D(const s_point triangle[3], s_point p, double EPS_degenerate, double TOL) 
 {
-    if (area_triangle(triangle) < EPS_degenerate) return ERROR;
+    if (area_triangle(triangle) < EPS_degenerate) return TEST_ERROR;
 
     if (TOL == 0) return test_point_in_triangle_3D_robust(triangle, p);
 
     s_point closest = project_point_to_plane(p, triangle, EPS_degenerate);
-    if (!point_is_valid(closest)) return ERROR;
-    if (distance_squared(closest, p) > TOL*TOL) return OUT;
+    if (!point_is_valid(closest)) return TEST_ERROR;
+    if (distance_squared(closest, p) > TOL*TOL) return TEST_OUT;
     
     /* Point is TOL close to plane. Project to 2D and check */
     int drop = coord_to_drop_from_plane(triangle);
@@ -251,24 +257,24 @@ static e_geom_test test_point_in_tetrahedron_robust(const s_point tetra[4], s_po
     int e3 = orientation_robust(tmp, tetra[3]);
     int s3 = orientation_robust(tmp, query);
 
-    if (e0 == 0 || e1 == 0 || e2 == 0 || e3 == 0) return ERROR;
+    if (e0 == 0 || e1 == 0 || e2 == 0 || e3 == 0) return TEST_ERROR;
 
     if ((s0 != 0 && s0 * e0 < 0) ||
         (s1 != 0 && s1 * e1 < 0) ||
         (s2 != 0 && s2 * e2 < 0) ||
         (s3 != 0 && s3 * e3 < 0))
-        return OUT;
+        return TEST_OUT;
     
     /* Count how many face-orientation_robusts are exactly zero */
     int zeros = (s0 == 0) + (s1 == 0) + (s2 == 0) + (s3 == 0);
-    if (zeros == 0) return IN;   // strictly inside
-    return BOUNDARY;
+    if (zeros == 0) return TEST_IN;   // strictly inside
+    return TEST_BOUNDARY;
 }
 
 
 e_geom_test test_point_in_tetrahedron(const s_point tetra[4], s_point query, double EPS_degenerate, double TOL)
 {   
-    if (signed_volume_tetra(tetra) < EPS_degenerate) return ERROR;
+    if (signed_volume_tetra(tetra) < EPS_degenerate) return TEST_ERROR;
 
     if (TOL == 0) return test_point_in_tetrahedron_robust(tetra, query);
 
@@ -286,14 +292,14 @@ e_geom_test test_point_in_tetrahedron(const s_point tetra[4], s_point query, dou
     tmp[0] = tetra[0];   tmp[1] = tetra[2];   tmp[2] = tetra[1];
     e_geom_test t4 = test_point_in_triangle_3D(tmp, query, EPS_degenerate, TOL);
 
-    if (t1 == ERROR || t2 == ERROR || t3 == ERROR || t4 == ERROR) return ERROR;
-    else if (t1 == IN || t1 == BOUNDARY ||
-             t2 == IN || t2 == BOUNDARY ||
-             t3 == IN || t3 == BOUNDARY ||
-             t4 == IN || t4 == BOUNDARY) 
-        return BOUNDARY;
+    if (t1 == TEST_ERROR || t2 == TEST_ERROR || t3 == TEST_ERROR || t4 == TEST_ERROR) return TEST_ERROR;
+    else if (t1 == TEST_IN || t1 == TEST_BOUNDARY ||
+             t2 == TEST_IN || t2 == TEST_BOUNDARY ||
+             t3 == TEST_IN || t3 == TEST_BOUNDARY ||
+             t4 == TEST_IN || t4 == TEST_BOUNDARY) 
+        return TEST_BOUNDARY;
     
-    /* Do robust test to determine if IN / OUT */
+    /* Do robust test to determine if TEST_IN / TEST_OUT */
     return test_point_in_tetrahedron_robust(tetra, query);
 }
 
@@ -306,25 +312,25 @@ s_points_test test_points_in_halfspace(const s_point plane_ordered[3], const s_p
     if (TOL == 0) {  /* Robust branch */
         for (int ii=0; ii<points->N; ii++) {
             int o = orientation_robust(plane_ordered, points->p[ii]);
-            if (o == 1) { out_buff[ii] = IN; Nin++; } 
-            else if (o == 0) { out_buff[ii] = BOUNDARY; Nbdy++; }
-            else { out_buff[ii] = OUT; Nout++; }
+            if (o == 1) { out_buff[ii] = TEST_IN; Nin++; } 
+            else if (o == 0) { out_buff[ii] = TEST_BOUNDARY; Nbdy++; }
+            else { out_buff[ii] = TEST_OUT; Nout++; }
         } 
     } else {  /* Non-robust branch */
         s_point n = cross_prod(subtract_points(plane_ordered[1], plane_ordered[0]),
                                subtract_points(plane_ordered[2], plane_ordered[0]));
         n = normalize_vec(n, EPS_degenerate);
         if (!point_is_valid(n)) {
-            for (int ii=0; ii<points->N; ii++) out_buff[ii] = ERROR;
+            for (int ii=0; ii<points->N; ii++) out_buff[ii] = TEST_ERROR;
             return (s_points_test){ .Nin = 0, .Nbdy = 0, .Nout = 0, .Nerr = points->N, .indicator = out_buff };
         }
         double d = dot_prod(n, plane_ordered[0]);
 
         for (int ii=0; ii<points->N; ii++) {
             double s = dot_prod(points->p[ii], n) - d;
-            if (s < -TOL) { out_buff[ii] = IN; Nin++; } 
-            else if (fabs(s) <= TOL) { out_buff[ii] = BOUNDARY; Nbdy++; } 
-            else { out_buff[ii] = OUT; Nout++; }
+            if (s < -TOL) { out_buff[ii] = TEST_IN; Nin++; } 
+            else if (fabs(s) <= TOL) { out_buff[ii] = TEST_BOUNDARY; Nbdy++; } 
+            else { out_buff[ii] = TEST_OUT; Nout++; }
         }
     }
     
@@ -332,77 +338,93 @@ s_points_test test_points_in_halfspace(const s_point plane_ordered[3], const s_p
 }
 
 
-e_geom_test test_segment_segment_intersect_2D_robust(const double A1[2], const double A2[2], const double B1[2], const double B2[2])
+e_intersect_type test_segment_segment_intersect_2D_robust(const double A1[2], const double A2[2], const double B1[2], const double B2[2])
 {
+    /* 1) Check case where segment is point */
+    int A_is_point = points_equal_2D(A1, A2);
+    int B_is_point = points_equal_2D(B1, B2);
+    if (A_is_point && B_is_point)
+        return points_equal_2D(A1,B1) ? INTERSECT_DEGENERATE : INTERSECT_EMPTY;
+    if (A_is_point) {  /* check if A lies on segment B using orient2d and interval test */
+        if (orient2d(B1, B2, A1) == 0 &&
+            test_point_in_interval_1D(A1[0], B1[0], B2[0], 0, 0) != TEST_OUT &&
+            test_point_in_interval_1D(A1[1], B1[1], B2[1], 0, 0) != TEST_OUT)
+            return INTERSECT_DEGENERATE;
+        return INTERSECT_EMPTY;
+    }
+    if (B_is_point) {
+        if (orient2d(A1, A2, B1) == 0 &&
+            test_point_in_interval_1D(B1[0], A1[0], A2[0], 0, 0) != TEST_OUT &&
+            test_point_in_interval_1D(B1[1], A1[1], A2[1], 0, 0) != TEST_OUT)
+            return INTERSECT_DEGENERATE;
+        return INTERSECT_EMPTY;
+    }
+
+
+    /* 2) Segments are non-degenerate */
     double d1 = orient2d(A1, A2, B1);
     double d2 = orient2d(A1, A2, B2);
     double d3 = orient2d(B1, B2, A1);
     double d4 = orient2d(B1, B2, A2);
 
-    /* 2a) Check if both collinear. Works for robust and non-robust cases */
+    /* 2a) Check if both collinear */
     if (d1 == 0 && d2 == 0 && d3 == 0 && d4 == 0) {
-        /* collinear: overlapping test via projections */
-        double min_x = fmax(fmin(A1[0], A2[0]), fmin(B1[0], B2[0]));
-        double max_x = fmin(fmax(A1[0], A2[0]), fmax(B1[0], B2[0]));
-        double min_y = fmax(fmin(A1[1], A2[1]), fmin(B1[1], B2[1]));
-        double max_y = fmin(fmax(A1[1], A2[1]), fmax(B1[1], B2[1]));
-        if (min_x <= max_x  && min_y <= max_y) {
-            return BOUNDARY; /* overlapping collinear segments */
-        }
-        return OUT;
+        double spanX = fabs(A1[0]-A2[0]) + fabs(B1[0]-B2[0]);
+        double spanY = fabs(A1[1]-A2[1]) + fabs(B1[1]-B2[1]);
+        int axis = (spanX >= spanY) ? 0 : 1;  /* choose primary axis */
+
+        double a_min = fmin(A1[axis], A2[axis]), a_max = fmax(A1[axis], A2[axis]);
+        double b_min = fmin(B1[axis], B2[axis]), b_max = fmax(B1[axis], B2[axis]);
+        if (fmax(a_min,b_min) <= fmin(a_max,b_max)) return INTERSECT_DEGENERATE;
+        else return INTERSECT_EMPTY;
     }
     
-    /* 2b) Check proper intersection via straddling. Works for robust and non-robust cases. */
+    /* 2b) Check proper intersection via straddling. */
      if ( ((d1>0 && d2<0) || (d1<0 && d2>0)) &&
-          ((d3>0 && d4<0) || (d3<0 && d4>0)) ) {
-        return IN;
-    }
+          ((d3>0 && d4<0) || (d3<0 && d4>0)) )
+        return INTERSECT_NONDEGENERATE;
     
     /* 2c) Single end colinear with segment. Check if point lies within the other segment */
     if (d1 == 0 &&
-        test_point_in_interval_1D(B1[0], A1[0], A2[0], 0, 0) != OUT &&
-        test_point_in_interval_1D(B1[1], A1[1], A2[1], 0, 0) != OUT) {
-        return BOUNDARY;
-    }
+        test_point_in_interval_1D(B1[0], A1[0], A2[0], 0, 0) != TEST_OUT &&
+        test_point_in_interval_1D(B1[1], A1[1], A2[1], 0, 0) != TEST_OUT)
+        return INTERSECT_DEGENERATE;
     if (d2 == 0 &&
-        test_point_in_interval_1D(B2[0], A1[0], A2[0], 0, 0) != OUT &&
-        test_point_in_interval_1D(B2[1], A1[1], A2[1], 0, 0) != OUT) {
-        return BOUNDARY;
-    }
+        test_point_in_interval_1D(B2[0], A1[0], A2[0], 0, 0) != TEST_OUT &&
+        test_point_in_interval_1D(B2[1], A1[1], A2[1], 0, 0) != TEST_OUT)
+        return INTERSECT_DEGENERATE;
     if (d3 == 0 &&
-        test_point_in_interval_1D(A1[0], B1[0], B2[0], 0, 0) != OUT &&
-        test_point_in_interval_1D(A1[1], B1[1], B2[1], 0, 0) != OUT) {
-        return BOUNDARY;
-    }
+        test_point_in_interval_1D(A1[0], B1[0], B2[0], 0, 0) != TEST_OUT &&
+        test_point_in_interval_1D(A1[1], B1[1], B2[1], 0, 0) != TEST_OUT)
+        return INTERSECT_DEGENERATE;
     if (d4 == 0 &&
-        test_point_in_interval_1D(A2[0], B1[0], B2[0], 0, 0) != OUT &&
-        test_point_in_interval_1D(A2[1], B1[1], B2[1], 0, 0) != OUT) {
-        return BOUNDARY;
-    }
-    return OUT;
+        test_point_in_interval_1D(A2[0], B1[0], B2[0], 0, 0) != TEST_OUT &&
+        test_point_in_interval_1D(A2[1], B1[1], B2[1], 0, 0) != TEST_OUT)
+        return INTERSECT_DEGENERATE;
+    return INTERSECT_EMPTY;
 }
 
 
-e_geom_test test_segment_triangle_intersect_2D_robust(const double S1[2], const double S2[2], const double A[2], const double B[2], const double C[2])
+e_intersect_type test_segment_triangle_intersect_2D_robust(const double S1[2], const double S2[2], const double A[2], const double B[2], const double C[2])
 {
     e_geom_test i1 = test_point_in_triangle_2D(A, B, C, S1, 0, 0);
     e_geom_test i2 = test_point_in_triangle_2D(A, B, C, S2, 0, 0);
-    if (i1 == ERROR || i2 == ERROR) return ERROR;
-    if (i1 == IN || i2 == IN) return IN;
-    if (i1 == BOUNDARY && i2 == BOUNDARY) return BOUNDARY;  /* None is inside */
+    if (i1 == TEST_ERROR || i2 == TEST_ERROR) return INTERSECT_ERROR;
+    if (i1 == TEST_IN || i2 == TEST_IN) return INTERSECT_NONDEGENERATE;
+    if (i1 == TEST_BOUNDARY && i2 == TEST_BOUNDARY) return INTERSECT_DEGENERATE;  /* Both on boundary of triangle */
 
-    /* Check segment_segment intersections in 2D. Already considers robust / non-robust cases! */
-    e_geom_test t1 = test_segment_segment_intersect_2D_robust(S1, S2, A, B);
-    e_geom_test t2 = test_segment_segment_intersect_2D_robust(S1, S2, B, C);
-    e_geom_test t3 = test_segment_segment_intersect_2D_robust(S1, S2, C, A);
+    /* Both points are completely outside. Check intersections with triangle edges */
+    e_intersect_type t1 = test_segment_segment_intersect_2D_robust(S1, S2, A, B);
+    e_intersect_type t2 = test_segment_segment_intersect_2D_robust(S1, S2, B, C);
+    e_intersect_type t3 = test_segment_segment_intersect_2D_robust(S1, S2, C, A);
 
-    if (t1 == BOUNDARY || t2 == BOUNDARY || t3 == BOUNDARY) return BOUNDARY;
-    if (t1 == IN || t2 == IN || t3 == IN) return IN;
-    return OUT;
+    if (t1 == INTERSECT_NONDEGENERATE || t2 == INTERSECT_NONDEGENERATE || t3 == INTERSECT_NONDEGENERATE) return INTERSECT_NONDEGENERATE;
+    if (t1 == INTERSECT_DEGENERATE || t2 == INTERSECT_DEGENERATE || t3 == INTERSECT_DEGENERATE) return INTERSECT_DEGENERATE;
+    return INTERSECT_EMPTY;
 }
 
 
-e_geom_test test_segment_triangle_intersect_3D_robust(const s_point segment[2], const s_point triangle[3])
+e_intersect_type test_segment_triangle_intersect_3D_robust(const s_point segment[2], const s_point triangle[3])
 {   
     /* Check if any end of segment coplanar with triangle */
     int o1 = orientation_robust(triangle, segment[0]);
@@ -415,14 +437,27 @@ e_geom_test test_segment_triangle_intersect_3D_robust(const s_point segment[2], 
         double C2[2]; drop_to_2D(triangle[2], drop, C2);
         double P2[2]; drop_to_2D(segment[0], drop, P2);
         double D2[2]; drop_to_2D(segment[1], drop, D2);
-
-        return test_segment_triangle_intersect_2D_robust(P2, D2, A2, B2, C2);
+        
+        e_intersect_type type2D = test_segment_triangle_intersect_2D_robust(P2, D2, A2, B2, C2);
+        if (type2D == INTERSECT_ERROR) return INTERSECT_ERROR;
+        if (type2D == INTERSECT_NONDEGENERATE || type2D == INTERSECT_DEGENERATE) return INTERSECT_DEGENERATE;
+        return INTERSECT_EMPTY; 
     }
-    else if (o1 == 0) return test_point_in_triangle_3D_robust(triangle, segment[0]);
-    else if (o2 == 0) return test_point_in_triangle_3D_robust(triangle, segment[1]);
-    
-    if (o1 == o2) return OUT;
+    else if (o1 == 0) {
+        e_geom_test test = test_point_in_triangle_3D_robust(triangle, segment[0]);
+        if (test == TEST_ERROR) return INTERSECT_ERROR;
+        if (test == TEST_IN || test == TEST_BOUNDARY) return INTERSECT_DEGENERATE;
+        return INTERSECT_EMPTY;
+    }
+    else if (o2 == 0) {
+        e_geom_test test = test_point_in_triangle_3D_robust(triangle, segment[1]);
+        if (test == TEST_ERROR) return INTERSECT_ERROR;
+        if (test == TEST_IN || test == TEST_BOUNDARY) return INTERSECT_DEGENERATE;
+        return INTERSECT_EMPTY;
+    }
 
+    /* Check that segment crosses triangle's plane */
+    if (o1 == o2) return INTERSECT_EMPTY;
 
     /* Segura's algorithm */
     s_point v1 = triangle[0], v2 = triangle[1], v3 = triangle[2];
@@ -442,15 +477,15 @@ e_geom_test test_segment_triangle_intersect_3D_robust(const s_point segment[2], 
     aux[0] = q2; aux[1] = v1; aux[2] = v3;
     int s3 = orientation_robust(aux, q1);
 
-    if (s1 < 0 || s2 < 0 || s3 < 0) return OUT;
+    if (s1 < 0 || s2 < 0 || s3 < 0) return INTERSECT_EMPTY;
     /* All >= 0 */
-    if (s1 == 0 || s2 == 0 || s3 == 0) return BOUNDARY;  
-    return IN;  
+    if (s1 == 0 || s2 == 0 || s3 == 0) return INTERSECT_DEGENERATE;  
+    return INTERSECT_NONDEGENERATE;  
 }
 
 
 
-/* INTERSECTIONS */
+/* TEST_INTERSECTIONS */
 /* Even though the count should be robust, the point of intersection need not be robust... */
 int segment_segment_intersection_2D(const double A1[2], const double A2[2], const double B1[2], const double B2[2], double EPS_degenerate, double TOL, double out[4])
 {   /* RETURNS: abs(output) = number of intersections
@@ -464,14 +499,14 @@ int segment_segment_intersection_2D(const double A1[2], const double A2[2], cons
         } else return 0;
     } else if (A_is_point) {
         if (orient2d(B1, B2, A1) == 0 &&
-            test_point_in_interval_1D(A1[0], B1[0], B2[0], EPS_degenerate, TOL) != OUT &&
-            test_point_in_interval_1D(A1[1], B1[1], B2[1], EPS_degenerate, TOL) != OUT) {
+            test_point_in_interval_1D(A1[0], B1[0], B2[0], EPS_degenerate, TOL) != TEST_OUT &&
+            test_point_in_interval_1D(A1[1], B1[1], B2[1], EPS_degenerate, TOL) != TEST_OUT) {
             if (out) { out[0] = A1[0]; out[1] = A1[1]; } return 1;
         } else return 0;
     } else if (B_is_point) {
         if (orient2d(A1, A2, B1) == 0 &&
-            test_point_in_interval_1D(B1[0], A1[0], A2[0], EPS_degenerate, TOL) != OUT &&
-            test_point_in_interval_1D(B1[1], A1[1], A2[1], EPS_degenerate, TOL) != OUT) {
+            test_point_in_interval_1D(B1[0], A1[0], A2[0], EPS_degenerate, TOL) != TEST_OUT &&
+            test_point_in_interval_1D(B1[1], A1[1], A2[1], EPS_degenerate, TOL) != TEST_OUT) {
             if (out) { out[0] = B1[0]; out[1] = B1[1]; } return 1;
         } else return 0;
     }
@@ -533,23 +568,23 @@ int segment_segment_intersection_2D(const double A1[2], const double A2[2], cons
         }
     } else {  /* TOL == 0: check if point lies within the other segment */
         if (d1 == 0 &&
-            test_point_in_interval_1D(B1[0], A1[0], A2[0], 0, 0) != OUT &&
-            test_point_in_interval_1D(B1[1], A1[1], A2[1], 0, 0) != OUT) {
+            test_point_in_interval_1D(B1[0], A1[0], A2[0], 0, 0) != TEST_OUT &&
+            test_point_in_interval_1D(B1[1], A1[1], A2[1], 0, 0) != TEST_OUT) {
             if (out) { out[0] = B1[0]; out[1] = B1[1]; } return 1;
         }
         if (d2 == 0 &&
-            test_point_in_interval_1D(B2[0], A1[0], A2[0], 0, 0) != OUT &&
-            test_point_in_interval_1D(B2[1], A1[1], A2[1], 0, 0) != OUT) {
+            test_point_in_interval_1D(B2[0], A1[0], A2[0], 0, 0) != TEST_OUT &&
+            test_point_in_interval_1D(B2[1], A1[1], A2[1], 0, 0) != TEST_OUT) {
             if (out) { out[0] = B2[0]; out[1] = B2[1]; } return 1;
         }
         if (d3 == 0 &&
-            test_point_in_interval_1D(A1[0], B1[0], B2[0], 0, 0) != OUT &&
-            test_point_in_interval_1D(A1[1], B1[1], B2[1], 0, 0) != OUT) {
+            test_point_in_interval_1D(A1[0], B1[0], B2[0], 0, 0) != TEST_OUT &&
+            test_point_in_interval_1D(A1[1], B1[1], B2[1], 0, 0) != TEST_OUT) {
             if (out) { out[0] = A1[0]; out[1] = A1[1]; } return 1;
         }
         if (d4 == 0 &&
-            test_point_in_interval_1D(A2[0], B1[0], B2[0], 0, 0) != OUT &&
-            test_point_in_interval_1D(A2[1], B1[1], B2[1], 0, 0) != OUT) {
+            test_point_in_interval_1D(A2[0], B1[0], B2[0], 0, 0) != TEST_OUT &&
+            test_point_in_interval_1D(A2[1], B1[1], B2[1], 0, 0) != TEST_OUT) {
             if (out) { out[0] = A2[0]; out[1] = A2[1]; } return 1;
         }
     }
@@ -625,12 +660,12 @@ int segment_triangle_intersection_2D(const double s1[2], const double s2[2], con
     /* Check if inside */
     e_geom_test i1 = test_point_in_triangle_2D(a, b, c, s1, EPS_degenerate, TOL);
     e_geom_test i2 = test_point_in_triangle_2D(a, b, c, s2, EPS_degenerate, TOL);
-    if (i1 == ERROR || i2 == ERROR) return 0;
-    if (i1 != OUT && i2 != OUT) {  /* Both inside / on boundary */
+    if (i1 == TEST_ERROR || i2 == TEST_ERROR) return 0;
+    if (i1 != TEST_OUT && i2 != TEST_OUT) {  /* Both inside / on boundary */
         if (out) { out[0] = s1[0]; out[1] = s1[1]; out[2] = s2[0]; out[3] = s2[1]; } return 2;
-    } else if (i1 == BOUNDARY && i2 == OUT) { 
+    } else if (i1 == TEST_BOUNDARY && i2 == TEST_OUT) { 
         if (out) { out[0] = s1[0]; out[1] = s1[1]; } return 1; 
-    } else if (i2 == BOUNDARY && i1 == OUT) { 
+    } else if (i2 == TEST_BOUNDARY && i1 == TEST_OUT) { 
         if (out) { out[0] = s2[0]; out[1] = s2[1]; } return 1;
     }
 
@@ -659,8 +694,8 @@ int segment_triangle_intersection_2D(const double s1[2], const double s2[2], con
     if (h == 2) return 2;  /* Two total intersections */
 
     /* If one endpoint is inside and we found at least one intersection, include it */
-    if (((i1 != OUT &&  i2 == OUT) || (i2 != OUT &&  i1 == OUT)) && h == 1) {
-        const double *inside = (i1 != OUT) ? s1 : s2;
+    if (((i1 != TEST_OUT &&  i2 == TEST_OUT) || (i2 != TEST_OUT &&  i1 == TEST_OUT)) && h == 1) {
+        const double *inside = (i1 != TEST_OUT) ? s1 : s2;
         append_unique_2D_lim2(out, &h, inside, TOL2);
         return 2;
     }
