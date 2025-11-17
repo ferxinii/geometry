@@ -234,7 +234,7 @@ static int visible_faces_from_point(const s_points *points, int Nfaces, int face
             out_indicator->list[j] = 1;
             N_visible++;
         } else if (o == 0) {  /* Point is coplanar. Outside or inside triangle? */
-            if (test_point_in_triangle_3D(face_pts, p, EPS, 0) == OUT) {  /* Strictly outside */
+            if (test_point_in_triangle_3D(face_pts, p, EPS, 0) == TEST_OUT) {  /* Strictly outside */
                 out_indicator->list[j] = 1;
                 N_visible++;
             }

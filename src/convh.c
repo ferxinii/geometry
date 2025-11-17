@@ -176,7 +176,7 @@ int convex_hull_winding_valid(const s_convh *convh)
 
 static e_geom_test test_point_in_convhull_robust(const s_convh *convh, s_point query, double EPS_degenerate)
 {   
-    if (!convhull_is_valid(convh)) return ERROR;
+    if (!convhull_is_valid(convh)) return TEST_ERROR;
 
     int prev_sign = 0;
     for (int f = 0; f < convh->Nf; ++f) {
@@ -188,23 +188,23 @@ static e_geom_test test_point_in_convhull_robust(const s_convh *convh, s_point q
 
         if (sign == 0) {  // Point is coplanar, but inside face?
             e_geom_test intri = test_point_in_triangle_3D(pf, query, EPS_degenerate, 0);
-            if (intri == IN || intri == BOUNDARY) return BOUNDARY;
-            else return OUT;
+            if (intri == TEST_IN || intri == TEST_BOUNDARY) return TEST_BOUNDARY;
+            else return TEST_OUT;
         }
 
         /* if we've already seen a non-zero sign, it must match */
         if (prev_sign == 0) prev_sign = sign;
-        else if (sign != prev_sign) return OUT;  // Outside!
+        else if (sign != prev_sign) return TEST_OUT;  // Outside!
     }
 
-    if (prev_sign == 0) return ERROR;  /* Point is coplanar with all faces? Strange... */
-    return IN;
+    if (prev_sign == 0) return TEST_ERROR;  /* Point is coplanar with all faces? Strange... */
+    return TEST_IN;
 }
 
 
 e_geom_test test_point_in_convhull(const s_convh *C, s_point query, double EPS_degenerate, double TOL_boundary)
 {
-    if (!convhull_is_valid(C)) return ERROR;
+    if (!convhull_is_valid(C)) return TEST_ERROR;
     
     if (TOL_boundary == 0) return test_point_in_convhull_robust(C, query, EPS_degenerate);
     int on_boundary = 0, sign_ref = 0;
@@ -222,19 +222,19 @@ e_geom_test test_point_in_convhull(const s_convh *C, s_point query, double EPS_d
 
         if (fabs(s) <= TOL_boundary) {
             e_geom_test inside_face = test_point_in_triangle_3D(face, query, EPS_degenerate, TOL_boundary);
-            if (inside_face == IN || inside_face == BOUNDARY) on_boundary = 1;
+            if (inside_face == TEST_IN || inside_face == TEST_BOUNDARY) on_boundary = 1;
             continue;
         }
 
         int sign = (s > 0) ? 1 : -1;
 
         if (sign_ref == 0) sign_ref = sign;
-        else if (sign != sign_ref) return OUT;  // Point is outside
+        else if (sign != sign_ref) return TEST_OUT;  // Point is outside
     }
 
-    if (on_boundary) return BOUNDARY;
-    if (sign_ref == 0) return ERROR; // degenerate hull?
-    return IN;
+    if (on_boundary) return TEST_BOUNDARY;
+    if (sign_ref == 0) return TEST_ERROR; // degenerate hull?
+    return TEST_IN;
 }
 
 
@@ -245,10 +245,10 @@ s_points_test test_points_in_convhull(const s_convh *convh, const s_points *quer
     int Nin = 0, Nout = 0, Nbdy = 0, Nerr = 0;
     for (int ii=0; ii<query->N; ii++) {
         e_geom_test test = test_point_in_convhull(convh, query->p[ii], EPS_degenerate, TOL_boundary);
-        if (test == IN) { buff[ii] = IN; Nin++; }
-        else if (test == OUT) { buff[ii] = OUT; Nout++; }
-        else if (test == BOUNDARY) { buff[ii] = BOUNDARY; Nbdy++; }
-        else { buff[ii] = ERROR; Nerr++; }
+        if (test == TEST_IN) { buff[ii] = TEST_IN; Nin++; }
+        else if (test == TEST_OUT) { buff[ii] = TEST_OUT; Nout++; }
+        else if (test == TEST_BOUNDARY) { buff[ii] = TEST_BOUNDARY; Nbdy++; }
+        else { buff[ii] = TEST_ERROR; Nerr++; }
     }
     return (s_points_test){ .Nin = Nin, .Nout = Nout, .Nbdy = Nbdy, .Nerr = Nerr, .indicator = buff };
 }
@@ -310,7 +310,7 @@ s_point random_point_inside_convhull(const s_convh *convh, double EPS_degenerate
     int MAX_IT = 10000;
     int it = 0;
     s_point out = random_point_uniform_3D(min, max);
-    while (test_point_in_convhull(convh, out, EPS_degenerate, 0) != IN) {
+    while (test_point_in_convhull(convh, out, EPS_degenerate, 0) != TEST_IN) {
         out = random_point_uniform_3D(min, max);
         assert(it < MAX_IT && "Reached maximum iters looking for point inside convhull.");
         it++;

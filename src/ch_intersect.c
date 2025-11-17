@@ -60,6 +60,7 @@ typedef struct edge_list {
 } s_edge_list;
 
 static s_edge_list initialize_edge_list(int Nmax) {
+    if (Nmax <= 0) Nmax = CH_N_INIT_POINT_LIST;
     return (s_edge_list) { .Nmax = Nmax,
                            .list = malloc(Nmax * sizeof(s_edge)) };
 }
@@ -124,10 +125,10 @@ int segment_convhull_intersection(const s_convh *C, const s_point segment[2], do
     e_geom_test i0 = test_point_in_convhull(C, segment[0], EPS_degenerate, TOL);
     e_geom_test i1 = test_point_in_convhull(C, segment[1], EPS_degenerate, TOL);
 
-    if (i0 == IN && i1 == IN) { return 0; };
-    if (i0 == BOUNDARY && i1 == BOUNDARY) { out[0] = segment[0]; out[1] = segment[1]; return 2; }
-    if (i0 == BOUNDARY) { out[0] = segment[0]; return 1; }
-    if (i1 == BOUNDARY) { out[0] = segment[1]; return 1; }
+    if (i0 == TEST_IN && i1 == TEST_IN) { return 0; };
+    if (i0 == TEST_BOUNDARY && i1 == TEST_BOUNDARY) { out[0] = segment[0]; out[1] = segment[1]; return 2; }
+    if (i0 == TEST_BOUNDARY) { out[0] = segment[0]; return 1; }
+    if (i1 == TEST_BOUNDARY) { out[0] = segment[1]; return 1; }
 
     /* Intersect segment with all faces of the convex hull */
     int Nintersections = 0;
@@ -151,8 +152,8 @@ int segment_convhull_intersection(const s_convh *C, const s_point segment[2], do
     if (Nintersections == 1) { out[0] = intersections[0]; return 1; }
 
     /* Sort by distance from inside point. If none inside, any is OK */
-    s_point inside_point = (i0 == IN) ? segment[0] : segment[1];  
-    s_point closest_intersection = (i0 == IN) ? segment[1] : segment[0];
+    s_point inside_point = (i0 == TEST_IN) ? segment[0] : segment[1];  
+    s_point closest_intersection = (i0 == TEST_IN) ? segment[1] : segment[0];
     s_point furthest_intersection = inside_point;
     double dmin = distance_squared(inside_point, closest_intersection);
     double dmax = distance_squared(inside_point, furthest_intersection);
@@ -195,7 +196,7 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
     if (AinB.Nerr > 0) goto error;
     int NpI = 0;
     for (int ii=0; ii<A->points.N; ii++) 
-        if (AinB.indicator[ii] == IN || AinB.indicator[ii] == BOUNDARY) {
+        if (AinB.indicator[ii] == TEST_IN || AinB.indicator[ii] == TEST_BOUNDARY) {
             if (!increase_memory_point_list(&pI, NpI+1)) goto error;
             pI.list[NpI++] = A->points.p[ii];
         }
@@ -217,7 +218,7 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
     s_points_test BinA = test_points_in_convhull(A, &B->points, EPS_degenerate, 0, buff);
     if (AinB.Nerr > 0) goto error;
     for (int ii=0; ii<B->points.N; ii++) 
-        if (BinA.indicator[ii] == IN || BinA.indicator[ii] == BOUNDARY) {
+        if (BinA.indicator[ii] == TEST_IN || BinA.indicator[ii] == TEST_BOUNDARY) {
             if (!increase_memory_point_list(&pI, NpI+1)) goto error;
             pI.list[NpI++] = B->points.p[ii];
         }
@@ -314,7 +315,7 @@ int clip_convhull_halfspace(const s_convh *C, s_point plane[3], double EPS_degen
     if (!p.list) goto error;
     int Np = 0;
     for (int ii=0; ii<C->points.N; ii++)
-        if (ptest.indicator[ii] == IN || ptest.indicator[ii] == BOUNDARY) p.list[Np++] = C->points.p[ii];
+        if (ptest.indicator[ii] == TEST_IN || ptest.indicator[ii] == TEST_BOUNDARY) p.list[Np++] = C->points.p[ii];
     
     /* Clip edges that cross the plane */
     int Nedges;
@@ -322,8 +323,8 @@ int clip_convhull_halfspace(const s_convh *C, s_point plane[3], double EPS_degen
     if (!elist.list) goto error;
     list_edges_convhull(C, &Nedges, &elist);
     for (int ii=0; ii<Nedges; ii++) {
-        if (ptest.indicator[elist.list[ii].v[0]] != ERROR && 
-            ptest.indicator[elist.list[ii].v[1]] != ERROR &&
+        if (ptest.indicator[elist.list[ii].v[0]] != TEST_ERROR && 
+            ptest.indicator[elist.list[ii].v[1]] != TEST_ERROR &&
             ptest.indicator[elist.list[ii].v[0]] != ptest.indicator[elist.list[ii].v[1]]) {  /* Boundary points already considered */
             s_point segment[2] = {C->points.p[elist.list[ii].v[0]], C->points.p[elist.list[ii].v[1]]};
             s_point intersections[2];
@@ -390,7 +391,7 @@ int remove_intersection_convhulls(s_convh *A, s_convh *B, double EPS_degenerate,
     if (!p_newA.p) goto error;
     int jj=0;
     for (int ii=0; ii<A->points.N; ii++)
-        if (Atest.indicator[ii] == IN || Atest.indicator[ii] == BOUNDARY) p_newA.p[jj++] = A->points.p[ii];  /* Keep points of A nonstriclty inside plane */
+        if (Atest.indicator[ii] == TEST_IN || Atest.indicator[ii] == TEST_BOUNDARY) p_newA.p[jj++] = A->points.p[ii];  /* Keep points of A nonstriclty inside plane */
     for (int ii=0; ii<IA.points.N; ii++) 
         p_newA.p[jj++] = IA.points.p[ii];
 
@@ -406,7 +407,7 @@ int remove_intersection_convhulls(s_convh *A, s_convh *B, double EPS_degenerate,
     if (!p_newB.p) goto error;
     jj=0;
     for (int ii=0; ii<B->points.N; ii++)
-        if (Btest.indicator[ii] == IN || Btest.indicator[ii] == BOUNDARY) p_newB.p[jj++] = B->points.p[ii];  /* Keep points of B OUTSIDE A */
+        if (Btest.indicator[ii] == TEST_IN || Btest.indicator[ii] == TEST_BOUNDARY) p_newB.p[jj++] = B->points.p[ii];  /* Keep points of B OUTSIDE A */
     for (int ii=0; ii<IB.points.N; ii++)
         p_newB.p[jj++] = IB.points.p[ii];
     
