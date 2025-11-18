@@ -465,15 +465,14 @@ e_intersect_type test_segment_triangle_intersect_3D_robust(const s_point segment
     // s_point q1 = segment[index_q1];
     // s_point q2 = segment[index_q2];
 
-    s_point aux[3];
-    aux[0] = q2; aux[1] = v1; aux[2] = v2;
-    int s1 = orientation_robust(aux, q1);
+    s_point aux[3] = {q1, q2, v1};
+    int s1 = orientation_robust(aux, v3);
 
-    aux[0] = q2; aux[1] = v3; aux[2] = v2;
-    int s2 = orientation_robust(aux, q1);
+    aux[2] = v2;
+    int s2 = orientation_robust(aux, v3);
 
-    aux[0] = q2; aux[1] = v1; aux[2] = v3;
-    int s3 = orientation_robust(aux, q1);
+    aux[2] = v1;
+    int s3 = orientation_robust(aux, v2);
 
     if ( (s1 == 0 && s2 == s3) ||
          (s2 == 0 && s1 == s3) ||
