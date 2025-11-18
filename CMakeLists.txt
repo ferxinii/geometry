@@ -8,12 +8,6 @@ add_library(geometry STATIC
     src/convh.c
     src/ch_quickhull3D.c
     src/ch_intersect.c
-
-    # Include the predicates .c files directly
-    # external/predicates/src/constants.c
-    # external/predicates/src/predicates.c
-    # external/predicates/src/random.c
-    # external/predicates/src/printing.c
 )
 
 target_include_directories(geometry

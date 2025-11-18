@@ -459,11 +459,11 @@ e_intersect_type test_segment_triangle_intersect_3D_robust(const s_point segment
 
     /* Segura's algorithm */
     s_point v1 = triangle[0], v2 = triangle[1], v3 = triangle[2];
-
-    int index_q1 = orientation_robust(triangle, segment[0]) == 1 ? 0 : 1;
-    int index_q2 = index_q1 == 0 ? 1 : 0;
-    s_point q1 = segment[index_q1];
-    s_point q2 = segment[index_q2];
+    s_point q1 = segment[0], q2 = segment[1];
+    // int index_q1 = orientation_robust(triangle, segment[0]) == 1 ? 0 : 1;
+    // int index_q2 = index_q1 == 0 ? 1 : 0;
+    // s_point q1 = segment[index_q1];
+    // s_point q2 = segment[index_q2];
 
     s_point aux[3];
     aux[0] = q2; aux[1] = v1; aux[2] = v2;
@@ -475,10 +475,15 @@ e_intersect_type test_segment_triangle_intersect_3D_robust(const s_point segment
     aux[0] = q2; aux[1] = v1; aux[2] = v3;
     int s3 = orientation_robust(aux, q1);
 
-    if (s1 < 0 || s2 < 0 || s3 < 0) return INTERSECT_EMPTY;
-    /* All >= 0 */
-    if (s1 == 0 || s2 == 0 || s3 == 0) return INTERSECT_DEGENERATE;  
-    return INTERSECT_NONDEGENERATE;  
+    if ( (s1 == 0 && s2 == s3) ||
+         (s2 == 0 && s1 == s3) ||
+         (s3 == 0 && s1 == s2) ||
+         (s1 == 0 && s2 == 0) ||
+         (s1 == 0 && s3 == 0) ||
+         (s2 == 0 && s3 == 0) )
+        return INTERSECT_DEGENERATE;
+    if (s1 == s2 && s2 == s3 ) return INTERSECT_NONDEGENERATE;  
+    return INTERSECT_EMPTY;  
 }
 
 
