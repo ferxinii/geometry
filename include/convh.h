@@ -39,7 +39,8 @@ int mark_faces_incident_to_vertex(const s_convh *C, int vid, int out[C->Nf]);
 void write_convhull_to_m(const s_convh *vertices, const char *m_filename);
 
 /* ch_intersect.c */
-int segment_convhull_intersection(const s_convh *C, const s_point segment[2], double EPS_degenerate, double TOL, s_point out[2]);
+e_intersect_type test_segment_convhull_surface_intersect(const s_convh *C, const s_point segment[2], double EPS_degenerate, double TOL);
+s_segment_intersect segment_convhull_surface_intersect(const s_convh *C, const s_point segment[2], double EPS_degenerate, double TOL);
 int clip_convhull_halfspace(const s_convh *C, s_point plane[3], double EPS_degenerate, double TOL, s_convh *out);
 int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degenerate, double TOL, s_convh *out_I);
 int remove_intersection_convhulls(s_convh *A, s_convh *B, double EPS_degenerate, double TOL, double min_vol_I);

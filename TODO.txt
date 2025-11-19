@@ -1,2 +1,0 @@
-[ ] ch_intersect MISSING A MALLOC / REALLOC IN INTERSECT SEGMENT WITH CONVHULL
-[ ] Make tests robust with a numerical non-robust branch.

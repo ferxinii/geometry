@@ -119,21 +119,41 @@ static void list_edges_convhull(const s_convh *C, int *out_Nedges, s_edge_list *
 }
 
 
+
 /* Clip segment with convhull */
-int segment_convhull_intersection(const s_convh *C, const s_point segment[2], double EPS_degenerate, double TOL, s_point out[2])
+static void append_if_nonexistent_lim2(int *Nout, s_point out[2], s_point p, double TOL)
+{
+    if (*Nout >= 2) return;
+    for (int ii=0; ii<*Nout; ii++) {
+        if (distance_squared(out[ii], p) <= TOL*TOL) return;
+    }
+    out[(*Nout)++] = p;
+}
+
+static e_intersect_type core_segment_convhull_surface_intersect(const s_convh *C, const s_point segment[2], double EPS_degenerate, double TOL, int *Nout, s_point out[2])
 {
     e_geom_test i0 = test_point_in_convhull(C, segment[0], EPS_degenerate, TOL);
     e_geom_test i1 = test_point_in_convhull(C, segment[1], EPS_degenerate, TOL);
 
-    if (i0 == TEST_IN && i1 == TEST_IN) { return 0; };
-    if (i0 == TEST_BOUNDARY && i1 == TEST_BOUNDARY) { out[0] = segment[0]; out[1] = segment[1]; return 2; }
-    if (i0 == TEST_BOUNDARY) { out[0] = segment[0]; return 1; }
-    if (i1 == TEST_BOUNDARY) { out[0] = segment[1]; return 1; }
+    if (i0 == TEST_IN && i1 == TEST_IN) { 
+        if (Nout) *Nout = 0;
+        return INTERSECT_EMPTY; 
+    };
+    if (i0 == TEST_BOUNDARY && i1 == TEST_BOUNDARY) { 
+        if (Nout && out) { out[0] = segment[0]; out[1] = segment[1]; *Nout = 2; }
+        return INTERSECT_DEGENERATE;
+    }
+    if (i0 == TEST_BOUNDARY || i1 == TEST_BOUNDARY) {
+        if (Nout && out) { out[0] = (i0 == TEST_BOUNDARY) ? segment[0] : segment[1]; *Nout = 1; }
+        return INTERSECT_DEGENERATE;
+    }
+
 
     /* Intersect segment with all faces of the convex hull */
-    int Nintersections = 0;
-    s_point *intersections = NULL;
+    int h = 0;
+    s_point tmp[2];
     for (int ii=0; ii<C->Nf; ii++) {
+        if (h == 2) break;
         s_point face[3];
         convh_get_face(C, ii, face);
         
@@ -141,42 +161,36 @@ int segment_convhull_intersection(const s_convh *C, const s_point segment[2], do
         int o1 = orientation_robust(face, segment[1]);
         if (o0 != 0 && o1 != 0 && o0 == o1) continue;  /* Skip if on same side of plane */
 
-        s_point face_intersections[2];
-        int N_fi = segment_triangle_intersection_3D(segment, face, EPS_degenerate, TOL, face_intersections);
-        for (int jj=0; jj<N_fi; jj++) {
-            intersections = realloc(intersections, (Nintersections+1) * sizeof(s_point));
-            intersections[Nintersections++] = face_intersections[jj];
-        }
-    }
-    if (Nintersections == 0) return 0;
-    if (Nintersections == 1) { out[0] = intersections[0]; return 1; }
-
-    /* Sort by distance from inside point. If none inside, any is OK */
-    s_point inside_point = (i0 == TEST_IN) ? segment[0] : segment[1];  
-    s_point closest_intersection = (i0 == TEST_IN) ? segment[1] : segment[0];
-    s_point furthest_intersection = inside_point;
-    double dmin = distance_squared(inside_point, closest_intersection);
-    double dmax = distance_squared(inside_point, furthest_intersection);
-    for (int ii=0; ii<Nintersections; ii++) {
-        double d = distance_squared(inside_point, intersections[ii]);
-        if ( d < dmin ) {
-            closest_intersection = intersections[ii];
-            dmin = d;
-        } 
-        if ( d > dmax ) {
-            furthest_intersection = intersections[ii];
-            dmax = d;
-        }
+        s_segment_intersect fi = segment_triangle_intersect_3D(segment, face, EPS_degenerate, TOL);
+        for (int jj=0; jj<fi.N; jj++) append_if_nonexistent_lim2(&h, tmp, fi.coords[jj], TOL);
     }
 
-    if (i0 == 0 && i1 == 0) {  /* Both are outside */
-        out[0] = closest_intersection;
-        out[1] = furthest_intersection;
-        return 2;
+    if (h == 0) {
+        if (Nout) *Nout = 0;
+        return INTERSECT_EMPTY;
+    };
+    if (h == 1) { 
+        if (Nout && out) { out[0] = tmp[0]; *Nout = 1; } 
+        return INTERSECT_NONDEGENERATE;
     }
+    if (h == 2) { 
+        if (Nout && out) { out[0] = tmp[0]; out[1] = tmp[1]; *Nout = 2; }
+        return INTERSECT_NONDEGENERATE;
+    }
+    fprintf(stderr, "intersect_segment_convhull_surface: Should never reach this!\n");
+    exit(1);
+}
 
-    out[0] = closest_intersection;
-    return 1;
+e_intersect_type test_segment_convhull_surface_intersect(const s_convh *C, const s_point segment[2], double EPS_degenerate, double TOL)
+{
+    return core_segment_convhull_surface_intersect(C, segment, EPS_degenerate, TOL, NULL, NULL);
+}
+
+s_segment_intersect segment_convhull_surface_intersect(const s_convh *C, const s_point segment[2], double EPS_degenerate, double TOL)
+{
+    s_segment_intersect out;
+    out.type = core_segment_convhull_surface_intersect(C, segment, EPS_degenerate, TOL, &out.N, out.coords);
+    return out;
 }
 
 
@@ -206,11 +220,10 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
     list_edges_convhull(A, &N_eA, &elist);
     for (int ii=0; ii<N_eA; ii++) {
         s_point segment[2] = {A->points.p[elist.list[ii].v[0]], A->points.p[elist.list[ii].v[1]]}; 
-        s_point clips[2];
-        int Nclips = segment_convhull_intersection(B, segment, EPS_degenerate, TOL, clips);
-        for (int jj=0; jj<Nclips; jj++) {
+        s_segment_intersect clips = segment_convhull_surface_intersect(B, segment, EPS_degenerate, TOL);
+        for (int jj=0; jj<clips.N; jj++) {
             if (!increase_memory_point_list(&pI, NpI+1)) goto error;
-            pI.list[NpI++] = clips[jj];
+            pI.list[NpI++] = clips.coords[jj];
         }
     }
 
@@ -228,11 +241,10 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
     list_edges_convhull(B, &N_eB, &elist);
     for (int ii=0; ii<N_eB; ii++) {
         s_point segment[2] = {B->points.p[elist.list[ii].v[0]], B->points.p[elist.list[ii].v[1]]}; 
-        s_point clips[2];
-        int Nclips = segment_convhull_intersection(A, segment, EPS_degenerate, TOL, clips);
-        for (int jj=0; jj<Nclips; jj++) {
+        s_segment_intersect clips = segment_convhull_surface_intersect(A, segment, EPS_degenerate, TOL);
+        for (int jj=0; jj<clips.N; jj++) {
             if (!increase_memory_point_list(&pI, NpI+1)) goto error;
-            pI.list[NpI++] = clips[jj];
+            pI.list[NpI++] = clips.coords[jj];
         }
     }
 
@@ -327,11 +339,10 @@ int clip_convhull_halfspace(const s_convh *C, s_point plane[3], double EPS_degen
             ptest.indicator[elist.list[ii].v[1]] != TEST_ERROR &&
             ptest.indicator[elist.list[ii].v[0]] != ptest.indicator[elist.list[ii].v[1]]) {  /* Boundary points already considered */
             s_point segment[2] = {C->points.p[elist.list[ii].v[0]], C->points.p[elist.list[ii].v[1]]};
-            s_point intersections[2];
-            int Nintersections = segment_plane_intersection(segment, plane, EPS_degenerate, TOL, intersections);
-            for (int jj=0; jj<Nintersections; jj++) {
+            s_segment_intersect intersections = segment_plane_intersect(segment, plane, EPS_degenerate, TOL);
+            for (int jj=0; jj<intersections.N; jj++) {
                 if (!increase_memory_point_list(&p, Np+1)) goto error;
-                p.list[Np++] = intersections[jj];
+                p.list[Np++] = intersections.coords[jj];
             }
         }
     }

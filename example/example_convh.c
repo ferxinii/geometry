@@ -9,6 +9,7 @@
 int main() 
 {
     double TOL = 1e-12, EPS_degenerate = 1e-12, min_vol_I = 1e-9;
+    // double TOL = 0, EPS_degenerate = 0, min_vol_I = 0;
     /* CUBES */
     s_point cube1[8] = { {{{0, 0, 0}}},
                          {{{1, 0, 0}}},
@@ -42,7 +43,6 @@ int main()
     free_convhull(&ch1);
     free_convhull(&ch2);
     free_convhull(&I);
-
 
     /* LUNG LOBES */
     s_points pL2 = read_points_from_csv("lobes/L2.txt");
