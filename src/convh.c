@@ -215,11 +215,12 @@ e_geom_test test_point_in_convhull(const s_convh *C, s_point query, double EPS_d
                            C->points.p[C->faces[3*f + 1]],
                            C->points.p[C->faces[3*f + 2]]};
 
-        s_point closest = project_point_to_plane(query, face, EPS_degenerate);
+        s_point closest = closest_point_on_triangle(face, EPS_degenerate, query);
         if (!point_is_valid(closest)) continue;
         if (distance_squared(closest, query) <= TOL2) {
-            e_geom_test inside_face = test_point_in_triangle_3D(face, closest, EPS_degenerate, TOL_boundary);
-            if (inside_face == TEST_IN || inside_face == TEST_BOUNDARY) on_boundary = 1;
+            // e_geom_test inside_face = test_point_in_triangle_3D(face, closest, EPS_degenerate, TOL_boundary);
+            // if (inside_face == TEST_IN || inside_face == TEST_BOUNDARY) on_boundary = 1;
+            on_boundary = 1;
             continue;
         }
 
