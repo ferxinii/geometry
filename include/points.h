@@ -54,6 +54,7 @@ int plane_equation_from_points(const s_point plane[3], double EPS_degenerate, s_
 
 /* The following return point_NAN if object is EPS-degenerate */
 s_point project_point_to_plane(s_point p, const s_point plane[3], double EPS_degenerate);  
+double signed_distance_point_to_plane(s_point p, const s_point plane[3], double EPS_degenerate);
 s_point closest_point_on_segment(const s_point segment[2], double EPS_degenerate, s_point p); 
 s_point closest_point_on_triangle(const s_point triangle[3], double EPS_degenerate, s_point p);  
 

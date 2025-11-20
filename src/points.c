@@ -435,6 +435,18 @@ s_point project_point_to_plane(s_point p, const s_point plane[3], double EPS_deg
 }
 
 
+double signed_distance_point_to_plane(s_point p, const s_point plane[3], double EPS_degenerate)
+{
+    s_point n = cross_prod(subtract_points(plane[1], plane[0]),
+                           subtract_points(plane[2], plane[0]));
+    n = normalize_vec(n, EPS_degenerate);
+    if (!point_is_valid(n)) return NAN; 
+
+    double d = dot_prod(n, plane[0]);
+    return dot_prod(p, n) - d;
+}
+
+
 s_point closest_point_on_triangle(const s_point triangle[3], double EPS_degenerate, s_point p)
 {   /* From "C Ericson. Real-Time Collision Detection" */
     if (area_triangle(triangle) < EPS_degenerate) return point_NAN;

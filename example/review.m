@@ -33,6 +33,7 @@ trisurf(fL3p, L3p(:,1), L3p(:,2), L3p(:,3), "FaceColor", "red", "FaceAlpha", 0.3
 
 %trisurf(fL3, L3(:,1), L3(:,2), L3(:,3), "FaceColor", "green", "FaceAlpha", 0.3)
 
+
 %%
 L1 = readmatrix("lobes/L1.txt");
 L2 = readmatrix("lobes/L2.txt");
