@@ -201,6 +201,12 @@ static e_geom_test test_point_in_convhull_robust(const s_convh *convh, s_point q
     return TEST_IN;
 }
 
+static int sign_double(double x)
+{
+    if (x>0) return 1;
+    else if (x<0) return 0;
+    else return 0;
+}
 
 e_geom_test test_point_in_convhull(const s_convh *C, s_point query, double EPS_degenerate, double TOL_boundary)
 {
@@ -209,22 +215,20 @@ e_geom_test test_point_in_convhull(const s_convh *C, s_point query, double EPS_d
     if (TOL_boundary == 0) return test_point_in_convhull_robust(C, query, EPS_degenerate);
     int on_boundary = 0, sign_ref = 0;
 
-    double TOL2 = TOL_boundary * TOL_boundary;
     for (int f = 0; f < C->Nf; ++f) {
         s_point face[3] = {C->points.p[C->faces[3*f + 0]],
                            C->points.p[C->faces[3*f + 1]],
                            C->points.p[C->faces[3*f + 2]]};
 
-        s_point closest = closest_point_on_triangle(face, EPS_degenerate, query);
-        if (!point_is_valid(closest)) continue;
-        if (distance_squared(closest, query) <= TOL2) {
-            // e_geom_test inside_face = test_point_in_triangle_3D(face, closest, EPS_degenerate, TOL_boundary);
-            // if (inside_face == TEST_IN || inside_face == TEST_BOUNDARY) on_boundary = 1;
-            on_boundary = 1;
+        double s = signed_distance_point_to_plane(query, face, EPS_degenerate);
+        if (isnan(s)) continue;
+        if (s <= TOL_boundary) {
+            e_geom_test inside_face = test_point_in_triangle_3D(face, query, EPS_degenerate, TOL_boundary);
+            if (inside_face == TEST_IN || inside_face == TEST_BOUNDARY) on_boundary = 1;
             continue;
         }
 
-        int sign = orientation_robust(face, query);
+        int sign = sign_double(s); 
         if (sign_ref == 0) sign_ref = sign;
         else if (sign != sign_ref) return TEST_OUT;  // Point is outside
     }
