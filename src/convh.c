@@ -204,7 +204,7 @@ static e_geom_test test_point_in_convhull_robust(const s_convh *convh, s_point q
 static int sign_double(double x)
 {
     if (x>0) return 1;
-    else if (x<0) return 0;
+    else if (x<0) return -1;
     else return 0;
 }
 
