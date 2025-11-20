@@ -222,7 +222,7 @@ e_geom_test test_point_in_convhull(const s_convh *C, s_point query, double EPS_d
 
         double s = signed_distance_point_to_plane(query, face, EPS_degenerate);
         if (isnan(s)) continue;
-        if (s <= TOL_boundary) {
+        if (fabs(s) <= TOL_boundary) {
             e_geom_test inside_face = test_point_in_triangle_3D(face, query, EPS_degenerate, TOL_boundary);
             if (inside_face == TEST_IN || inside_face == TEST_BOUNDARY) on_boundary = 1;
             continue;
