@@ -7,6 +7,7 @@ Contains three submodules.
 The robust tests use *Shewchuck's Robust Predicates*.
 
 ## Example: removing intersection of two convex hulls
+(Plots made in MATLAB).
 <p align="center">
 <img src="./example/git_images/ch_intersect_before.png" alt="Example right lung" width="400" height="auto" />
 <img src="./example/git_images/ch_intersect_after.png" alt="Example left lung" width="400" height="auto">
