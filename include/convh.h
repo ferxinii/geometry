@@ -21,7 +21,7 @@ int convhull_from_csv(const char *filename, double EPS_degenerate_face, double T
 void free_convhull(s_convh *convh);
 s_convh copy_convhull(const s_convh *in);
 
-int serialize_convhull(const s_convh *convh, size_t *size, uint8_t **data);
+int serialize_convhull(const s_convh *convh, uint8_t *buff_write, size_t *size, uint8_t **data);
 int deserialize_convhull(const uint8_t *data, s_convh *out);
 
 e_geom_test test_point_in_convhull(const s_convh *convh, s_point query, double EPS_degenerate, double TOL_boundary);  

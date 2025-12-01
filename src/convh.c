@@ -26,16 +26,27 @@ static size_t size_serialize_convhull(const s_convh *convh)
     return size;
 }
 
-int serialize_convhull(const s_convh *convh, size_t *size, uint8_t **data)
+int serialize_convhull(const s_convh *convh, uint8_t *buff_write, size_t *size, uint8_t **out)
 {   /* 1 OK, 0 ERROR */
-    if (!size) return 0;
-    *size = size_serialize_convhull(convh);
-    if (!data) return 1;
-    
-    uint8_t *out = malloc(*size);
-    if (!out) return 0; 
+    size_t s = size_serialize_convhull(convh);
+    if (size) *size = s; 
 
-    uint8_t *p = out;
+    if (!buff_write && !out) return 1;
+    if (buff_write && out) {
+        fprintf(stderr, "ERROR serialize_convhull: either provide buffer or let function malloc, but not both.\n");
+        return 0;
+    }
+    
+    uint8_t *destination = NULL;
+    if (buff_write) {
+        destination = buff_write;
+    } else {
+        destination = malloc(s);
+        if (!destination) return 0; 
+        *out = destination;
+    } 
+
+    uint8_t *p = destination;
     memcpy(p, &convh->points.N, sizeof(int));
     p += sizeof(int);
 
@@ -51,7 +62,6 @@ int serialize_convhull(const s_convh *convh, size_t *size, uint8_t **data)
     memcpy(p, convh->fnormals, sizeof(s_point) * convh->Nf);
     p += sizeof(s_point) * convh->Nf;
     
-    *data = out;
     return 1;
 }
 
