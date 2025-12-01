@@ -47,25 +47,23 @@ int serialize_convhull(const s_convh *convh, uint8_t *buff_write, size_t *size, 
     } 
 
     uint8_t *p = destination;
+
     memcpy(p, &convh->points.N, sizeof(int));
     p += sizeof(int);
-
     memcpy(p, convh->points.p, sizeof(s_point) * convh->points.N);
     p += sizeof(s_point) * convh->points.N;
 
     memcpy(p, &convh->Nf, sizeof(int));
     p += sizeof(int);
-
     memcpy(p, convh->faces, sizeof(int) * convh->Nf * 3);
     p += sizeof(int) * convh->Nf * 3;
-
     memcpy(p, convh->fnormals, sizeof(s_point) * convh->Nf);
     p += sizeof(s_point) * convh->Nf;
     
     return 1;
 }
 
-int deserialize_convhull(const uint8_t *data, s_convh *out)
+int deserialize_convhull(const uint8_t *data, s_convh *out, uint8_t **end_data)
 {
     if (!out || !data) return 0;
 
@@ -100,6 +98,7 @@ int deserialize_convhull(const uint8_t *data, s_convh *out)
     }
     
     *out = ch;
+    if (end_data) *end_data = (uint8_t*)p;
     return 1;
 }
 

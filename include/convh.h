@@ -22,7 +22,7 @@ void free_convhull(s_convh *convh);
 s_convh copy_convhull(const s_convh *in);
 
 int serialize_convhull(const s_convh *convh, uint8_t *buff_write, size_t *size, uint8_t **data);
-int deserialize_convhull(const uint8_t *data, s_convh *out);
+int deserialize_convhull(const uint8_t *data, s_convh *out, uint8_t **end_data);
 
 e_geom_test test_point_in_convhull(const s_convh *convh, s_point query, double EPS_degenerate, double TOL_boundary);  
 s_points_test test_points_in_convhull(const s_convh *convh, const s_points *query, double EPS_degenerate, double TOL_boundary, e_geom_test buff[query->N]);
