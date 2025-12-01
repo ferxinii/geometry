@@ -168,7 +168,7 @@ static e_intersect_type core_segment_convhull_surface_intersect(const s_convh *C
     if (h == 0) {
         if (Nout) *Nout = 0;
         return INTERSECT_EMPTY;
-    };
+    }
     if (h == 1) { 
         if (Nout && out) { out[0] = tmp[0]; *Nout = 1; } 
         return INTERSECT_NONDEGENERATE;

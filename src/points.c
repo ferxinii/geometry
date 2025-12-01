@@ -35,7 +35,7 @@ void print_points(const s_points *points)
 }
 
 
-static int count_lines(FILE* file)
+static int count_lines(FILE *file)
 {
     const int BUF_SIZE = 2048;
     char buf[BUF_SIZE];

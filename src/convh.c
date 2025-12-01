@@ -10,6 +10,92 @@
 #include <float.h>
 
 
+/* Serialization */
+static size_t size_serialize_convhull(const s_convh *convh)
+{
+    size_t size = 0;
+    /* points */
+    size += sizeof(int);
+    size += sizeof(s_point) * convh->points.N;
+    /* Nf */
+    size += sizeof(int);
+    /* faces */
+    size += sizeof(int) * convh->Nf * 3;
+    /* fnormals */
+    size += sizeof(s_point) * convh->Nf;
+    return size;
+}
+
+int serialize_convhull(const s_convh *convh, size_t *size, uint8_t **data)
+{   /* 1 OK, 0 ERROR */
+    if (!size) return 0;
+    *size = size_serialize_convhull(convh);
+    if (!data) return 1;
+    
+    uint8_t *out = malloc(*size);
+    if (!out) return 0; 
+
+    uint8_t *p = out;
+    memcpy(p, &convh->points.N, sizeof(int));
+    p += sizeof(int);
+
+    memcpy(p, convh->points.p, sizeof(s_point) * convh->points.N);
+    p += sizeof(s_point) * convh->points.N;
+
+    memcpy(p, &convh->Nf, sizeof(int));
+    p += sizeof(int);
+
+    memcpy(p, convh->faces, sizeof(int) * convh->Nf * 3);
+    p += sizeof(int) * convh->Nf * 3;
+
+    memcpy(p, convh->fnormals, sizeof(s_point) * convh->Nf);
+    p += sizeof(s_point) * convh->Nf;
+    
+    *data = out;
+    return 1;
+}
+
+int deserialize_convhull(const uint8_t *data, s_convh *out)
+{
+    if (!out || !data) return 0;
+
+    s_convh ch;
+    const uint8_t *p = data;
+
+    /* points */
+    memcpy(&ch.points.N, p, sizeof(int)); 
+    p += sizeof(int);
+
+    if (ch.points.N > 0) {
+        ch.points.p = malloc(sizeof(s_point) * ch.points.N);
+        if (!ch.points.p) return 0;
+        memcpy(ch.points.p, p, sizeof(s_point) * ch.points.N);
+        p += sizeof(s_point) * ch.points.N;
+    }
+
+    /* faces */
+    memcpy(&ch.Nf, p, sizeof(int));
+    p += sizeof(int);
+
+    if (ch.Nf > 0) {
+        ch.faces = malloc(sizeof(int) * ch.Nf * 3);
+        if (!ch.faces) { free(ch.points.p);  return 0; }
+        memcpy(ch.faces, p, sizeof(int) * ch.Nf * 3);
+        p += sizeof(int) * ch.Nf * 3;
+
+        ch.fnormals = malloc(sizeof(s_point) * ch.Nf);
+        if (!ch.fnormals) { free(ch.faces); free(ch.points.p); return 0; }
+        memcpy(ch.fnormals, p, sizeof(s_point) * ch.Nf);
+        p += sizeof(s_point) * ch.Nf;
+    }
+    
+    *out = ch;
+    return 1;
+}
+
+
+
+
 int convhull_is_valid(const s_convh *convh) 
 {
     if (!convh) return 0;
