@@ -63,7 +63,7 @@ int serialize_convhull(const s_convh *convh, uint8_t *buff_write, size_t *size, 
     return 1;
 }
 
-int deserialize_convhull(const uint8_t *data, s_convh *out, uint8_t **end_data)
+int deserialize_convhull(const uint8_t *data, s_convh *out, size_t *bytes_read)
 {
     if (!out || !data) return 0;
 
@@ -98,7 +98,7 @@ int deserialize_convhull(const uint8_t *data, s_convh *out, uint8_t **end_data)
     }
     
     *out = ch;
-    if (end_data) *end_data = (uint8_t*)p;
+    if (bytes_read) *bytes_read = (size_t)(p - data);
     return 1;
 }
 
