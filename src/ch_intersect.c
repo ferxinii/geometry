@@ -321,7 +321,7 @@ int clip_convhull_halfspace(const s_convh *C, s_point plane[3], double EPS_degen
     ptest = test_points_in_halfspace(plane, &C->points, EPS_degenerate, TOL, NULL);
     if (!ptest.indicator) goto error;
     if (ptest.Nerr > 0) { *out = convhull_NAN; return -1; }
-    if (ptest.Nin == 0) { *out = convhull_NAN; return 0; }
+    if (ptest.Nin + ptest.Nbdy == 0) { *out = convhull_NAN; return 0; }
 
     p = initialize_point_list(ptest.Nin + ptest.Nbdy);
     if (!p.list) goto error;
@@ -395,9 +395,9 @@ int remove_intersection_convhulls(s_convh *A, s_convh *B, double EPS_degenerate,
     /* Points for reduced A */
     i = clip_convhull_halfspace(&I, plane, EPS_degenerate, TOL, &IA);  /* Divide I with the plane */
     if (i == -1) goto error;
-    assert(IA.points.N > 0); 
     s_points_test Atest = test_points_in_halfspace(plane, &A->points, EPS_degenerate, TOL, buff);
     p_newA.N = Atest.Nin + Atest.Nbdy + IA.points.N;
+    assert(IA.points.N > 0);
     p_newA.p = malloc(sizeof(s_point) * p_newA.N);
     if (!p_newA.p) goto error;
     int jj=0;
@@ -411,9 +411,9 @@ int remove_intersection_convhulls(s_convh *A, s_convh *B, double EPS_degenerate,
     s_point tmp = plane[0]; plane[0] = plane[1];  plane[1] = tmp;  /* Flip plane normal */
     i = clip_convhull_halfspace(&I, plane, EPS_degenerate, TOL, &IB);
     if (i == -1) goto error;
-    assert(IB.points.N > 0);
     s_points_test Btest = test_points_in_halfspace(plane, &B->points, EPS_degenerate, TOL, buff);
     p_newB.N = Btest.Nin + Btest.Nbdy + IB.points.N;
+    assert(p_newB.N > 0);
     p_newB.p = malloc(sizeof(s_point) * p_newB.N);
     if (!p_newB.p) goto error;
     jj=0;
