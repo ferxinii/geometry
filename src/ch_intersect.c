@@ -397,7 +397,7 @@ int remove_intersection_convhulls(s_convh *A, s_convh *B, double EPS_degenerate,
     if (i == -1) goto error;
     s_points_test Atest = test_points_in_halfspace(plane, &A->points, EPS_degenerate, TOL, buff);
     p_newA.N = Atest.Nin + Atest.Nbdy + IA.points.N;
-    assert(IA.points.N > 0);
+    assert(p_newA.N > 0);
     p_newA.p = malloc(sizeof(s_point) * p_newA.N);
     if (!p_newA.p) goto error;
     int jj=0;
