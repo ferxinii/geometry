@@ -265,7 +265,7 @@ static e_geom_test test_point_in_tetrahedron_robust(const s_point tetra[4], s_po
 
 e_geom_test test_point_in_tetrahedron(const s_point tetra[4], s_point query, double EPS_degenerate, double TOL)
 {   
-    if (signed_volume_tetra(tetra) < EPS_degenerate) return TEST_DEGENERATE;
+    if (fabs(signed_volume_tetra(tetra)) < EPS_degenerate) return TEST_DEGENERATE;
 
     if (TOL == 0) return test_point_in_tetrahedron_robust(tetra, query);
 

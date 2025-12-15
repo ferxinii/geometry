@@ -8,7 +8,7 @@ typedef enum geom_test {
     TEST_BOUNDARY,
     TEST_DEGENERATE,
     TEST_ERROR
-}   e_geom_test;
+} e_geom_test;
 
 typedef struct points_test {
     int Nin;
@@ -58,7 +58,8 @@ e_intersect_type test_segment_triangle_intersect_3D(const s_point segment[2], co
 
 s_segment_intersect segment_segment_intersect_2D(const double A1[2], const double A2[2], const double B1[2], const double B2[2], double EPS_degenerate, double TOL_boundary);
 s_segment_intersect segment_plane_intersect(const s_point seg[2], const s_point plane[3], double EPS_degenerate, double TOL_boundary);
-s_segment_intersect segment_triangle_intersect_2D(const double S1[2], const double S2[2], const double A[2], const double B[2], const double C[2], double EPS_degenerate, double TOL_boundary); s_segment_intersect segment_triangle_intersect_3D(const s_point segment[2], const s_point triangle[3], double EPS_degenerate, double TOL_boundary);
+s_segment_intersect segment_triangle_intersect_2D(const double S1[2], const double S2[2], const double A[2], const double B[2], const double C[2], double EPS_degenerate, double TOL_boundary); 
+s_segment_intersect segment_triangle_intersect_3D(const s_point segment[2], const s_point triangle[3], double EPS_degenerate, double TOL_boundary);
 
 
 #endif

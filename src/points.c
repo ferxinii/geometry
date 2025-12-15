@@ -140,7 +140,7 @@ s_points copy_points_remove_duplicates(const s_points *points, double TOL)
     for (int ii=0; ii<points->N; ii++)
         if (mark_dup[ii] == 1) count_dup++;
 
-    out.N = points->N - count_dup, 
+    out.N = points->N - count_dup; 
     out.p = malloc(sizeof(s_point) * (points->N - count_dup));
     if (!out.p) goto error;
 
