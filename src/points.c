@@ -583,7 +583,7 @@ int circumcentre_from_points(const s_point p[4], double EPS_degenerate, s_point 
     s_point x;
     int rank = solve_3x3_ppivot(A, rhs, x.coords, EPS_degenerate);
     if (rank == 3) {
-        s_point center_scaled = sum_points(p[0], x);
+        s_point center_scaled = sum_points(v[0], x);
         *out = sum_points(scale_point(center_scaled, scale), centroid);
         return 1;
     } 
