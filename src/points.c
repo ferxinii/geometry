@@ -565,11 +565,12 @@ int circumcentre_from_points(const s_point p[4], double EPS_degenerate, s_point 
     /* Center & scale to reduce cancellation */
     s_point v[4];
     s_point centroid = point_average(&(s_points){.N = 4, .p = (s_point*)p});
+    for (int ii=0; ii<4; ii++) v[ii] = subtract_points(p[ii], centroid);
+
     s_point span = span_points(&(s_points){.N = 4, .p = (s_point*)p});
     double scale = fmax(span.x, fmax(span.y, span.z));
     if (scale == 0) scale = 1.0;
-    for (int ii=0; ii<4; ii++) 
-        v[ii] = (s_point){{{ p[ii].x/scale, p[ii].y/scale, p[ii].z/scale }}};
+    for (int ii=0; ii<4; ii++) v[ii] = scale_point(v[ii], 1/scale);
 
     double A[3][3], rhs[3];
     double norm_v0 = norm(v[0]);
