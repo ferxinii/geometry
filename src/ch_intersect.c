@@ -370,6 +370,33 @@ int clip_convhull_halfspace(const s_convh *C, s_point plane[3], double EPS_degen
 }
 
 
+int clip_convhull_convhull(s_convh *C, const s_convh *clipper, double EPS_degenerate, double TOL, double min_vol_I)
+{  /* Returns  1 if OK (C may become convhull_NAN if completely inside clipper),
+    *          0 if no intersection to remove,
+    *          -1 if error
+    */
+    s_convh I = convhull_NAN;
+
+    int i = intersection_convhulls(C, clipper, EPS_degenerate, TOL, &I);
+    if (i == 0) return 0;
+    if (i == -1) return -1;
+    double volI = volume_convhull(&I);
+    if (volI < min_vol_I) { free_convhull(&I); return 0; }
+
+    /* Case clipper fully contains C */
+    double volC = volume_convhull(C);
+    if (volI >= volC - TOL) {   
+        free_convhull(C);
+        free_convhull(&I);
+        *C = convhull_NAN;  /* C becomes empty */
+        return 1;
+    }
+
+
+
+}
+
+
 int remove_intersection_convhulls(s_convh *A, s_convh *B, double EPS_degenerate, double TOL, double min_vol_I)
 {   /* TODO: What if one is completely contained in the other? */
     /* Returns  1 if OK,

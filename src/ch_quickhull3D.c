@@ -63,13 +63,16 @@ static void free_int_list(s_int_list *int_list) {
 static void vertices_face(const s_points *points, const int *faces, int face_id, s_point out[3])
 {
     int i;
-    i = faces[face_id*3+0];  assert(i < points->N && i >= 0);
+    i = faces[face_id*3+0];
+    assert(i < points->N && i >= 0);
     out[0] = points->p[i];
 
-    i = faces[face_id*3+1];  assert(i < points->N && i >= 0);
+    i = faces[face_id*3+1];
+    assert(i < points->N && i >= 0);
     out[1] = points->p[i];
 
-    i = faces[face_id*3+2];  assert(i < points->N && i >= 0);
+    i = faces[face_id*3+2];
+    assert(i < points->N && i >= 0);
     out[2] = points->p[i];
 }
 
@@ -86,12 +89,10 @@ static int next_vid_isused_notinface(int Np, int isused[Np], int face_ids[3], in
     int start = current_id + 1;
     assert(start >= 0);
 
-    for (int ii = start; ii < Np; ++ii) {
-        if (isused[ii]) {
+    for (int ii = start; ii < Np; ++ii)
+        if (isused[ii])
             if (ii != face_ids[0] && ii != face_ids[1] && ii != face_ids[2])
                 return ii;
-        }
-    }
     return -1;
 }
 

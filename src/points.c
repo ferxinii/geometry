@@ -517,3 +517,174 @@ s_point closest_point_on_segment(const s_point segment[2], double EPS_degenerate
 }
 
 
+
+
+
+static int solve_3x3_ppivot(const double M_in[3][3], const double rhs_in[3], double out[3], double pivot_tol)
+{   /* Gaussian elimination with partial pivoting */ 
+    /* if rank == 3, x is stored in out */
+    double M[3][4];
+    for (int ii=0; ii<3; ii++)
+        { M[ii][0] = M_in[ii][0]; M[ii][1] = M_in[ii][1]; M[ii][2] = M_in[ii][2]; M[ii][3] = rhs_in[ii]; }
+
+    int rank = 3;
+    for (int col=0; col<3; col++) {
+        /* find pivot */
+        int piv = col;
+        double best = fabs(M[col][col]);
+        for (int r=col+1; r<3; r++) {
+            double val = fabs(M[r][col]);
+            if (val > best) { best = val; piv = r; }
+        }
+        if (best <= pivot_tol) { rank = col;  break; }  /* rank < 3 */
+        if (piv != col)
+            for (int c=col; c<4; ++c) {
+                double t = M[col][c]; M[col][c] = M[piv][c]; M[piv][c] = t;
+            }
+        /* eliminate */
+        for (int r = col+1; r<3; ++r) {
+            double fac = M[r][col] / M[col][col];
+            for (int c = col; c < 4; ++c) M[r][c] -= fac * M[col][c];
+        }
+    }
+    if (rank < 3) return rank;
+
+    /* back-substitute */
+    double sol[3];
+    for (int ii=2; ii>=0; ii--) {
+        double s = M[ii][3];
+        for (int jj=ii+1; jj<3; jj++) s -= M[ii][jj]*sol[jj];
+        sol[ii] = s / M[ii][ii];
+    }
+    out[0]=sol[0]; out[1]=sol[1]; out[2]=sol[2];
+    return 3;
+}
+
+int circumsphere_from_points(const s_point p[4], double EPS_degenerate, s_point *out)
+{
+    /* Center & scale to reduce cancellation */
+    s_point v[4];
+    s_point centroid = point_average(&(s_points){.N = 4, .p = (s_point*)p});
+    s_point span = span_points(&(s_points){.N = 4, .p = (s_point*)p});
+    double scale = fmax(span.x, fmax(span.y, span.z));
+    if (scale == 0) scale = 1.0;
+    for (int ii=0; ii<4; ii++) 
+        v[ii] = (s_point){{{ p[ii].x/scale, p[ii].y/scale, p[ii].z/scale }}};
+
+    double A[3][3], rhs[3];
+    for (int ii=1; ii<=3; ii++) {
+        A[ii][0] = 2 * (v[ii].x - v[0].x);
+        A[ii][1] = 2 * (v[ii].y - v[0].y);
+        A[ii][2] = 2 * (v[ii].z - v[0].z);
+        rhs[ii]   = (v[ii].x*v[ii].x + v[ii].y*v[ii].y + v[ii].z*v[ii].z) - v[0].z*v[0].z;
+    }
+    s_point x;
+    int rank = solve_3x3_ppivot(A, rhs, x.coords, EPS_degenerate);
+    if (rank == 3) {
+        s_point center_scaled = sum_points(p[0], x);
+        *out = sum_points(scale_point(center_scaled, scale), centroid);
+        return 1;
+    } 
+
+    /* Degenerate system */
+    s_point e[3] = { subtract_points(v[1], v[0]), subtract_points(v[2], v[0]), subtract_points(v[3], v[0]) };
+
+    /* find first non-zero vector */
+    int i0 = -1;
+    for (int ii=0; ii<3; ii++) 
+        if (norm(e[ii]) > EPS_degenerate) { i0 = ii; break; }
+    if (i0 == -1) {  /* all four points coincide (after centering) */
+        *out = (s_point){{{ v[0].x * scale + centroid.x,
+                            v[0].y * scale + centroid.y,
+                            v[0].z * scale + centroid.z }}};
+        return 1;
+    }
+
+    /* find a second independent vector via cross-product */
+    int i1 = -1;
+    for (int jj=0; jj<3; jj++) if (jj != i0)
+        if (norm(cross_prod(e[i0], e[jj])) > EPS_degenerate) { i1 = jj; break; }
+    if (i1 == -1) {  /* Collinear case. Return midpoint of extreme projected points along the line direction. */
+        /* compute param t = dot(p - v0, dir) / |dir|^2 for each v */
+        double tmin = 0.0, tmax = 0.0;
+        int first = 1;
+        for (int k = 0; k < 4; ++k) {
+            double ti = dot_prod(subtract_points(v[k], v[0]), e[i0]) / norm_squared(e[i0]);
+            if (first) { tmin = tmax = ti; first = 0; }
+            else { if (ti < tmin) tmin = ti; if (ti > tmax) tmax = ti; }
+        }
+        double tcenter = 0.5 * (tmin + tmax);
+        s_point center_scaled = sum_points(v[0], scale_point(e[i0], tcenter));
+        *out = (s_point){{{ center_scaled.x * scale + centroid.x,
+                            center_scaled.y * scale + centroid.y,
+                            center_scaled.z * scale + centroid.z }}};
+        return 1;
+    }
+
+    /* Rank == 2 (coplanar or nearly-coplanar). Build plane basis (u,v) */
+    s_point uvec = normalize_vec(e[i0], EPS_degenerate);
+    if (!point_is_valid(uvec)) return 0;
+    s_point nvec = normalize_vec(cross_prod(e[i0], e[i1]), EPS_degenerate);
+    if (!point_is_valid(nvec)) return 0;
+    s_point vvec = normalize_vec(cross_prod(nvec, uvec), EPS_degenerate);
+    if (!point_is_valid(vvec)) return 0;
+
+    /* project all 4 scaled points into plane coordinates (xi, yi) */
+    double x2[4], y2[4];
+    for (int kk=0; kk<4; kk++) {
+        s_point rel = subtract_points(v[kk], v[0]);
+        x2[kk] = rel.x*uvec.x + rel.y*uvec.y + rel.z*uvec.z;
+        y2[kk] = rel.x*vvec.x + rel.y*vvec.y + rel.z*vvec.z;
+    }
+
+    /* Try to compute circumcenter of first three non-collinear projected points.
+       We'll search for an index triplet (i,j,k) with non-zero 2D determinant. */
+    int ia = -1, ib = -1, ic = -1;
+    for (int i = 0; i < 4 && ia == -1; ++i)
+        for (int j = i+1; j < 4 && ia == -1; ++j)
+            for (int k = j+1; k < 4 && ia == -1; ++k) {
+                double det2 = (x2[j]-x2[i])*(y2[k]-y2[i]) - (y2[j]-y2[i])*(x2[k]-x2[i]);
+                if (fabs(det2) > EPS_degenerate) { ia = i; ib = j; ic = k; break; }
+            }
+
+    if (ia == -1) {  /* All 4 projections collinear in plane (rare).  Return midpoint of extremes along u axis */
+        double tmin = x2[0], tmax = x2[0];
+        for (int k = 1; k < 4; ++k) { if (x2[k] < tmin) tmin = x2[k]; if (x2[k] > tmax) tmax = x2[k]; }
+        double tcenter = 0.5*(tmin + tmax);
+        s_point center_scaled = sum_points(v[0], scale_point(uvec, tcenter));
+        *out = (s_point){{{ center_scaled.x * scale + centroid.x,
+                            center_scaled.y * scale + centroid.y,
+                            center_scaled.z * scale + centroid.z }}};
+        return 1;
+    }
+
+    /* Compute 2D circumcenter from points (xa,ya), (xb,yb), (xc,yc) using linear solve */
+    double xa = x2[ia], ya = y2[ia];
+    double xb = x2[ib], yb = y2[ib];
+    double xc = x2[ic], yc = y2[ic];
+
+    double M00 = xb - xa, M01 = yb - ya;
+    double M10 = xc - xa, M11 = yc - ya;
+    double rhs0_2 = (xb*xb + yb*yb - xa*xa - ya*ya) * 0.5;
+    double rhs1_2 = (xc*xc + yc*yc - xa*xa - ya*ya) * 0.5;
+    double detM = M00 * M11 - M01 * M10;
+
+    s_point center_scaled;
+    if (fabs(detM) > EPS_degenerate) {
+        /* solve 2x2 */
+        double ux2 = ( rhs0_2 * M11 - M01 * rhs1_2) / detM;
+        double uy2 = (-rhs0_2 * M10 + M00 * rhs1_2) / detM;
+        center_scaled = sum_points(v[0], sum_points(scale_point(uvec, ux2), scale_point(vvec, uy2)));
+    } else {
+        /* fallback: use midpoint of extreme projected points along u axis */
+        double tmin = x2[0], tmax = x2[0];
+        for (int kk=1; kk<4; kk++) { if (x2[kk] < tmin) tmin = x2[kk]; if (x2[kk] > tmax) tmax = x2[kk]; }
+        double tcenter = 0.5*(tmin + tmax);
+        center_scaled = sum_points(v[0], scale_point(uvec, tcenter));
+    }
+
+    /* Map back to original coordinates */
+    *out = sum_points(centroid, scale_point(center_scaled, scale));
+    return 1;
+}
+
