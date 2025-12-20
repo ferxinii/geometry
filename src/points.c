@@ -518,8 +518,6 @@ s_point closest_point_on_segment(const s_point segment[2], double EPS_degenerate
 
 
 
-
-
 static int solve_3x3_ppivot(const double M_in[3][3], const double rhs_in[3], double out[3], double pivot_tol)
 {   /* Gaussian elimination with partial pivoting */ 
     /* if rank == 3, x is stored in out */
@@ -567,24 +565,34 @@ int circumcentre_from_points(const s_point p[4], double EPS_degenerate, s_point 
     s_point centroid = point_average(&(s_points){.N = 4, .p = (s_point*)p});
     for (int ii=0; ii<4; ii++) v[ii] = subtract_points(p[ii], centroid);
 
-    s_point span = span_points(&(s_points){.N = 4, .p = (s_point*)p});
+    s_point span = span_points(&(s_points){.N = 4, .p = v});
     double scale = fmax(span.x, fmax(span.y, span.z));
     if (scale == 0) scale = 1.0;
-    for (int ii=0; ii<4; ii++) v[ii] = scale_point(v[ii], 1/scale);
+    for (int ii=0; ii<4; ii++) v[ii] = scale_point(v[ii], 1.0/scale);
 
     double A[3][3], rhs[3];
     double norm2_v0 = norm_squared(v[0]);
-    for (int ii=0; ii<4; ii++) {
+    for (int ii=0; ii<3; ii++) {
         A[ii][0] = 2 * (v[ii+1].x - v[0].x);
         A[ii][1] = 2 * (v[ii+1].y - v[0].y);
         A[ii][2] = 2 * (v[ii+1].z - v[0].z);
-        rhs[ii]   = (v[ii].x*v[ii].x + v[ii].y*v[ii].y + v[ii].z*v[ii].z) - norm2_v0;
+        rhs[ii]  = norm_squared(v[ii+1]) - norm2_v0;
     }
+
+    /* Scale aware pivot tolerance */
+    double maxabs = 0.0;
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) maxabs = fmax(maxabs, fabs(A[i][j]));
+        maxabs = fmax(maxabs, fabs(rhs[i]));
+    }
+    if (maxabs == 0.0) maxabs = 1.0;
+    double pivot_eps = EPS_degenerate * maxabs;
+
     s_point x;
-    int rank = solve_3x3_ppivot(A, rhs, x.coords, EPS_degenerate);
+    int rank = solve_3x3_ppivot(A, rhs, x.coords, pivot_eps);
     if (rank == 3) {
-        s_point center_scaled = sum_points(v[0], x);
-        *out = sum_points(scale_point(center_scaled, scale), centroid);
+        // s_point center_scaled = sum_points(v[0], x);
+        *out = sum_points(scale_point(x, scale), centroid);
         return 1;
     } 
 
