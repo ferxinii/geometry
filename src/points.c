@@ -573,12 +573,12 @@ int circumcentre_from_points(const s_point p[4], double EPS_degenerate, s_point 
     for (int ii=0; ii<4; ii++) v[ii] = scale_point(v[ii], 1/scale);
 
     double A[3][3], rhs[3];
-    double norm_v0 = norm(v[0]);
+    double norm2_v0 = norm_squared(v[0]);
     for (int ii=0; ii<4; ii++) {
         A[ii][0] = 2 * (v[ii+1].x - v[0].x);
         A[ii][1] = 2 * (v[ii+1].y - v[0].y);
         A[ii][2] = 2 * (v[ii+1].z - v[0].z);
-        rhs[ii]   = (v[ii].x*v[ii].x + v[ii].y*v[ii].y + v[ii].z*v[ii].z) - norm_v0;
+        rhs[ii]   = (v[ii].x*v[ii].x + v[ii].y*v[ii].y + v[ii].z*v[ii].z) - norm2_v0;
     }
     s_point x;
     int rank = solve_3x3_ppivot(A, rhs, x.coords, EPS_degenerate);
