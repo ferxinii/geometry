@@ -199,9 +199,9 @@ static int priority_vertices_ignoring_initial_tetra(const s_points *points, cons
     if (!reldist2) return 0;
     for (int ii=0, jj=0; ii<points->N; ii++) {
         if (!isused[ii]) {
-            s_point scaled = {{{(points->p[ii].x-meanp.x)/span.x, 
-                                (points->p[ii].y-meanp.y)/span.y, 
-                                (points->p[ii].z-meanp.z)/span.z}}};
+            s_point scaled = {{{ (points->p[ii].x-meanp.x)/span.x, 
+                                 (points->p[ii].y-meanp.y)/span.y, 
+                                 (points->p[ii].z-meanp.z)/span.z }}};
             reldist2[jj].val = norm_squared(scaled);
             reldist2[jj].idx = ii;  /* Store original index */
             jj++;
@@ -297,19 +297,31 @@ static int extract_horizon(int Nfaces, int faces[Nfaces], int is_visible[Nfaces]
 
 
 /* Add and delete faces */
-static int would_any_new_face_be_too_small(const s_points *points, int N_newfaces, int horizon[N_newfaces*2], int query_pid, double min_face_area)
-{
-    if (min_face_area == 0) return 0;
-
-    for (int j=0; j<N_newfaces; j++) {
-        int v0 = horizon[j*2+0];  int v1 = horizon[j*2+1];  int v2 = query_pid;
-        double face_area = norm(cross_prod(subtract_points(points->p[v1], points->p[v0]),
-                                           subtract_points(points->p[v2], points->p[v0])));
-        if (face_area < min_face_area)
-            return 1;
-    }
-    return 0;
-}
+// static int would_any_new_face_be_too_small(const s_points *points, int N_newfaces, int horizon[N_newfaces*2], int query_pid, double TOL2_dupe, double min_face_area)
+// {
+//     if (min_face_area == 0) return 0;
+//
+//     for (int j=0; j<N_newfaces; j++) {
+//         int v0 = horizon[j*2+0];  int v1 = horizon[j*2+1];  int v2 = query_pid;
+//         s_point face[3] = {points->p[v0], points->p[v1], points->p[v2]};
+//         s_point e0 = subtract_points(face[0], face[1]);
+//         s_point e1 = subtract_points(face[1], face[2]);
+//         s_point e2 = subtract_points(face[2], face[0]);
+//         if (norm_squared(e0) < TOL2_dupe || norm_squared(e1) < TOL2_dupe || norm_squared(e2) < TOL2_dupe) {
+//             printf("TOO SMALL: dupes, %g, %g, %g\n", norm(e0), norm(e1), norm(e2));
+//             return 1;
+//         }
+//
+//         if (area_triangle(face) < min_face_area) {
+//             printf("TOO SMALL: area %g, %d, %d, %d\n", area_triangle(face), v0, v1, v2);
+//             printf("%g, %g, %g\n", face[0].x, face[0].y, face[0].z);
+//             printf("%g, %g, %g\n", face[1].x, face[1].y, face[1].z);
+//             printf("%g, %g, %g\n", face[2].x, face[2].y, face[2].z);
+//             return 1;
+//         }
+//     }
+//     return 0;
+// }
 
 static void delete_visible_faces(int Nfaces, int faces[Nfaces*3], int faces_isvisible[Nfaces])
 {
@@ -347,7 +359,7 @@ static int add_faces_from_horizon(const s_points *points, int isused[points->N],
 
 /* Main algorithm */
 // TODO what if a face of the original tetra is too small, and remains alive until the end of the algorithm?
-int quickhull_3d(const s_points *in_vertices, double min_face_area, int buff_isused[in_vertices->N], int **out_faces, int *N_out_faces) 
+int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, int buff_isused[in_vertices->N], int **out_faces, int *N_out_faces) 
 {   /* Returns:
        -2 if error initializing tetrahedron. In_vertices degenerate or faces too small?
        -1 if error (memory, reached max_faces, ...)
@@ -368,12 +380,7 @@ int quickhull_3d(const s_points *in_vertices, double min_face_area, int buff_isu
     faces = initialize_int_list(12);
     if (!faces.list) goto error;
     if (!initial_tetrahedron(in_vertices, buff_isused, faces.list)) goto error_init;
-
     if (in_vertices->N == 4) {
-        for (int ii=0; ii<4; ii++) {  /* Check if all faces are big enough */
-            s_point face[3];  vertices_face(in_vertices, faces.list, ii, face);
-            if (area_triangle(face) < min_face_area) goto error_init;
-        }
         *out_faces = faces.list;
         *N_out_faces = 4;
         return 1;
@@ -385,7 +392,7 @@ int quickhull_3d(const s_points *in_vertices, double min_face_area, int buff_isu
     int N_pleft = in_vertices->N - 4;
     pleft = malloc(N_pleft * sizeof(int));
     if (!pleft) goto error;
-    if (!priority_vertices_ignoring_initial_tetra(in_vertices, buff_isused, min_face_area, pleft)) goto error_init;
+    if (!priority_vertices_ignoring_initial_tetra(in_vertices, buff_isused, EPS_degenerate, pleft)) goto error_init;
 
 
     /* The main loop for the quickhull algorithm */
@@ -401,24 +408,19 @@ int quickhull_3d(const s_points *in_vertices, double min_face_area, int buff_isu
         s_point current_p = in_vertices->p[current_id];
 
         /* Mark visible faces from this point */
-        int N_vf = visible_faces_from_point(in_vertices, Nfaces, faces.list, current_p, min_face_area, &faces_isvisible);
+        int N_vf = visible_faces_from_point(in_vertices, Nfaces, faces.list, current_p, EPS_degenerate, &faces_isvisible);
         if (N_vf == -1) goto error;
 
         /* Proceed if N_visible_faces > 0 */
         assert(N_vf != Nfaces && "Point sees all faces?");
         if (N_vf == 0) continue;  
-        buff_isused[current_id] = 1;
 
         /* Create horizon */
         int Nhorizon;
         if (!extract_horizon(Nfaces, faces.list, faces_isvisible.list, &AUX_nvf_sharing_edge, &Nhorizon, &horizon))
             goto error;
 
-        /* Check if any new face would be too small */
-        if (would_any_new_face_be_too_small(in_vertices, Nhorizon, horizon.list, current_id, min_face_area)) {
-            out_is_exact = 0;
-            continue;  /* Simply ignore the point */
-        }
+        buff_isused[current_id] = 1;
 
         /* Delete visible faces */
         delete_visible_faces(Nfaces, faces.list, faces_isvisible.list);

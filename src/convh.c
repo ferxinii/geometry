@@ -148,53 +148,40 @@ static int initialize_normals_convhull(s_convh *convh)
 }
 
 
-int convhull_from_points(const s_points *points, double EPS_degenerate, double TOL, s_convh *out)
+int convhull_from_points(const s_points *points, double EPS_degenerate, double TOL_duplicate, s_convh *out)
 {   /* TOL both for deduping points and to establish min_face_area */
     /* Returns  1 if OK,
                 0 if could not construct convhull due to the nature of the points,
                 -1 if some other error, perhaps memory related
     */
+    (void)TOL_duplicate;
     if (points->N == 0) { *out = convhull_NAN; return 0; }
 
-    s_points points_nodup = copy_points_remove_duplicates(points, TOL);
     int *isused = malloc(points->N * sizeof(int));
-    if (!points_is_valid(&points_nodup) || !isused) goto error;
+    if (!isused) goto error;
 
-    int i = quickhull_3d(&points_nodup, EPS_degenerate, isused, &out->faces, &out->Nf); 
-    if (i == -2) { *out = convhull_NAN; return 0; }
-    if (i == -1) { *out = convhull_NAN; return -1; }
+    int i = quickhull_3d(points, EPS_degenerate, isused, &out->faces, &out->Nf); 
+    if (i == -2) return 0;
+    if (i == -1) return -1;
     
-    /* Update out.points so that only used points remain */
-    int Nnew = 0;
-    for (int ii=0; ii<points_nodup.N; ii++) {
-        if (isused[ii]) {
-            isused[ii] = Nnew;  /* Overwrite in isused the "new index" */
-            points_nodup.p[Nnew++] = points_nodup.p[ii];
-        } else {
-            isused[ii] = -1;
-        }
-    }
-    out->points.N = Nnew;
-    out->points.p = realloc(points_nodup.p, Nnew * sizeof(s_point));
-
-    /* Update face indices */
-    for (int f=0; f<out->Nf; f++) {
-        for (int v=0; v<3; v++) {
-            int old = out->faces[f*3+v];
-            int newi = isused[old];
-            assert(newi >= 0 && "Face refers to unused vertex!");
-            out->faces[f*3+v] = newi;
-        }
-    }
+    out->points = copy_points(points);
+    if (!points_is_valid(&out->points)) goto error;
 
     if (!initialize_normals_convhull(out)) goto error;
+
+    // for (int ii=0; ii<points->N; ii++) {
+    //     e_geom_test test = test_point_in_convhull(out, points->p[ii], EPS_degenerate, TOL_duplicate);
+    //     if (test == TEST_OUT) {
+    //         printf("Point OUTSIDE! %g, %g, %g. Distance: %g. isused: %d\n", points->p[ii].x, points->p[ii].y, points->p[ii].z, distance(points->p[ii], closest_point_on_convhull_boundary(out, points->p[ii], EPS_degenerate)), isused[ii]); 
+    //     }
+    // }
+
     free(isused);
     return 1;
 
     error:
         fprintf(stderr, "Error in 'convhull_from_points'.\n");
         free(isused);
-        free_points(&points_nodup);
         *out = convhull_NAN;
         return -1;
 }
