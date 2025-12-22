@@ -161,8 +161,8 @@ int convhull_from_points(const s_points *points, double EPS_degenerate, double T
     if (!points_is_valid(&points_nodup) || !isused) goto error;
 
     int i = quickhull_3d(&points_nodup, EPS_degenerate, isused, &out->faces, &out->Nf); 
-    if (i == -2) return 0;
-    if (i == -1) return -1;
+    if (i == -2) { *out = convhull_NAN; return 0; }
+    if (i == -1) { *out = convhull_NAN; return -1; }
     
     /* Update out.points so that only used points remain */
     int Nnew = 0;

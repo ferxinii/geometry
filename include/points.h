@@ -51,7 +51,7 @@ double area_triangle(const s_point face[3]);
 double signed_volume_tetra(const s_point tetra[4]);
 int basis_vectors_plane(const s_point plane[3], double EPS_degenerate, s_point *out_n, s_point *out_t1, s_point *out_t2);
 int plane_equation_from_points(const s_point plane[3], double EPS_degenerate, s_point *abc_out, double *d_out);
-int circumcentre_from_points(const s_point p[4], double EPS_degenerate, s_point *out);
+int circumcentre_tetrahedron(const s_point p[4], double EPS_degenerate, s_point *out);
 
 /* The following return point_NAN if object is EPS-degenerate */
 s_point project_point_to_plane(s_point p, const s_point plane[3], double EPS_degenerate);  

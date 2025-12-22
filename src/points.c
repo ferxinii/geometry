@@ -390,11 +390,11 @@ int basis_vectors_plane(const s_point plane[3], double EPS_degenerate, s_point *
 {
     s_point d1 = subtract_points(plane[1], plane[0]);
     s_point d2 = subtract_points(plane[2], plane[0]);
-    s_point n = cross_prod(d1, d2);
-    *out_n = normalize_vec(n, EPS_degenerate);
-    if (!point_is_valid(*out_n)) {
-        *out_t1 = (s_point){0};
-        *out_t2 = (s_point){0};
+    s_point n = normalize_vec(cross_prod(d1, d2), EPS_degenerate);
+    if (out_n) *out_n = n;
+    if (!point_is_valid(n)) {
+        if (out_t1) *out_t1 = (s_point){0};
+        if (out_t2) *out_t2 = (s_point){0};
         return 0;
     }
 
@@ -402,8 +402,8 @@ int basis_vectors_plane(const s_point plane[3], double EPS_degenerate, s_point *
     s_point ref = (ref_coord == 0) ?   (s_point){{{1,0,0}}} :
                   ( (ref_coord == 1) ? (s_point){{{0,1,0}}} :
                                        (s_point){{{0,0,1}}} );
-    *out_t1 = normalize_vec(cross_prod(ref, *out_n), EPS_degenerate);
-    *out_t2 = normalize_vec(cross_prod(*out_n, *out_t1), EPS_degenerate);
+    if (out_t1) *out_t1 = normalize_vec(cross_prod(ref, *out_n), EPS_degenerate);
+    if (out_t2) *out_t2 = normalize_vec(cross_prod(*out_n, *out_t1), EPS_degenerate);
     return 1;
 }
 
@@ -558,7 +558,7 @@ static int solve_3x3_ppivot(const double M_in[3][3], const double rhs_in[3], dou
     return 3;
 }
 
-int circumcentre_from_points(const s_point p[4], double EPS_degenerate, s_point *out)
+int circumcentre_tetrahedron(const s_point p[4], double EPS_degenerate, s_point *out)
 {
     /* Center & scale to reduce cancellation */
     s_point v[4];
