@@ -36,6 +36,7 @@ s_point closest_point_on_convhull_boundary(const s_convh *convh, s_point query, 
 
 
 double volume_convhull(const s_convh *convh);
+double surface_area_convhull(const s_convh *convh);
 s_point convhull_volume_centroid(const s_convh *convh, double EPS_degenerate);
 int convex_hull_winding_valid(const s_convh *convh);
 void convh_get_face(const s_convh *convh, int id, s_point out[3]);

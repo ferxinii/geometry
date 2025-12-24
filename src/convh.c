@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <math.h>
 #include <float.h>
+#include <stdbool.h>
 
 
 /* Serialization */
@@ -159,7 +160,7 @@ int convhull_from_points(const s_points *points, double EPS_degenerate, double T
     (void)TOL_duplicate;
     if (points->N == 0) { *out = convhull_NAN; return 0; }
 
-    int *isused = malloc(points->N * sizeof(int));
+    int *isused = malloc(points->N * sizeof(bool));
     if (!isused) goto error;
 
     int i = quickhull_3d(points, EPS_degenerate, isused, &out->faces, &out->Nf); 
@@ -432,6 +433,20 @@ double volume_convhull(const s_convh *convh)
                      convh->points.p[convh->faces[ii*3 + 2]].x);
     }
     return vol / 6;
+}
+
+double surface_area_convhull(const s_convh *convh)
+{
+    if (!convhull_is_valid(convh)) return 0;
+
+    double area = 0;
+    for (int ii=0; ii<convh->Nf; ii++) {
+        if (!point_is_valid(convh->fnormals[ii])) continue;
+        s_point face[3]; convh_get_face(convh, ii, face);
+        area += area_triangle(face);
+    }
+    
+    return area;
 }
 
 

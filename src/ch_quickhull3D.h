@@ -2,11 +2,12 @@
 #define GEOMETRY_CH_QUICKHULL3D_H
 
 #include "points.h"
+#include <stdbool.h>
 
 #define CH_MAX_NUM_FACES 10000
 #define CH_N_INIT_INT_LIST 50  /* Memory buffers double memory when needed */
 
-int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, int buff_isused[in_vertices->N], int **out_faces, int *N_out_faces);
+int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, bool buff_isused[in_vertices->N], int **out_faces, int *N_out_faces);
 /* Returns:
  *     -2 if initalization error. in_vertices cant make a convex hull
  *     -1 if error (memory, ...)

@@ -1,5 +1,20 @@
 clear all
 
+%%
+[cd, fd] = loadHull("build/cube.m");
+trisurf(fd, cd(:,1), cd(:,2), cd(:,3), "FaceColor", "cyan", "FaceAlpha", 0.3)
+
+%%
+[cd, fd] = loadHull("build/cube_duplicates.m");
+trisurf(fd, cd(:,1), cd(:,2), cd(:,3), "FaceColor", "cyan", "FaceAlpha", 0.3)
+
+%%
+[cd, fd] = loadHull("build/cube_degenerate.m");
+trisurf(fd, cd(:,1), cd(:,2), cd(:,3), "FaceColor", "cyan", "FaceAlpha", 0.3)
+
+
+%%
+
 [cube1, fcube1] = loadHull("build/cube1.m");
 [cube2, fcube2] = loadHull("build/cube2.m");
 [I, fI] = loadHull("build/intersection_cubes.m");

@@ -388,6 +388,7 @@ double signed_volume_tetra(const s_point tetra[4])
 
 int basis_vectors_plane(const s_point plane[3], double EPS_degenerate, s_point *out_n, s_point *out_t1, s_point *out_t2)
 {
+    /* Compute normal */
     s_point d1 = subtract_points(plane[1], plane[0]);
     s_point d2 = subtract_points(plane[2], plane[0]);
     s_point n = normalize_vec(cross_prod(d1, d2), EPS_degenerate);
@@ -398,6 +399,8 @@ int basis_vectors_plane(const s_point plane[3], double EPS_degenerate, s_point *
         return 0;
     }
 
+    /* Compute t1, t2 */
+    if (!out_t1 && !out_t2) return 1;
     int ref_coord = coord_with_smallest_component_3D(n);
     s_point ref = (ref_coord == 0) ?   (s_point){{{1,0,0}}} :
                   ( (ref_coord == 1) ? (s_point){{{0,1,0}}} :
