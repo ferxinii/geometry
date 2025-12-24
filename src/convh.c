@@ -129,13 +129,15 @@ static int initialize_normals_convhull(s_convh *convh)
 
         s_point verts_face[3] = { v0, v1, v2 };
         int o = orientation_robust(verts_face, ch_CM);
-        // if (o == 0) {
-        //     printf("%f, %f, %f\n", verts_face[0].x, verts_face[0].y, verts_face[0].z);
-        //     printf("%f, %f, %f\n", verts_face[1].x, verts_face[1].y, verts_face[1].z);
-        //     printf("%f, %f, %f\n", verts_face[2].x, verts_face[2].y, verts_face[2].z);
-        //     printf("CM: %f, %f, %f\n", ch_CM.x, ch_CM.y, ch_CM.z);
-        // }
-        assert(o != 0);
+        if (o == 0) {
+            // printf("%f, %f, %f\n", verts_face[0].x, verts_face[0].y, verts_face[0].z);
+            // printf("%f, %f, %f\n", verts_face[1].x, verts_face[1].y, verts_face[1].z);
+            // printf("%f, %f, %f\n", verts_face[2].x, verts_face[2].y, verts_face[2].z);
+            // printf("CM: %f, %f, %f\n", ch_CM.x, ch_CM.y, ch_CM.z);
+            // print_points(&convh->points);
+            n = point_NAN;
+        }
+        // assert(o != 0);
         if (o < 0) {  // Correctly order face vertices (Right hand rule?)
             n.x = -n.x;  n.y = -n.y;  n.z = -n.z;
             int tmp = convh->faces[ii * 3 + 1];
@@ -168,13 +170,6 @@ int convhull_from_points(const s_points *points, double EPS_degenerate, double T
     if (!points_is_valid(&out->points)) goto error;
 
     if (!initialize_normals_convhull(out)) goto error;
-
-    // for (int ii=0; ii<points->N; ii++) {
-    //     e_geom_test test = test_point_in_convhull(out, points->p[ii], EPS_degenerate, TOL_duplicate);
-    //     if (test == TEST_OUT) {
-    //         printf("Point OUTSIDE! %g, %g, %g. Distance: %g. isused: %d\n", points->p[ii].x, points->p[ii].y, points->p[ii].z, distance(points->p[ii], closest_point_on_convhull_boundary(out, points->p[ii], EPS_degenerate)), isused[ii]); 
-    //     }
-    // }
 
     free(isused);
     return 1;
@@ -262,6 +257,7 @@ static e_geom_test test_point_in_convhull_robust(const s_convh *convh, s_point q
 
     int prev_sign = 0;
     for (int f = 0; f < convh->Nf; ++f) {
+        if (!point_is_valid(convh->fnormals[f])) continue;
         s_point pf[3] = { convh->points.p[convh->faces[3*f + 0]],
                           convh->points.p[convh->faces[3*f + 1]],
                           convh->points.p[convh->faces[3*f + 2]] };
@@ -429,6 +425,7 @@ double volume_convhull(const s_convh *convh)
 
     double vol = 0;
     for (int ii=0; ii<convh->Nf; ii++) {
+        if (!point_is_valid(convh->fnormals[ii])) continue;
         double Nx = convh->fnormals[ii].x;
         vol += Nx * (convh->points.p[convh->faces[ii*3 + 0]].x +
                      convh->points.p[convh->faces[ii*3 + 1]].x +

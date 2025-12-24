@@ -297,32 +297,6 @@ static int extract_horizon(int Nfaces, int faces[Nfaces], int is_visible[Nfaces]
 
 
 /* Add and delete faces */
-// static int would_any_new_face_be_too_small(const s_points *points, int N_newfaces, int horizon[N_newfaces*2], int query_pid, double TOL2_dupe, double min_face_area)
-// {
-//     if (min_face_area == 0) return 0;
-//
-//     for (int j=0; j<N_newfaces; j++) {
-//         int v0 = horizon[j*2+0];  int v1 = horizon[j*2+1];  int v2 = query_pid;
-//         s_point face[3] = {points->p[v0], points->p[v1], points->p[v2]};
-//         s_point e0 = subtract_points(face[0], face[1]);
-//         s_point e1 = subtract_points(face[1], face[2]);
-//         s_point e2 = subtract_points(face[2], face[0]);
-//         if (norm_squared(e0) < TOL2_dupe || norm_squared(e1) < TOL2_dupe || norm_squared(e2) < TOL2_dupe) {
-//             printf("TOO SMALL: dupes, %g, %g, %g\n", norm(e0), norm(e1), norm(e2));
-//             return 1;
-//         }
-//
-//         if (area_triangle(face) < min_face_area) {
-//             printf("TOO SMALL: area %g, %d, %d, %d\n", area_triangle(face), v0, v1, v2);
-//             printf("%g, %g, %g\n", face[0].x, face[0].y, face[0].z);
-//             printf("%g, %g, %g\n", face[1].x, face[1].y, face[1].z);
-//             printf("%g, %g, %g\n", face[2].x, face[2].y, face[2].z);
-//             return 1;
-//         }
-//     }
-//     return 0;
-// }
-
 static void delete_visible_faces(int Nfaces, int faces[Nfaces*3], int faces_isvisible[Nfaces])
 {
     for (int j=0, l=0; j<Nfaces; j++){
@@ -358,7 +332,6 @@ static int add_faces_from_horizon(const s_points *points, int isused[points->N],
 
 
 /* Main algorithm */
-// TODO what if a face of the original tetra is too small, and remains alive until the end of the algorithm?
 int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, int buff_isused[in_vertices->N], int **out_faces, int *N_out_faces) 
 {   /* Returns:
        -2 if error initializing tetrahedron. In_vertices degenerate or faces too small?
