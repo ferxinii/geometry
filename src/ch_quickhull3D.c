@@ -225,7 +225,7 @@ static void drop_to_2D(const s_point p, int coord_to_drop, double out[2])
     out[1] = p.coords[i2];
 }
 
-static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int faces[Nfaces*3], int Ncoplanar, int cop_fids[Ncoplanar], double EPS_degenerate, s_int_list *out_indicator)
+static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int faces[Nfaces*3], int Ncoplanar, int cop_fids[Ncoplanar], double EPS_degenerate, s_list *out_indicator)
 {   /* Called by mark_visible_faces_from_point, treats coplanar case. */
     int N_visible = 0;
 
@@ -280,7 +280,8 @@ static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int f
             }
 
             if (orient2d(pA, pB, p2D) < 0) {  /* Face is visible! */
-                out_indicator->list[edges[e].fid] = 1;
+                int one = 1;
+                list_change_entry(out_indicator, edges[e].fid, &one);
                 N_visible++;
             }
         }
@@ -290,23 +291,23 @@ static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int f
 }
 
 
-static int visible_faces_from_point(const s_points *points, int Nfaces, int faces[Nfaces*3], s_point p, double EPS, s_int_list *out_indicator)
+static int visible_faces_from_point(const s_points *points, int Nfaces, int faces[Nfaces*3], s_point p, double EPS, s_list *out_indicator)
 {   /* Returns -1 if error, Nvisible >= 0 if OK */
     /* A face is visible if its normal points to the halfspace containing the point,
        or if it is coplanar and the point lies strictly outside the triangle */
-    if (!increase_memory_int_list_if_needed(out_indicator, Nfaces))
+    if (!list_ensure_capacity(out_indicator, Nfaces))
         { fprintf(stderr, "visible_faces_from_point: error list.\n"); return -1; }
-
+    list_memset0(out_indicator);
+    int N_visible = 0;
     int coplanar_fids[Nfaces], Ncoplanar = 0;  // TEMPORARY TODO
 
-    memset(out_indicator->list, 0, Nfaces*sizeof(int));
-    int N_visible = 0;
     for (int j = 0; j < Nfaces; ++j) {
         s_point face_pts[3];
         vertices_face(points, faces, j, face_pts);
         int o = orientation_robust(face_pts, p);
         if (o < 0) {  /* Point is visible, it lies on the side pointed to by face normal  (above the plane) */
-            out_indicator->list[j] = 1;
+            int one = 1;
+            list_change_entry(out_indicator, j, &one);
             N_visible++;
         } else if (o == 0) {  /* Point is coplanar. If inside triangle, return. */
             e_geom_test test = test_point_in_triangle_3D(face_pts, p, EPS, 0);
@@ -321,11 +322,11 @@ static int visible_faces_from_point(const s_points *points, int Nfaces, int face
 }
 
 
-static int nonvisible_faces_sharing_edge_with_face(int Nfaces, int faces[Nfaces], int is_visible[Nfaces], int query_faceid, s_int_list *out_indicator)
+static int nonvisible_faces_sharing_edge_with_face(int Nfaces, int faces[Nfaces], int is_visible[Nfaces], int query_faceid, s_list *out_indicator)
 {   /* Returns 0 if error, 1 if OK */
-    if (!increase_memory_int_list_if_needed(out_indicator, Nfaces))
+    if (!list_ensure_capacity(out_indicator, Nfaces))
         { fprintf(stderr, "nonvisible_faces_sharing_edge_with_face: error list.\n"); return 0; }
-    memset(out_indicator->list, 0, Nfaces*sizeof(int));
+    list_memset0(out_indicator);
 
     for (int i=0; i<Nfaces; i++) {
         if (is_visible[i]) continue;
@@ -337,16 +338,19 @@ static int nonvisible_faces_sharing_edge_with_face(int Nfaces, int faces[Nfaces]
                 if (faces[query_faceid*3+a] == faces[i*3+b])
                     N_shared_vertices++;
 
-        if (N_shared_vertices == 2) out_indicator->list[i] = 1;
+        if (N_shared_vertices == 2) {
+            int one = 1;
+            list_change_entry(out_indicator, i, &one);
+        }
         assert(N_shared_vertices < 3);  /* Non-manifold? */
     }
     return 1;
 }
 
-static int extract_horizon(int Nfaces, int faces[Nfaces], int is_visible[Nfaces], s_int_list *nvf_sharing_edge, int *out_Nhorizon, s_int_list *horizon)         
+static int extract_horizon(int Nfaces, int faces[Nfaces], int is_visible[Nfaces], s_list *nvf_sharing_edge, int *out_Nhorizon, s_list *horizon)         
 {   /* Returns 0 if eror, 1 if OK.  Size of horizon: 2*out_Nhorizon */
     int max_possible_edges = 3 * Nfaces; /* safe upper bound */
-    int (*edges)[2] = malloc(sizeof(int[2]) * max_possible_edges);
+    int (*edges)[2] = malloc(sizeof(int[2]) * max_possible_edges);  // TEMPORARY TODO
     if (!edges) { fprintf(stderr,"extract_horizon: malloc failed\n"); return 0; }
     int edge_count = 0;
 
@@ -357,7 +361,8 @@ static int extract_horizon(int Nfaces, int faces[Nfaces], int is_visible[Nfaces]
         if (!nonvisible_faces_sharing_edge_with_face(Nfaces, faces, is_visible, i, nvf_sharing_edge)) 
             { fprintf(stderr, "extract_horizon: could not mark faces.\n"); return 0; }
         for (int j=0; j<Nfaces; j++) {
-            if (!nvf_sharing_edge->list[j]) continue;
+            int *ind = list_get_ptr(nvf_sharing_edge, j);
+            if (!*ind) continue;
 
             /* But which edge ? */
             int vA = -1, vB = -1;
@@ -394,7 +399,7 @@ static int extract_horizon(int Nfaces, int faces[Nfaces], int is_visible[Nfaces]
         }
     }
 
-    if (!increase_memory_int_list_if_needed(horizon, unique * 2)) {
+    if (!list_ensure_capacity(horizon, unique*2)) {
         fprintf(stderr, "extract_horizon: cannot expand horizon list\n");
         free(edges);
         return 0;
@@ -402,8 +407,8 @@ static int extract_horizon(int Nfaces, int faces[Nfaces], int is_visible[Nfaces]
 
     /* copy unique edges into horizon->list (as pairs) */
     for (int e = 0; e < unique; ++e) {
-        horizon->list[2*e + 0] = edges[e][0];
-        horizon->list[2*e + 1] = edges[e][1];
+        list_change_entry(horizon, 2*e+0, &edges[e][0]);
+        list_change_entry(horizon, 2*e+1, &edges[e][1]);
     }
 
     free(edges);
@@ -424,7 +429,7 @@ static void delete_visible_faces(int Nfaces, int faces[Nfaces*3], int faces_isvi
     }
 }
 
-static int add_faces_from_horizon(const s_points *points, bool isused[points->N], int Nfaces, s_int_list *faces, int Nhorizon, int horizon[Nhorizon*2], int query_pid)
+static int add_faces_from_horizon(const s_points *points, bool isused[points->N], int Nfaces, s_list *faces, int Nhorizon, int horizon[Nhorizon*2], int query_pid)
 {   /* Returns 0 if error, -1 if OK */
     int start = Nfaces;  /* start is the first row of the new faces */
     int N_realloc_faces = Nfaces + Nhorizon;
@@ -433,18 +438,18 @@ static int add_faces_from_horizon(const s_points *points, bool isused[points->N]
         return 0; 
     }
 
-    if (!increase_memory_int_list_if_needed(faces, N_realloc_faces * 3)) 
+    if (!list_ensure_capacity(faces, N_realloc_faces*3))
         { fprintf(stderr, "add_faces_from_horizon: error list.\n"); return 0; }
     for (int j=0; j<Nhorizon; j++) {
-        faces->list[Nfaces*3+0] = horizon[j*2+0];
-        faces->list[Nfaces*3+1] = horizon[j*2+1];
-        faces->list[Nfaces*3+2] = query_pid;
+        list_change_entry(faces, Nfaces*3+0, &horizon[j*2+0]);
+        list_change_entry(faces, Nfaces*3+1, &horizon[j*2+1]);
+        list_change_entry(faces, Nfaces*3+2, &query_pid);
         Nfaces++;
     }
     
     /* Orient each new face properly */
     for (int k=start; k<Nfaces; k++)
-        orient_face_if_needed(points, isused, Nfaces, faces->list, k);
+        orient_face_if_needed(points, isused, Nfaces, faces->items, k);
     
     return 1;
 }
@@ -460,8 +465,7 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, bool buff_i
     */
     if (!in_vertices || !buff_isused || !out_faces || !N_out_faces) return -1;
     *out_faces = NULL;  *N_out_faces = 0;
-    memset(buff_isused, 0, in_vertices->N * sizeof(bool));
-    s_int_list faces = {0}, faces_isvisible = {0}, horizon = {0}, AUX_nvf_sharing_edge = {0};
+    s_list faces = {0}, faces_isvisible = {0}, horizon = {0}, AUX_nvf_sharing_edge = {0};
     int *pleft = NULL;
 
     if(in_vertices->N <= 3 ) return -2;
@@ -469,11 +473,11 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, bool buff_i
 
     /* The initial convex hull is a tetrahedron with 4 faces (simplex) */
     int Nfaces = 4;
-    faces = initialize_int_list(12);
-    if (!faces.list) goto error;
-    if (!initial_tetrahedron(in_vertices, buff_isused, faces.list)) goto error_init;
+    faces = list_initialize(sizeof(int), 12);
+    if (!faces.items) goto error;
+    if (!initial_tetrahedron(in_vertices, buff_isused, faces.items)) goto error_init;
     if (in_vertices->N == 4) {
-        *out_faces = faces.list;
+        *out_faces = faces.items;
         *N_out_faces = 4;
         return 1;
     }
@@ -488,10 +492,10 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, bool buff_i
 
 
     /* The main loop for the quickhull algorithm */
-    faces_isvisible = initialize_int_list(0);
-    horizon = initialize_int_list(0);
-    AUX_nvf_sharing_edge = initialize_int_list(0);  /* Used internally, but malloced outside for proper memory control */
-    if (!faces_isvisible.list || !horizon.list || !AUX_nvf_sharing_edge.list) goto error;
+    faces_isvisible = list_initialize(sizeof(int), 0);
+    horizon = list_initialize(sizeof(int), 0);
+    AUX_nvf_sharing_edge = list_initialize(sizeof(int), 0);  /* Used internally, but malloced outside for proper memory control */
+    if (!faces_isvisible.items || !horizon.items || !AUX_nvf_sharing_edge.items) goto error;
     int out_is_exact = 1;
     while (N_pleft > 0) {
         /* Process the LAST element of pleft */
@@ -500,7 +504,7 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, bool buff_i
         s_point current_p = in_vertices->p[current_id];
 
         /* Mark visible faces from this point */
-        int N_vf = visible_faces_from_point(in_vertices, Nfaces, faces.list, current_p, EPS_degenerate, &faces_isvisible);
+        int N_vf = visible_faces_from_point(in_vertices, Nfaces, faces.items, current_p, EPS_degenerate, &faces_isvisible);
         if (N_vf == -1) goto error;
 
         /* Proceed if N_visible_faces > 0 */
@@ -509,17 +513,17 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, bool buff_i
 
         /* Create horizon */
         int Nhorizon;
-        if (!extract_horizon(Nfaces, faces.list, faces_isvisible.list, &AUX_nvf_sharing_edge, &Nhorizon, &horizon))
+        if (!extract_horizon(Nfaces, faces.items, faces_isvisible.items, &AUX_nvf_sharing_edge, &Nhorizon, &horizon))
             goto error;
 
         buff_isused[current_id] = true;
 
         /* Delete visible faces */
-        delete_visible_faces(Nfaces, faces.list, faces_isvisible.list);
+        delete_visible_faces(Nfaces, faces.items, faces_isvisible.items);
         Nfaces -= N_vf;
         
         /* Add faces connecting horizon to the new point */
-        if(!add_faces_from_horizon(in_vertices, buff_isused, Nfaces, &faces, Nhorizon, horizon.list, current_id))
+        if(!add_faces_from_horizon(in_vertices, buff_isused, Nfaces, &faces, Nhorizon, horizon.items, current_id))
             goto error;
         Nfaces += Nhorizon;
     }
@@ -527,26 +531,26 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, bool buff_i
 
     /* clean-up and exit */
     free(pleft);
-    free_int_list(&faces_isvisible); 
-    free_int_list(&horizon);
-    free_int_list(&AUX_nvf_sharing_edge);
-    *out_faces = realloc(faces.list, Nfaces * 3 * sizeof(int));
+    free_list(&faces_isvisible); 
+    free_list(&horizon);
+    free_list(&AUX_nvf_sharing_edge);
+    *out_faces = realloc(faces.items, Nfaces * 3 * sizeof(int));
     *N_out_faces = Nfaces;
     return out_is_exact;
     
     error_init:
         fprintf(stderr, "Error in 'quickhull_3d'. Could not setup initial tetrahedron.\n");
-        if (faces.list) free_int_list(&faces);
+        if (faces.items) free_list(&faces);
         if (pleft) free(pleft);
         return -2;
 
     error:
         fprintf(stderr, "Error in 'quickhull_3d'. Faces N = %d / %d\n", Nfaces, CH_MAX_NUM_FACES);
-        if (faces.list) free_int_list(&faces);
+        if (faces.items) free_list(&faces);
         if (pleft) free(pleft);
-        if (faces_isvisible.list) free_int_list(&faces_isvisible); 
-        if (horizon.list) free_int_list(&horizon);
-        if (AUX_nvf_sharing_edge.list) free_int_list(&AUX_nvf_sharing_edge);
+        if (faces_isvisible.items) free_list(&faces_isvisible); 
+        if (horizon.items) free_list(&horizon);
+        if (AUX_nvf_sharing_edge.items) free_list(&AUX_nvf_sharing_edge);
         *out_faces = NULL;
         *N_out_faces = 0;
         return -1;

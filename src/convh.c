@@ -160,7 +160,7 @@ int convhull_from_points(const s_points *points, double EPS_degenerate, double T
     (void)TOL_duplicate;
     if (points->N == 0) { *out = convhull_NAN; return 0; }
 
-    int *isused = malloc(points->N * sizeof(bool));
+    bool *isused = malloc(points->N * sizeof(bool));
     if (!isused) goto error;
 
     int i = quickhull_3d(points, EPS_degenerate, isused, &out->faces, &out->Nf); 
