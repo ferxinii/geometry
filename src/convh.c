@@ -160,15 +160,36 @@ int convhull_from_points(const s_points *points, double EPS_degenerate, double T
     (void)TOL_duplicate;
     if (points->N == 0) { *out = convhull_NAN; return 0; }
 
+    int Nused;
     bool *isused = malloc(points->N * sizeof(bool));
     if (!isused) goto error;
 
-    int i = quickhull_3d(points, EPS_degenerate, isused, &out->faces, &out->Nf); 
+    int i = quickhull_3d(points, EPS_degenerate, &Nused, isused, &out->faces, &out->Nf); 
     if (i == -2) return 0;
     if (i == -1) return -1;
     
-    out->points = copy_points(points);
-    if (!points_is_valid(&out->points)) goto error;
+
+    out->points = (s_points){ .N = Nused, .p = malloc(sizeof(s_point) * Nused) };
+    int *pmap = malloc(sizeof(int) * points->N);  /* map old -> new */
+    if (!out->points.p || !pmap) goto error;
+    
+    /* Update out.points so that only used points remain */
+    for (int ii=0, jj=0; ii<points->N; ii++) {
+        if (isused[ii]) {
+            out->points.p[jj] = points->p[ii];
+            pmap[ii] = jj;
+            jj++;
+        } else pmap[ii] = -1;
+    }
+
+    /* Update face indices */
+    for (int f=0; f<out->Nf; f++) {
+        for (int v=0; v<3; v++) {
+            int newi = pmap[out->faces[f*3+v]];
+            assert(newi >= 0 && "Face refers to unused vertex!");
+            out->faces[f*3+v] = newi;
+        }
+    }
 
     if (!initialize_normals_convhull(out)) goto error;
 

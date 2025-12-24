@@ -456,7 +456,7 @@ static int add_faces_from_horizon(const s_points *points, bool isused[points->N]
 
 
 /* Main algorithm */
-int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, bool buff_isused[in_vertices->N], int **out_faces, int *N_out_faces) 
+int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, int *out_Nused, bool buff_isused[in_vertices->N], int **out_faces, int *N_out_faces) 
 {   /* Returns:
        -2 if error initializing tetrahedron. In_vertices degenerate or faces too small?
        -1 if error (memory, reached max_faces, ...)
@@ -464,7 +464,7 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, bool buff_i
        0 if output hull is non-exact (ignored any face with too small area) 
     */
     if (!in_vertices || !buff_isused || !out_faces || !N_out_faces) return -1;
-    *out_faces = NULL;  *N_out_faces = 0;
+    *out_Nused = 0; *out_faces = NULL;  *N_out_faces = 0;
     s_list faces = {0}, faces_isvisible = {0}, horizon = {0}, AUX_nvf_sharing_edge = {0};
     int *pleft = NULL;
 
@@ -477,6 +477,7 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, bool buff_i
     if (!faces.items) goto error;
     if (!initial_tetrahedron(in_vertices, buff_isused, faces.items)) goto error_init;
     if (in_vertices->N == 4) {
+        *out_Nused = 4;
         *out_faces = faces.items;
         *N_out_faces = 4;
         return 1;
@@ -485,6 +486,7 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, bool buff_i
 
     /* Initialize the vector of points left. The points with the larger relative
      distance from the center are scanned first, which are in the END. */
+    *out_Nused = 4;
     int N_pleft = in_vertices->N - 4;
     pleft = malloc(N_pleft * sizeof(int));
     if (!pleft) goto error;
@@ -517,6 +519,7 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, bool buff_i
             goto error;
 
         buff_isused[current_id] = true;
+        (*out_Nused)++;
 
         /* Delete visible faces */
         delete_visible_faces(Nfaces, faces.items, faces_isvisible.items);
