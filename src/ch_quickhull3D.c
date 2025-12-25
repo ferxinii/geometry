@@ -207,10 +207,11 @@ static int priority_vertices_ignoring_initial_tetra(const s_points *points, cons
 
 
 /* Visible and non visible faces, horizon */
-static int find_plane(const s_points *points, int Nfaces, int faces[Nfaces*3], int Ncoplanar, int cop_fids[Ncoplanar], double EPS_degenerate, s_point *out_n) 
+static int find_plane(const s_points *points, int Nfaces, int faces[Nfaces*3], s_list *cop_fids, double EPS_degenerate, s_point *out_n) 
 {   /* Iterate through coplanar faces until one is not degenerate and extract n, u, v */
-    for (int ii=0; ii<Ncoplanar; ii++) {   
-        int f1=faces[cop_fids[ii]*3+0], f2=faces[cop_fids[ii]*3+1], f3=faces[cop_fids[ii]*3+2];
+    for (int ii=0; ii<(int)cop_fids->N; ii++) {   
+        int fid; list_get_value(cop_fids, ii, &fid);
+        int f1=faces[fid*3+0], f2=faces[fid*3+1], f3=faces[fid*3+2];
         s_point plane[3] = { points->p[f1], points->p[f2], points->p[f3] };
         if (basis_vectors_plane(plane, EPS_degenerate, out_n, NULL, NULL)) return 1;
     }
@@ -225,44 +226,45 @@ static void drop_to_2D(const s_point p, int coord_to_drop, double out[2])
     out[1] = p.coords[i2];
 }
 
-static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int faces[Nfaces*3], int Ncoplanar, int cop_fids[Ncoplanar], double EPS_degenerate, s_list *out_indicator)
+static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int faces[Nfaces*3], s_list *cop_fids, double EPS_degenerate, s_list *out_indicator)
 {   /* Called by mark_visible_faces_from_point, treats coplanar case. */
     int N_visible = 0;
 
     /* Project to 2D */
     s_point n;
-    if (!find_plane(points, Nfaces, faces, Ncoplanar, cop_fids, EPS_degenerate, &n)) return 0;
+    if (!find_plane(points, Nfaces, faces, cop_fids, EPS_degenerate, &n)) return 0;
     int coord_to_drop = coord_with_largest_component_3D(n);
     double p2D[2]; drop_to_2D(p, coord_to_drop, p2D);
     
     /* Count how many times each edge appears (canonicalized) */
-    s_indexed_edge edges[Ncoplanar * 3];  // TEMPORARY TODO
-    for (int ii=0; ii<Ncoplanar; ii++) {  /* Store all edges */
-        int vA = faces[cop_fids[ii]*3+0], vB = faces[cop_fids[ii]*3+1];
+    s_indexed_edge edges[cop_fids->N * 3];  // TEMPORARY TODO
+    for (int ii=0; ii<(int)cop_fids->N; ii++) {  /* Store all edges */
+        int fid; list_get_value(cop_fids, ii, &fid);
+        int vA = faces[fid*3+0], vB = faces[fid*3+1];
         if (vA > vB) { int t = vA; vA = vB; vB = t; }
         edges[ii*3+0].e[0] = vA; edges[ii*3+0].e[1] = vB; 
-        edges[ii*3+0].opp = faces[cop_fids[ii]*3+2]; edges[ii*3+0].fid = cop_fids[ii];
+        edges[ii*3+0].opp = faces[fid*3+2]; edges[ii*3+0].fid = fid;
 
-        vA = faces[cop_fids[ii]*3+1], vB = faces[cop_fids[ii]*3+2];
+        vA = faces[fid*3+1], vB = faces[fid*3+2];
         if (vA > vB) { int t = vA; vA = vB; vB = t; }
         edges[ii*3+1].e[0] = vA; edges[ii*3+1].e[1] = vB; 
-        edges[ii*3+1].opp = faces[cop_fids[ii]*3+0]; edges[ii*3+1].fid = cop_fids[ii];
+        edges[ii*3+1].opp = faces[fid*3+0]; edges[ii*3+1].fid = fid;
 
-        vA = faces[cop_fids[ii]*3+0], vB = faces[cop_fids[ii]*3+2];
+        vA = faces[fid*3+0], vB = faces[fid*3+2];
         if (vA > vB) { int t = vA; vA = vB; vB = t; }
         edges[ii*3+2].e[0] = vA; edges[ii*3+2].e[1] = vB; 
-        edges[ii*3+2].opp = faces[cop_fids[ii]*3+1]; edges[ii*3+2].fid = cop_fids[ii];
+        edges[ii*3+2].opp = faces[fid*3+1]; edges[ii*3+2].fid = fid;
     }
     /* sort the edges */
-    qsort(edges, Ncoplanar*3, sizeof(s_indexed_edge), cmp_indexed_edge);
+    qsort(edges, cop_fids->N*3, sizeof(s_indexed_edge), cmp_indexed_edge);
 
     /* Determine visibility of boundary (exterior, count = 1) edges */
     int e = 0;
-    while (e < Ncoplanar*3) {
+    while (e < (int)cop_fids->N*3) {
         /* find run of identical edges */
         int run_start = e;
         int run_end = e + 1;
-        while (run_end < Ncoplanar*3 &&
+        while (run_end < (int)cop_fids->N*3 &&
                edges[run_end].e[0] == edges[run_start].e[0] &&
                edges[run_end].e[1] == edges[run_start].e[1]) {
             run_end++;
@@ -291,7 +293,7 @@ static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int f
 }
 
 
-static int visible_faces_from_point(const s_points *points, int Nfaces, int faces[Nfaces*3], s_point p, double EPS, s_list *out_indicator)
+static int visible_faces_from_point(const s_points *points, int Nfaces, int faces[Nfaces*3], s_point p, double EPS, s_list *coplanar_fids, s_list *out_indicator)
 {   /* Returns -1 if error, Nvisible >= 0 if OK */
     /* A face is visible if its normal points to the halfspace containing the point,
        or if it is coplanar and the point lies strictly outside the triangle */
@@ -299,7 +301,7 @@ static int visible_faces_from_point(const s_points *points, int Nfaces, int face
         { fprintf(stderr, "visible_faces_from_point: error list.\n"); return -1; }
     list_memset0(out_indicator);
     int N_visible = 0;
-    int coplanar_fids[Nfaces], Ncoplanar = 0;  // TEMPORARY TODO
+    coplanar_fids->N = 0; 
 
     for (int j = 0; j < Nfaces; ++j) {
         s_point face_pts[3];
@@ -312,11 +314,11 @@ static int visible_faces_from_point(const s_points *points, int Nfaces, int face
         } else if (o == 0) {  /* Point is coplanar. If inside triangle, return. */
             e_geom_test test = test_point_in_triangle_3D(face_pts, p, EPS, 0);
             if (test == TEST_BOUNDARY || test == TEST_IN) return 0;
-            coplanar_fids[Ncoplanar++] = j;
+            if (!list_push(coplanar_fids, &j)) return 0;
         }
     }
 
-    N_visible += coplanar_visible(points, p, Nfaces, faces, Ncoplanar, coplanar_fids, EPS, out_indicator);
+    N_visible += coplanar_visible(points, p, Nfaces, faces, coplanar_fids, EPS, out_indicator);
 
     return N_visible;
 }
@@ -347,13 +349,11 @@ static int nonvisible_faces_sharing_edge_with_face(int Nfaces, int faces[Nfaces]
     return 1;
 }
 
-static int extract_horizon(int Nfaces, int faces[Nfaces], int is_visible[Nfaces], s_list *nvf_sharing_edge, int *out_Nhorizon, s_list *horizon)         
+static int extract_horizon(int Nfaces, int faces[Nfaces], int is_visible[Nfaces], s_list *buff_edges, s_list *nvf_sharing_edge, int *out_Nhorizon, s_list *horizon)         
 {   /* Returns 0 if eror, 1 if OK.  Size of horizon: 2*out_Nhorizon */
-    int max_possible_edges = 3 * Nfaces; /* safe upper bound */
-    int (*edges)[2] = malloc(sizeof(int[2]) * max_possible_edges);  // TEMPORARY TODO
-    if (!edges) { fprintf(stderr,"extract_horizon: malloc failed\n"); return 0; }
+    s_list *edges = buff_edges; 
+    edges->N = 0;
     int edge_count = 0;
-
 
     for (int i=0; i<Nfaces; i++) {
         if (!is_visible[i]) continue;
@@ -373,46 +373,30 @@ static int extract_horizon(int Nfaces, int faces[Nfaces], int is_visible[Nfaces]
                         else if (vB == -1) vB = faces[i*3 + a];
                     }
             assert(vA != -1 && vB != -1 && vA != vB);
-            if (vA > vB) { int t = vA; vA = vB; vB = t; }  /* canonicalize */
 
-            /* store into local buffer; check overflow */
-            if (edge_count >= max_possible_edges) {
-                fprintf(stderr, "extract_horizon: edge buffer overflow (edge_count=%d, max=%d)\n",
-                        edge_count, max_possible_edges);
-                free(edges);
-                return 0;
-            }
-            edges[edge_count][0] = vA;
-            edges[edge_count][1] = vB;
+            if (vA > vB) { int t = vA; vA = vB; vB = t; }  /* canonicalize */
+            if (!list_push(edges, &vA)) return 0;
+            if (!list_push(edges, &vB)) return 0;
             edge_count++;
         }
     }
 
-    /* sort & unique the edges */
-    qsort(edges, edge_count, sizeof(edges[0]), cmp_edge);
-    int unique = 0;
-    for (int e = 0; e < edge_count; ++e) {
-        if (e == 0 || edges[e][0] != edges[e-1][0] || edges[e][1] != edges[e-1][1]) {
-            edges[unique][0] = edges[e][0];
-            edges[unique][1] = edges[e][1];
-            unique++;
+    /* sort & store unique the edges */
+    qsort(edges->items, edge_count, sizeof(int)*2, cmp_edge);
+
+    horizon->N = 0;
+    if (!list_push(horizon, (int*)edges->items)) return 0;
+    if (!list_push(horizon, (int*)edges->items + 1)) return 0;
+    for (int e = 1; e < edge_count; e++) {
+        int *prev = list_get_ptr(edges, 2*e-2);
+        int *curr = list_get_ptr(edges, 2*e);
+        if (curr[0] != prev[0] || curr[1] != prev[1]) {
+            if (!list_push(horizon, &curr[0])) return 0;
+            if (!list_push(horizon, &curr[1])) return 0;
         }
     }
 
-    if (!list_ensure_capacity(horizon, unique*2)) {
-        fprintf(stderr, "extract_horizon: cannot expand horizon list\n");
-        free(edges);
-        return 0;
-    }
-
-    /* copy unique edges into horizon->list (as pairs) */
-    for (int e = 0; e < unique; ++e) {
-        list_change_entry(horizon, 2*e+0, &edges[e][0]);
-        list_change_entry(horizon, 2*e+1, &edges[e][1]);
-    }
-
-    free(edges);
-    *out_Nhorizon = unique;
+    *out_Nhorizon = horizon->N/2;
     return 1;
 }
 
@@ -465,7 +449,7 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, int *out_Nu
     */
     if (!in_vertices || !buff_isused || !out_faces || !N_out_faces) return -1;
     *out_Nused = 0; *out_faces = NULL;  *N_out_faces = 0;
-    s_list faces = {0}, faces_isvisible = {0}, horizon = {0}, AUX_nvf_sharing_edge = {0};
+    s_list faces = {0}, faces_isvisible = {0}, horizon = {0}, AUX_nvf_sharing_edge = {0}, AUX_edges = {0}, AUX_cop_fids = {0};
     int *pleft = NULL;
 
     if(in_vertices->N <= 3 ) return -2;
@@ -496,7 +480,9 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, int *out_Nu
     /* The main loop for the quickhull algorithm */
     faces_isvisible = list_initialize(sizeof(int), 0);
     horizon = list_initialize(sizeof(int), 0);
-    AUX_nvf_sharing_edge = list_initialize(sizeof(int), 0);  /* Used internally, but malloced outside for proper memory control */
+    AUX_nvf_sharing_edge = list_initialize(sizeof(int), 0); 
+    AUX_edges = list_initialize(sizeof(int), 0);  
+    AUX_cop_fids = list_initialize(sizeof(int), 0);  
     if (!faces_isvisible.items || !horizon.items || !AUX_nvf_sharing_edge.items) goto error;
     int out_is_exact = 1;
     while (N_pleft > 0) {
@@ -506,7 +492,7 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, int *out_Nu
         s_point current_p = in_vertices->p[current_id];
 
         /* Mark visible faces from this point */
-        int N_vf = visible_faces_from_point(in_vertices, Nfaces, faces.items, current_p, EPS_degenerate, &faces_isvisible);
+        int N_vf = visible_faces_from_point(in_vertices, Nfaces, faces.items, current_p, EPS_degenerate, &AUX_cop_fids, &faces_isvisible);
         if (N_vf == -1) goto error;
 
         /* Proceed if N_visible_faces > 0 */
@@ -515,7 +501,7 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, int *out_Nu
 
         /* Create horizon */
         int Nhorizon;
-        if (!extract_horizon(Nfaces, faces.items, faces_isvisible.items, &AUX_nvf_sharing_edge, &Nhorizon, &horizon))
+        if (!extract_horizon(Nfaces, faces.items, faces_isvisible.items, &AUX_edges, &AUX_nvf_sharing_edge, &Nhorizon, &horizon))
             goto error;
 
         buff_isused[current_id] = true;
