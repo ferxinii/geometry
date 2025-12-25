@@ -496,7 +496,8 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, int *out_Nu
         if (N_vf == -1) goto error;
 
         /* Proceed if N_visible_faces > 0 */
-        assert(N_vf != Nfaces && "Point sees all faces?");
+        // assert(N_vf != Nfaces && "Point sees all faces?");
+        if (N_vf == Nfaces) { fprintf(stderr, "quickhull_3d: Point sees all faces.\n"); goto error; }
         if (N_vf == 0) continue;  
 
         /* Create horizon */
