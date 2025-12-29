@@ -2,7 +2,7 @@
 #include "gtests.h"
 #include "ch_quickhull3D.h"
 #include "lists.h"
-#include "convh.h" // TODO DEBUG
+#include "convh.h" // TODO DEBUG, In the future remove this.
 
 #include <stdlib.h>
 #include <stdio.h>
