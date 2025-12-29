@@ -3,7 +3,7 @@
 
 #include "points.h"
 #include "gtests.h"
-#include "stdlib.h"
+#include <stdlib.h>
 
 typedef struct convhull {
     s_points points;
@@ -11,6 +11,7 @@ typedef struct convhull {
     int *faces;
     s_point *fnormals;  // Unnormalized
 } s_convh;
+
 
 #define convhull_NAN (s_convh){0}
 int convhull_is_valid(const s_convh *convh);
@@ -23,6 +24,9 @@ s_convh copy_convhull(const s_convh *in);
 
 int serialize_convhull(const s_convh *convh, uint8_t *buff_write, size_t *size, uint8_t **data);
 int deserialize_convhull(const uint8_t *data, s_convh *out, size_t *bytes_read);
+
+typedef struct list s_list;  /* Definition in lists.h */
+int list_edges_convhull(const s_convh *C, s_list *out_edges);
 
 e_geom_test test_point_in_convhull(const s_convh *convh, s_point query, double EPS_degenerate, double TOL_boundary);  
 s_points_test test_points_in_convhull(const s_convh *convh, const s_points *query, double EPS_degenerate, double TOL_boundary, e_geom_test buff[query->N]);
@@ -50,6 +54,8 @@ s_segment_intersect segment_convhull_surface_intersect(const s_convh *C, const s
 int clip_convhull_halfspace(const s_convh *C, s_point plane[3], double EPS_degenerate, double TOL, s_convh *out); /* 1: Clipped. 0: Non-clipped. -1: Error */
 int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degenerate, double TOL, s_convh *out_I);
 int remove_intersection_convhulls(s_convh *A, s_convh *B, double EPS_degenerate, double TOL, double min_vol_I); /* 1: OK, 0: Error points, -1: Error serious. */
+int clip_convhull_convhull(s_convh *C, const s_convh *clipper, double EPS_degenerate, double TOL, double min_vol_I);
+
 
 
 

@@ -1,6 +1,8 @@
 #ifndef GEOMETRY_POINTS_H
 #define GEOMETRY_POINTS_H
 
+#include <stdbool.h>
+
 typedef struct point {
     union {
         double coords[3];
@@ -22,6 +24,7 @@ int points_is_valid(const s_points *p);
 
 void free_points(s_points *points);
 s_points copy_points(const s_points *points);
+int mark_duplicate_points(const s_points *points, double TOL, bool mark[points->N]);
 s_points copy_points_remove_duplicates(const s_points *points, double tol_d);
 s_points read_points_from_csv(const char *file);
 int write_points_to_csv(const char *file, const char *f_access_mode, const s_points *points);  /* f_access_mode: "w" or "a" */
@@ -50,6 +53,7 @@ s_point random_point_uniform_3D(s_point min, s_point max);
 double area_triangle(const s_point face[3]);
 double signed_volume_tetra(const s_point tetra[4]);
 int basis_vectors_plane(const s_point plane[3], double EPS_degenerate, s_point *out_n, s_point *out_t1, s_point *out_t2);
+int plane_from_point_normal(const s_point p0, const s_point n, double EPS_degenerate, s_point out[3]);
 int plane_equation_from_points(const s_point plane[3], double EPS_degenerate, s_point *abc_out, double *d_out);
 int circumcentre_tetrahedron(const s_point p[4], double EPS_degenerate, s_point *out);
 

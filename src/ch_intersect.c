@@ -2,6 +2,7 @@
 #include "gtests.h"
 #include "convh.h"
 #include "ch_intersect.h"
+#include "lists.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -35,87 +36,6 @@ static void free_point_list(s_point_list *point_list)
 {
     free(point_list->list);
     memset(point_list, 0, sizeof(s_point_list));
-}
-
-
-/* Edges */
-typedef struct edge {
-    int v[2];
-} s_edge;
-
-static int edge_pair_cmp(const void *pa, const void *pb) 
-{   /* Edge vertices must be ordered!! v[0] < v[1] */
-    const s_edge *a = pa;
-    const s_edge *b = pb;
-    if (a->v[0] < b->v[0]) return -1;
-    if (a->v[0] > b->v[0]) return 1;
-    if (a->v[1] < b->v[1]) return -1;
-    if (a->v[1] > b->v[1]) return 1;
-    return 0;
-}
-
-typedef struct edge_list {
-    s_edge *list;
-    int Nmax;
-} s_edge_list;
-
-static s_edge_list initialize_edge_list(int Nmax) {
-    if (Nmax <= 0) Nmax = CH_N_INIT_POINT_LIST;
-    return (s_edge_list) { .Nmax = Nmax,
-                           .list = malloc(Nmax * sizeof(s_edge)) };
-}
-
-static int increase_memory_edge_list(s_edge_list *edge_list, int N_needed)
-{
-    while (N_needed >= edge_list->Nmax) {
-        s_edge *tmp = realloc(edge_list->list, 2 * edge_list->Nmax * sizeof(s_edge));
-        if (!tmp) return 0;
-        edge_list->list = tmp;
-        edge_list->Nmax *= 2;
-    }
-    return 1;
-}
-
-static void free_edge_list(s_edge_list *edge_list)
-{
-    free(edge_list->list);
-    memset(edge_list, 0, sizeof(s_edge_list));
-}
-
-static void list_edges_convhull(const s_convh *C, int *out_Nedges, s_edge_list *out_edges)
-{
-    increase_memory_edge_list(out_edges, 3 * C->Nf);
-
-    int wrote = 0;
-    for (int f=0; f<C->Nf; f++) {
-        int a0 = C->faces[f*3+0], a1 = C->faces[f*3+1], a2 = C->faces[f*3+2];
-
-        s_edge e;
-        e.v[0] = (a0 < a1) ? a0 : a1;
-        e.v[1] = (a0 < a1) ? a1 : a0;
-        out_edges->list[wrote++] = e;
-
-        e.v[0] = (a1 < a2) ? a1 : a2;
-        e.v[1] = (a1 < a2) ? a2 : a1;
-        out_edges->list[wrote++] = e;
-
-        e.v[0] = (a2 < a0) ? a2 : a0;
-        e.v[1] = (a2 < a0) ? a0 : a2;
-        out_edges->list[wrote++] = e;
-    }
-
-    qsort(out_edges->list, wrote, sizeof(s_edge), edge_pair_cmp);
-
-    /* unique in place */
-    int uniq = 0;
-    for (int i=0; i<wrote; i++) {
-        if (uniq == 0) out_edges->list[uniq++] = out_edges->list[i];
-        else if (out_edges->list[i].v[0] != out_edges->list[uniq-1].v[0] ||
-                 out_edges->list[i].v[1] != out_edges->list[uniq-1].v[1]) 
-            out_edges->list[uniq++] = out_edges->list[i];
-    }
-
-    *out_Nedges = uniq;
 }
 
 
@@ -162,6 +82,7 @@ static e_intersect_type core_segment_convhull_surface_intersect(const s_convh *C
         if (o0 != 0 && o1 != 0 && o0 == o1) continue;  /* Skip if on same side of plane */
 
         s_segment_intersect fi = segment_triangle_intersect_3D(segment, face, EPS_degenerate, TOL);
+        // printf("fi.N: %d, ERROR: %d, \n", fi.N, fi.type == INTERSECT_ERROR);
         for (int jj=0; jj<fi.N; jj++) append_if_nonexistent_lim2(&h, tmp, fi.coords[jj], TOL);
     }
 
@@ -201,9 +122,9 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
                 -1 if error or intersection empty 
     */
     e_geom_test *buff = malloc((int)fmax(A->points.N, B->points.N) * sizeof(e_geom_test));
-    s_edge_list elist = initialize_edge_list((int)fmax(3*A->Nf, 3*B->Nf));
+    s_list elist = list_initialize(sizeof(int), (int)fmax(3*A->Nf, 3*B->Nf));
     s_point_list pI = initialize_point_list(0);
-    if (!buff || !elist.list || !pI.list) goto error;
+    if (!buff || !elist.items || !pI.list) goto error;
 
     /* First add points of A nonstrictly inside B */
     s_points_test AinB = test_points_in_convhull(B, &A->points, EPS_degenerate, 0, buff);
@@ -216,10 +137,11 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
         }
 
     /* Intersect all edges of A with B */
-    int N_eA;
-    list_edges_convhull(A, &N_eA, &elist);
-    for (int ii=0; ii<N_eA; ii++) {
-        s_point segment[2] = {A->points.p[elist.list[ii].v[0]], A->points.p[elist.list[ii].v[1]]}; 
+    if (!list_edges_convhull(A, &elist)) goto error;
+    for (unsigned ii=0; ii<elist.N/2; ii++) {
+        int e0; list_get_value(&elist, ii*2+0, &e0);
+        int e1; list_get_value(&elist, ii*2+1, &e1);
+        s_point segment[2] = {A->points.p[e0], A->points.p[e1]}; 
         s_segment_intersect clips = segment_convhull_surface_intersect(B, segment, EPS_degenerate, TOL);
         for (int jj=0; jj<clips.N; jj++) {
             if (!increase_memory_point_list(&pI, NpI+1)) goto error;
@@ -229,7 +151,7 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
 
     /* Add points of B nonstrictly inside A */
     s_points_test BinA = test_points_in_convhull(A, &B->points, EPS_degenerate, 0, buff);
-    if (AinB.Nerr > 0) goto error;
+    if (BinA.Nerr > 0) goto error;
     for (int ii=0; ii<B->points.N; ii++) 
         if (BinA.indicator[ii] == TEST_IN || BinA.indicator[ii] == TEST_BOUNDARY) {
             if (!increase_memory_point_list(&pI, NpI+1)) goto error;
@@ -237,10 +159,11 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
         }
 
     /* Intersect all edges of B with A */
-    int N_eB;
-    list_edges_convhull(B, &N_eB, &elist);
-    for (int ii=0; ii<N_eB; ii++) {
-        s_point segment[2] = {B->points.p[elist.list[ii].v[0]], B->points.p[elist.list[ii].v[1]]}; 
+    if (!list_edges_convhull(B, &elist)) goto error;
+    for (unsigned ii=0; ii<elist.N/2; ii++) {
+        int e0; list_get_value(&elist, ii*2+0, &e0);
+        int e1; list_get_value(&elist, ii*2+1, &e1);
+        s_point segment[2] = {B->points.p[e0], B->points.p[e1]};
         s_segment_intersect clips = segment_convhull_surface_intersect(A, segment, EPS_degenerate, TOL);
         for (int jj=0; jj<clips.N; jj++) {
             if (!increase_memory_point_list(&pI, NpI+1)) goto error;
@@ -248,25 +171,24 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
         }
     }
 
-
     int i = convhull_from_points(&(s_points){NpI, pI.list}, EPS_degenerate, TOL, out);
     if (i == -1) goto error;
     if (i == 0) {  /* Could not initialize I. It is empty / degenerate. */
         free(buff);
-        free_edge_list(&elist);
+        free_list(&elist);
         free_point_list(&pI);
         *out = convhull_NAN;
         return 0;
     }
     if (!convhull_is_valid(out)) goto error;  /* Should not happen, but sanity check */
     free(buff);
-    free_edge_list(&elist);
+    free_list(&elist);
     free_point_list(&pI);
     return 1;
 
     error:
         free(buff);
-        free_edge_list(&elist);
+        free_list(&elist);
         free_point_list(&pI);
         *out = convhull_NAN;
         return -1;
@@ -316,7 +238,7 @@ int clip_convhull_halfspace(const s_convh *C, s_point plane[3], double EPS_degen
                 0 if not clipped
                 -1 if error
     */
-    s_points_test ptest = {0};  s_point_list p = {0};  s_edge_list elist = {0};
+    s_points_test ptest = {0};  s_point_list p = {0};  s_list elist = {0};
     /* Select points non-strictly inside halfspace */
     ptest = test_points_in_halfspace(plane, &C->points, EPS_degenerate, TOL, NULL);
     if (!ptest.indicator) goto error;
@@ -330,15 +252,16 @@ int clip_convhull_halfspace(const s_convh *C, s_point plane[3], double EPS_degen
         if (ptest.indicator[ii] == TEST_IN || ptest.indicator[ii] == TEST_BOUNDARY) p.list[Np++] = C->points.p[ii];
     
     /* Clip edges that cross the plane */
-    int Nedges;
-    elist = initialize_edge_list(3 * C->Nf);
-    if (!elist.list) goto error;
-    list_edges_convhull(C, &Nedges, &elist);
-    for (int ii=0; ii<Nedges; ii++) {
-        if (ptest.indicator[elist.list[ii].v[0]] != TEST_ERROR && 
-            ptest.indicator[elist.list[ii].v[1]] != TEST_ERROR &&
-            ptest.indicator[elist.list[ii].v[0]] != ptest.indicator[elist.list[ii].v[1]]) {  /* Boundary points already considered */
-            s_point segment[2] = {C->points.p[elist.list[ii].v[0]], C->points.p[elist.list[ii].v[1]]};
+    elist = list_initialize(sizeof(int), 3 * C->Nf * 2);
+    if (!elist.items) goto error;
+    if (!list_edges_convhull(C, &elist)) goto error;
+    for (unsigned ii=0; ii<elist.N/2; ii++) {
+        int e0; list_get_value(&elist, 2*ii+0, &e0);
+        int e1; list_get_value(&elist, 2*ii+1, &e1);
+        if (ptest.indicator[e0] != TEST_ERROR && 
+            ptest.indicator[e1] != TEST_ERROR &&
+            ptest.indicator[e0] != ptest.indicator[e1]) {  /* Boundary points already considered */
+            s_point segment[2] = {C->points.p[e0], C->points.p[e1]};
             s_segment_intersect intersections = segment_plane_intersect(segment, plane, EPS_degenerate, TOL);
             for (int jj=0; jj<intersections.N; jj++) {
                 if (!increase_memory_point_list(&p, Np+1)) goto error;
@@ -350,20 +273,20 @@ int clip_convhull_halfspace(const s_convh *C, s_point plane[3], double EPS_degen
     int i = convhull_from_points(&(s_points){Np, p.list}, EPS_degenerate, TOL, out);
     if (i == -1) goto error;
     if (i == 0) {
-        free_edge_list(&elist);
+        free_list(&elist);
         free_point_list(&p);
         free(ptest.indicator);
         return 0;
     }
     if (!convhull_is_valid(out)) goto error;
-    free_edge_list(&elist);
+    free_list(&elist);
     free_point_list(&p);
     free(ptest.indicator);
     return 1;
 
     error:
         if (p.list) free_point_list(&p);
-        if (elist.list) free_edge_list(&elist);
+        if (elist.items) free_list(&elist);
         if (ptest.indicator) free(ptest.indicator);
         *out = convhull_NAN;
         return -1;
@@ -453,3 +376,98 @@ int remove_intersection_convhulls(s_convh *A, s_convh *B, double EPS_degenerate,
 }
 
 
+// int clip_convhull_convhull(s_convh *C, const s_convh *clipper, double EPS_degenerate, double TOL, double min_vol_I)
+// {   /* Returns  1 if OK (A modified),
+//                 0 if no intersection to remove (A unchanged),
+//                -1 if error
+//     */
+//     s_convh *A = C; const s_convh *B = clipper;  /* Just naming inside function */
+//     s_point_list pI = initialize_point_list(0);
+//     s_edge_list elist = initialize_edge_list(3 * A->Nf + 3); /* heuristic */
+//     e_geom_test *buff = malloc(sizeof(e_geom_test) * A->points.N);
+//     if (!pI.list || !elist.list || !buff) goto error;
+//
+//     /* Compute intersection I */
+//     s_convh I = convhull_NAN; 
+//     int i = intersection_convhulls(A, B, EPS_degenerate, TOL, &I);
+//     if (i == 0 || volume_convhull(&I) < min_vol_I) {
+//         free_convhull(&I);
+//         free_edge_list(&elist);
+//         free_point_list(&pI);
+//         return 0;
+//     }
+//     if (i == -1) goto error;
+//
+//     /* A vertices containment */
+//     s_points_test AinB = test_points_in_convhull(B, &A->points, EPS_degenerate, TOL, buff);
+//     if (AinB.Nerr > 0) goto error;
+//
+//     if (AinB.Nin + AinB.Nbdy == A->points.N) {  /* All inside: return empty */
+//         free_convhull(A);
+//         *A = convhull_NAN;
+//         free_convhull(&I);
+//         free(buff);
+//         free_edge_list(&elist);
+//         free_point_list(&pI);
+//         return 1;
+//     }
+//
+//     /* Collect points of A that lie strictly outside B */
+//     int NpI = 0;
+//     for (int i=0; i<A->points.N; i++) {
+//         if (AinB.indicator[i] == TEST_OUT) {
+//             if (!increase_memory_point_list(&pI, NpI + 1)) goto error;
+//             pI.list[NpI++] = A->points.p[i];
+//         }
+//     }
+//
+//     /* Add intersection of edges of A with B */
+//     int N_eA;
+//     if (!list_edges_convhull(A, &N_eA, &elist)) goto error;
+//     for (int ei=0; ei<N_eA; ei++) {
+//         s_point seg[2] = { A->points.p[elist.list[ei].v[0]], A->points.p[elist.list[ei].v[1]] };
+//         s_segment_intersect clips = segment_convhull_surface_intersect(B, seg, EPS_degenerate, TOL);
+//         for (int jj=0; jj<clips.N; jj++) {
+//             if (!increase_memory_point_list(&pI, NpI+1)) goto error;
+//             pI.list[NpI++] = clips.coords[jj];
+//         }
+//     }
+//
+//     /* If after clipping there are no points for A */
+//     if (NpI == 0) {
+//         free_convhull(A);
+//         *A = convhull_NAN;
+//         free_convhull(&I);
+//         free(buff);
+//         free_edge_list(&elist);
+//         free_point_list(&pI);
+//         return 1;
+//     }
+//
+//     /* 6) Build new convex hull for A using the collected points */
+//     s_points p_newA = { NpI, pI.list };
+//     s_convh newA = convhull_NAN;
+//     if (convhull_from_points(&p_newA, EPS_degenerate, TOL, &newA) != 1) {
+//         free_convhull(A);
+//         *A = convhull_NAN;
+//     } else {
+//         free_convhull(A);
+//         *A = newA;
+//     }
+//
+//     free(buff);
+//     free_edge_list(&elist);
+//     free_point_list(&pI);
+//     free_convhull(&I);
+//
+//     return 1;
+//
+//     error:
+//         if (buff) free(buff);
+//         free_edge_list(&elist);
+//         free_point_list(&pI);
+//         if (convhull_is_valid(&I)) free_convhull(&I);
+//         return -1;
+// }
+//
+//

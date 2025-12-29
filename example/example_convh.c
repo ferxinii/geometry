@@ -101,5 +101,31 @@ int main(void) {
     write_convhull_to_m(&ch_cube_degenerate, "cube_degenerate.m");
 
     
+    /* Noise */
+    s_point cube_noise[12] = {
+            {{{0, 0, 0}}},
+            {{{1, 0, 0}}},
+            {{{0, 1, 0}}},
+            {{{1, 1, 0}}},
+            {{{0, 0, 1}}},
+            {{{1, 0, 1}}},
+            {{{0, 1, 1}}},
+            {{{1, 1, 1}}},
+            /* Duplicates of 0, 2, 4, 6 */
+            {{{-1e-8, 0, 0}}},
+            {{{0, 1, -1e-10}}},
+            {{{0, -1e-9, 1}}},
+            {{{0, 1 +1e-10, 1+1e-9}}},
+    };
+    s_points p_cube_noise = {12, cube_noise};
+
+    s_convh ch_cube_noise;
+    if (convhull_from_points(&p_cube_noise, EPS_degenerate, 0, &ch_cube_noise) != 1) {
+        printf("Error making convhull of noisy cube.\n");
+        return 0;
+    }
+    printf("CUBE DEGENERATE: Volume = %g, area = %g\n", volume_convhull(&ch_cube_noise), surface_area_convhull(&ch_cube_noise));
+
+    write_convhull_to_m(&ch_cube_noise, "cube_noise.m");
 
 }

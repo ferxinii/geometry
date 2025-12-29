@@ -1,9 +1,12 @@
 #include "points.h"
+#include "hash.h"
+#include "lists.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
 #include <assert.h>
+#include <stdbool.h>
 
 
 int point_is_valid(s_point p)
@@ -117,6 +120,103 @@ s_points copy_points(const s_points *points)
     error:
         fprintf(stderr, "Error in 'copy_points'\n");
         return points_NAN;
+}
+
+
+/* Deduping of points using hashing */
+typedef struct cell_quant {
+    int ix, iy, iz;
+} s_cell_quant;
+
+static inline size_t cell_hash(const void *k)
+{
+    const s_cell_quant *c = k;
+    size_t h = 1469598103934665603ULL;
+    h = (h ^ (size_t)c->ix) * 1099511628211ULL;
+    h = (h ^ (size_t)c->iy) * 1099511628211ULL;
+    h = (h ^ (size_t)c->iz) * 1099511628211ULL;
+    return h;
+}
+
+static inline int cell_equals(const void *a, const void *b)
+{
+    const s_cell_quant *x = a;
+    const s_cell_quant *y = b;
+    return x->ix == y->ix &&
+           x->iy == y->iy &&
+           x->iz == y->iz;
+}
+
+typedef struct idx_node {
+    int idx;
+    struct idx_node *next;
+} idx_node;
+
+static void free_bucket(void *value)
+{
+    idx_node *n = *(idx_node **)value;
+    while (n) {
+        idx_node *next = n->next;
+        free(n);
+        n = next;
+    }
+}
+
+static s_cell_quant cell_of_point(s_point p, double TOL)
+{
+    s_cell_quant c;
+    c.ix = floor(p.x / TOL);
+    c.iy = floor(p.y / TOL);
+    c.iz = floor(p.z / TOL);
+    return c;
+}
+
+int mark_duplicate_points(const s_points *points, double TOL, bool mark[points->N])
+{   /* Using hashing approach O(N)*/ /* -1 ERROR, Ndup >=0 OK */
+    // for (int ii=0; ii<points->N; ii++) mask[ii] = false;
+    memset(mark, 0, sizeof(bool) * points->N);
+    const double TOL2 = TOL * TOL;
+    int Ndup = 0;
+
+    s_hash_table grid;  /* choose bucket count ~ 2×N for low collision rate */
+    if (!hash_init(&grid, sizeof(s_cell_quant), sizeof(idx_node*), 2*points->N, cell_hash, cell_equals, free_bucket)) return -1;
+
+    for (int ii=0; ii<points->N; ii++) {
+        s_cell_quant c = cell_of_point(points->p[ii], TOL);
+        bool duplicate = false;
+
+        /* scan this cell and all neighbors */
+        for (int dx=-1; dx<=1 && !duplicate; dx++) {
+        for (int dy=-1; dy<=1 && !duplicate; dy++) {
+        for (int dz=-1; dz<=1 && !duplicate; dz++) {
+            s_cell_quant cn = { c.ix + dx, c.iy + dy, c.iz + dz };
+
+            /* value is an idx_node* stored in the table (so hash_get returns pointer to that slot) */
+            idx_node **bucket_slot = (idx_node **)hash_get(&grid, &cn);
+            if (!bucket_slot) continue;          /* no cell present */
+            for (idx_node *n = *bucket_slot; n; n = n->next) {
+                int jj = n->idx;
+                if (distance_squared(points->p[ii], points->p[jj]) <= TOL2) {
+                    duplicate = true;
+                    mark[ii] = true;
+                    Ndup++;
+                    break;
+                }
+            }
+        }}}
+
+        if (!duplicate) {
+            idx_node **bucket = hash_get_or_insert(&grid, &c);
+            idx_node *n = malloc(sizeof(*n));
+            if (!bucket || !n) { hash_free(&grid); return -1; }
+            n->idx = ii;
+            n->next = *bucket;
+            *bucket = n;
+        }
+    }
+
+    hash_free(&grid);
+    return Ndup;
 }
 
 
@@ -407,6 +507,37 @@ int basis_vectors_plane(const s_point plane[3], double EPS_degenerate, s_point *
                                        (s_point){{{0,0,1}}} );
     if (out_t1) *out_t1 = normalize_vec(cross_prod(ref, *out_n), EPS_degenerate);
     if (out_t2) *out_t2 = normalize_vec(cross_prod(*out_n, *out_t1), EPS_degenerate);
+    return 1;
+}
+
+
+static s_point make_any_perpendicular(const s_point n)
+{   /* pick a vector not parallel to n */
+    if (fabs(n.x) <= fabs(n.y) && fabs(n.x) <= fabs(n.z)) return (s_point){{{1,0,0}}};
+    else if (fabs(n.y) <= fabs(n.z)) return (s_point){{{0,1,0}}};
+    else return (s_point){{{0,0,1}}};
+}
+
+
+int plane_from_point_normal(const s_point p0, const s_point n, double EPS_degenerate, s_point out[3])
+{
+    /* normalize normal (important for numerical stability) */
+    s_point nn = normalize_vec(n, EPS_degenerate);
+    if (!point_is_valid(nn)) return 0;
+
+    /* first tangent */
+    s_point a = make_any_perpendicular(nn);
+    s_point u = cross_prod(nn, a);
+    u = normalize_vec(u, EPS_degenerate);
+    if (!point_is_valid(u)) return 0;
+
+    /* second tangent */
+    s_point v = cross_prod(nn, u);
+
+    double L = 1.0;
+    out[0] = p0;
+    out[1] = sum_points(p0, scale_point(u, L));
+    out[2] = sum_points(p0, scale_point(v, L));
     return 1;
 }
 

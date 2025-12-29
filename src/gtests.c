@@ -387,6 +387,8 @@ static void compute_segment_segment_intersection_2D_colinear(const double A1[2],
 
 static e_intersect_type core_segment_segment_intersect_2D(const double A1[2], const double A2[2], const double B1[2], const double B2[2], double EPS_degenerate, double TOL, int *Nout, double *out)
 {
+    if (Nout) *Nout = 0;
+
     /* 1) Check degeneracy (robust and non-robust branches) */
     double TOL2 = TOL*TOL;
     int A_is_point = points_close_2D(A1, A2, EPS_degenerate);
@@ -555,6 +557,7 @@ static e_intersect_type core_segment_plane_intersect_robust(const s_point seg[2]
 
 static e_intersect_type core_segment_plane_intersect(const s_point seg[2], const s_point plane[3], double EPS_degenerate, double TOL, int *Nout, s_point out[2])
 {
+    if (Nout) *Nout = 0;
     if (TOL == 0) return core_segment_plane_intersect_robust(seg, plane, EPS_degenerate, Nout, out);
 
     s_point n = cross_prod(subtract_points(plane[1], plane[0]),
@@ -614,6 +617,7 @@ s_segment_intersect segment_plane_intersect(const s_point seg[2], const s_point 
 /* Segment triangle intersection */
 e_intersect_type core_segment_triangle_intersect_2D(const double S1[2], const double S2[2], const double A[2], const double B[2], const double C[2], double EPS_degenerate, double TOL, int *Nout, double *out)
 {
+    if (Nout) *Nout = 0; 
     e_geom_test i1 = test_point_in_triangle_2D(A, B, C, S1, EPS_degenerate, TOL);
     e_geom_test i2 = test_point_in_triangle_2D(A, B, C, S2, EPS_degenerate, TOL);
     if (i1 == TEST_ERROR || i2 == TEST_ERROR || i1 == TEST_DEGENERATE || i2 == TEST_DEGENERATE) return INTERSECT_ERROR;
@@ -730,7 +734,7 @@ static e_intersect_type core_segment_triangle_intersect_3D_robust(const s_point 
         double D2[2]; drop_to_2D(segment[1], drop, D2);
         
         s_segment_intersect i2D = segment_triangle_intersect_2D(P2, D2, A2, B2, C2, EPS_degenerate, 0);
-        if (i2D.type == INTERSECT_ERROR) return INTERSECT_ERROR;
+        if (i2D.type == INTERSECT_ERROR) { if (Nout) *Nout = 0; return INTERSECT_ERROR; }
         if (i2D.type == INTERSECT_NONDEGENERATE || i2D.type == INTERSECT_DEGENERATE) {
             if (Nout && out) {
                 *Nout = 0;
@@ -746,7 +750,7 @@ static e_intersect_type core_segment_triangle_intersect_3D_robust(const s_point 
     }
     else if (o1 == 0 || o2 == 0) {  /* A single end is coplanar */
         e_geom_test test = test_point_in_triangle_3D(triangle, (o1==0 ? segment[0] : segment[1]), EPS_degenerate, 0);
-        if (test == TEST_ERROR) return INTERSECT_ERROR;
+        if (test == TEST_ERROR) { if (Nout) *Nout = 0; return INTERSECT_ERROR; }
         if (test == TEST_IN || test == TEST_BOUNDARY) {
             if (Nout && out) { out[0] = (o1==0 ? segment[0] : segment[1]); *Nout = 1; }
             return INTERSECT_DEGENERATE;
@@ -787,7 +791,8 @@ static e_intersect_type core_segment_triangle_intersect_3D_robust(const s_point 
 
 static e_intersect_type core_segment_triangle_intersect_3D(const s_point segment[2], const s_point triangle[3], double EPS_degenerate, double TOL, int *Nout, s_point out[2])
 {
-    if (area_triangle(triangle) < EPS_degenerate) return 0;
+    if (Nout) *Nout = 0;
+    if (area_triangle(triangle) < EPS_degenerate) return INTERSECT_ERROR;
 
     if (TOL == 0) return core_segment_triangle_intersect_3D_robust(segment, triangle, EPS_degenerate, Nout, out);
 
@@ -813,13 +818,14 @@ static e_intersect_type core_segment_triangle_intersect_3D(const s_point segment
         double P2[2]; drop_to_2D(iplane.coords[0], drop, P2);
         double D2[2]; drop_to_2D(iplane.coords[1], drop, D2);
         s_segment_intersect i2D = segment_triangle_intersect_2D(P2, D2, A2, B2, C2, EPS_degenerate, TOL);
-        if (i2D.type == INTERSECT_ERROR) return INTERSECT_ERROR;
+        if (i2D.type == INTERSECT_ERROR) { if (Nout) *Nout = 0; return INTERSECT_ERROR; }
         if (i2D.type == INTERSECT_NONDEGENERATE || i2D.type == INTERSECT_DEGENERATE) {
             if (Nout && out) {
                 *Nout = 0;
                 for (int ii=0; ii<i2D.N; ii++) {
                     out[ii] = lift_point_from_dropped_2D(triangle, drop, i2D.coords[ii].coords, EPS_degenerate);
                     if (point_is_valid(out[ii])) (*Nout)++;
+                    assert(*Nout <= 2);  // TODO REMOVE?
                 }
             }
             return INTERSECT_DEGENERATE;

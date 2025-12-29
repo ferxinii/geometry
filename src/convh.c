@@ -2,6 +2,7 @@
 #include "ch_quickhull3D.h"
 #include "points.h"
 #include "gtests.h"
+#include "lists.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -114,6 +115,7 @@ int convhull_is_valid(const s_convh *convh)
 }
 
 
+
 static int initialize_normals_convhull(s_convh *convh)
 {   /* 0 if error, 1 if OK. UNNORMALIZED! */
     s_point ch_CM = point_average(&convh->points);
@@ -154,23 +156,26 @@ static int initialize_normals_convhull(s_convh *convh)
 int convhull_from_points(const s_points *points, double EPS_degenerate, double TOL_duplicate, s_convh *out)
 {   /* TOL both for deduping points and to establish min_face_area */
     /* Returns  1 if OK,
-                0 if could not construct convhull due to the nature of the points,
-                -1 if some other error, perhaps memory related
+                0 if degeneracy ERROR.
+                -1 if other ERROR.
     */
+    int *pmap = NULL; bool *isused = NULL; *out = (s_convh){0};
     (void)TOL_duplicate;
     if (points->N == 0) { *out = convhull_NAN; return 0; }
 
-    int Nused;
-    bool *isused = malloc(points->N * sizeof(bool));
+    isused = malloc(points->N * sizeof(bool));
     if (!isused) goto error;
 
-    int i = quickhull_3d(points, EPS_degenerate, &Nused, isused, &out->faces, &out->Nf); 
-    if (i == -2) return 0;
-    if (i == -1) return -1;
-    
+    int i = quickhull_3d(points, EPS_degenerate, TOL_duplicate, isused, &out->faces, &out->Nf);
+    if (i == -1) goto error;
+    if (i == 0) goto error_degenerate;
+
+
+    int Nused = 0;
+    for (int ii=0; ii<points->N; ii++) if (isused[ii]) Nused++;
 
     out->points = (s_points){ .N = Nused, .p = malloc(sizeof(s_point) * Nused) };
-    int *pmap = malloc(sizeof(int) * points->N);  /* map old -> new */
+    pmap = malloc(sizeof(int) * points->N);  /* map old -> new */
     if (!out->points.p || !pmap) goto error;
     
     /* Update out.points so that only used points remain */
@@ -194,11 +199,22 @@ int convhull_from_points(const s_points *points, double EPS_degenerate, double T
     if (!initialize_normals_convhull(out)) goto error;
 
     free(isused);
+    free(pmap);
     return 1;
+
+    error_degenerate:
+        fprintf(stderr, "Error in 'convhull_from_points'. Degenerate points?\n");
+        free(isused);
+        free(pmap);
+        free_points(&out->points);
+        *out = convhull_NAN;
+        return 0;
 
     error:
         fprintf(stderr, "Error in 'convhull_from_points'.\n");
         free(isused);
+        free(pmap);
+        free_points(&out->points);
         *out = convhull_NAN;
         return -1;
 }
@@ -269,6 +285,56 @@ int convex_hull_winding_valid(const s_convh *convh)
             return 0;
 		}
 	}
+    return 1;
+}
+
+
+static int edge_pair_cmp(const void *pa, const void *pb) 
+{   /* Edge vertices must be ordered!! v[0] < v[1] */
+    const int *a = pa;
+    const int *b = pb;
+    if (a[0] < b[0]) return -1;
+    if (a[0] > b[0]) return 1;
+    if (a[1] < b[1]) return -1;
+    if (a[1] > b[1]) return 1;
+    return 0;
+}
+
+int list_edges_convhull(const s_convh *C, s_list *out_edges)
+{
+    out_edges->N = 0;
+    for (int f=0; f<C->Nf; f++) {
+        int a0 = C->faces[f*3+0], a1 = C->faces[f*3+1], a2 = C->faces[f*3+2];
+
+        if (!list_push(out_edges, &(int){(a0 < a1) ? a0 : a1})) return 0;
+        if (!list_push(out_edges, &(int){(a0 < a1) ? a1 : a0})) return 0;
+
+        if (!list_push(out_edges, &(int){(a1 < a2) ? a1 : a2})) return 0;
+        if (!list_push(out_edges, &(int){(a1 < a2) ? a2 : a1})) return 0;
+
+        if (!list_push(out_edges, &(int){(a2 < a0) ? a2 : a0})) return 0;
+        if (!list_push(out_edges, &(int){(a2 < a0) ? a0 : a2})) return 0;
+    }
+
+    qsort(out_edges->items, C->Nf*3, sizeof(int)*2, edge_pair_cmp);
+
+    /* unique in place */
+    int unique2 = 0;
+    for (int i=0; i<C->Nf*3; i++) {
+        if (unique2 == 0) {
+            list_change_entry(out_edges, unique2++, list_get_ptr(out_edges, 2*i));
+            list_change_entry(out_edges, unique2++, list_get_ptr(out_edges, 2*i+1));
+        } else {
+            int curr[2]; list_get_value(out_edges, 2*i, &curr[0]); list_get_value(out_edges, 2*i+1, &curr[1]);
+            int prev[2]; list_get_value(out_edges, 2*unique2-2, &prev[0]); list_get_value(out_edges, 2*unique2-1, &prev[1]);
+            if (curr[0] != prev[0] || curr[1] != prev[1]) {
+                list_change_entry(out_edges, unique2++, list_get_ptr(out_edges, 2*i));
+                list_change_entry(out_edges, unique2++, list_get_ptr(out_edges, 2*i+1));
+            }
+        }
+    }
+
+    out_edges->N = unique2;
     return 1;
 }
 
