@@ -122,6 +122,16 @@ s_points copy_points(const s_points *points)
         return points_NAN;
 }
 
+void scale_points(s_points *points, double s, s_point pivot)
+{
+    s_point b = {{{(1-s)*pivot.x, (1-s)*pivot.y, (1-s)*pivot.z}}};
+    for (int ii=0; ii<points->N; ii++) {
+        points->p[ii].x = s*points->p[ii].x + b.x;
+        points->p[ii].y = s*points->p[ii].y + b.y;
+        points->p[ii].z = s*points->p[ii].z + b.z;
+    }
+}
+
 
 /* Deduping of points using hashing */
 typedef struct cell_quant {
