@@ -27,7 +27,7 @@ int points_is_valid(const s_points *p);
 
 void free_points(s_points *points);
 s_points copy_points(const s_points *points);
-void scale_points(s_points *points, double s, s_point pivot);
+void homotethy_points(s_points *points, double s, s_point pivot);
 int mark_duplicate_points(const s_points *points, double TOL, bool mark[points->N]);
 s_points copy_points_remove_duplicates(const s_points *points, double tol_d);
 s_points read_points_from_csv(const char *file);

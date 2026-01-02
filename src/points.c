@@ -122,7 +122,7 @@ s_points copy_points(const s_points *points)
         return points_NAN;
 }
 
-void scale_points(s_points *points, double s, s_point pivot)
+void homotethy_points(s_points *points, double s, s_point pivot)
 {
     s_point b = {{{(1-s)*pivot.x, (1-s)*pivot.y, (1-s)*pivot.z}}};
     for (int ii=0; ii<points->N; ii++) {
