@@ -28,6 +28,12 @@ target_compile_options(example_intersect
     PRIVATE
         -Wall -Werror -Wextra -O3
 )
+add_custom_command(TARGET example_intersect POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+        ${CMAKE_CURRENT_SOURCE_DIR}/lobes
+        $<TARGET_FILE_DIR:example_intersect>/lobes
+    COMMENT "Linking lobes directory into build"
+)
 
 
 

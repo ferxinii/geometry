@@ -26,6 +26,20 @@ trisurf(fcube2, cube2(:,1), cube2(:,2), cube2(:,3), "FaceColor", "red", "FaceAlp
 
 trisurf(fI, I(:,1), I(:,2), I(:,3), "FaceColor", "blue", "FaceAlpha", 0.3)
 
+%% Contained 
+
+[cube1, fcube1] = loadHull("build/cube1.m");
+[cube2, fcube2] = loadHull("build/cube3.m");
+[I, fI] = loadHull("build/intersection_cubes_contained.m");
+
+trisurf(fcube1, cube1(:,1), cube1(:,2), cube1(:,3), "FaceColor", "cyan", "FaceAlpha", 0.3)
+
+hold on
+trisurf(fcube2, cube2(:,1), cube2(:,2), cube2(:,3), "FaceColor", "red", "FaceAlpha", 0.3)
+
+trisurf(fI, I(:,1), I(:,2), I(:,3), "FaceColor", "blue", "FaceAlpha", 0.3)
+
+
 %% Lobes 2, 3
 [L2, fL2] = loadHull("build/L2.m");
 [L3, fL3] = loadHull("build/L3.m");
@@ -66,10 +80,23 @@ sum_vols = a1 + a2 + a3 + a4 + a5
 
 trisurf(c1, L1(:,1), L1(:,2), L1(:,3), 'FaceColor', 'Cyan', 'FaceAlpha', 0.3, 'LineWidth', 0.001);
 hold on;
-trisurf(c2, L2(:,1), L2(:,2), L2(:,3), 'FaceColor', 'red', 'FaceAlpha', 0.3, 'LineWidth', 0.001);
-trisurf(c3, L3(:,1), L3(:,2), L3(:,3), 'FaceColor', 'green', 'FaceAlpha', 0.3, 'LineWidth', 0.001);
-trisurf(c4, L4(:,1), L4(:,2), L4(:,3), 'FaceColor', 'blue', 'FaceAlpha', 0.3, 'LineWidth', 0.001);
+%trisurf(c2, L2(:,1), L2(:,2), L2(:,3), 'FaceColor', 'red', 'FaceAlpha', 0.3, 'LineWidth', 0.001);
+%trisurf(c3, L3(:,1), L3(:,2), L3(:,3), 'FaceColor', 'green', 'FaceAlpha', 0.3, 'LineWidth', 0.001);
+
+
+%trisurf(c4, L4(:,1), L4(:,2), L4(:,3), 'FaceColor', 'blue', 'FaceAlpha', 0.3, 'LineWidth', 0.001);
 trisurf(c5, L5(:,1), L5(:,2), L5(:,3), 'FaceColor', 'yellow', 'FaceAlpha', 0.3, 'LineWidth', 0.001);
+
+%%
+
+%trisurf(c1, L1(:,1), L1(:,2), L1(:,3), 'FaceColor', 'Cyan', 'FaceAlpha', 0.3, 'LineWidth', 0.001);
+
+trisurf(c2, L2(:,1), L2(:,2), L2(:,3), 'FaceColor', 'red', 'FaceAlpha', 0.3, 'LineWidth', 0.001); hold on;
+trisurf(c3, L3(:,1), L3(:,2), L3(:,3), 'FaceColor', 'green', 'FaceAlpha', 0.3, 'LineWidth', 0.001);
+
+
+trisurf(c4, L4(:,1), L4(:,2), L4(:,3), 'FaceColor', 'blue', 'FaceAlpha', 0.3, 'LineWidth', 0.001);
+%trisurf(c5, L5(:,1), L5(:,2), L5(:,3), 'FaceColor', 'yellow', 'FaceAlpha', 0.3, 'LineWidth', 0.001);
 
 
 

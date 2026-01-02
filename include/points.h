@@ -2,6 +2,7 @@
 #define GEOMETRY_POINTS_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
 typedef struct point {
     union {
@@ -11,6 +12,8 @@ typedef struct point {
         };
     };
 } s_point;
+
+_Static_assert(sizeof(s_point) == 3 * sizeof(double), "size mismatch");
 
 typedef struct points {
     int N;

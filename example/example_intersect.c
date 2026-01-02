@@ -40,9 +40,26 @@ int main()
     write_convhull_to_m(&ch1, "cube1.m");
     write_convhull_to_m(&ch2, "cube2.m");
     write_convhull_to_m(&I, "intersection_cubes.m");
-    free_convhull(&ch1);
-    free_convhull(&ch2);
-    free_convhull(&I);
+    // free_convhull(&ch1);
+    // free_convhull(&ch2);
+    // free_convhull(&I);
+
+    /* SPIKE */
+    s_point cube3[8] = { {{{-0.1, 0, 0}}},
+                         {{{0.3, 0, 0}}},
+                         {{{0, 0.3, 0}}},
+                         {{{0.3, 0.3, 0}}},
+                         {{{0, 0, 0.3}}},
+                         {{{0.3, 0, 0.3}}},
+                         {{{0, 0.3, 0.3}}},
+                         {{{0.3, 0.3, 0.3}}} };
+    s_points p_cube3 = {8, cube3};
+    s_convh ch3; convhull_from_points(&p_cube3, EPS_degenerate, TOL, &ch3);
+
+    intersection_convhulls(&ch1, &ch3, EPS_degenerate, TOL, &I);
+    write_convhull_to_m(&ch3, "cube3.m");
+    write_convhull_to_m(&I, "intersection_cubes_contained.m");
+
 
     /* LUNG LOBES */
     s_points pL2 = read_points_from_csv("lobes/L2.txt");
