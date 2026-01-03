@@ -171,7 +171,6 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
         }
     }
 
-    if (NpI <= 3) goto degenerate;
     int i = convhull_from_points(&(s_points){NpI, pI.list}, EPS_degenerate, TOL, out);
     if (i == 0) goto degenerate;
     if (i == -1) goto error;
@@ -272,7 +271,6 @@ int clip_convhull_halfspace(const s_convh *C, s_point plane[3], double EPS_degen
         }
     }
     
-    if (Np <= 3) goto degenerate;
     int i = convhull_from_points(&(s_points){Np, p.list}, EPS_degenerate, TOL, out);
     if (i == 0) goto degenerate;
     if (i == -1) goto error;

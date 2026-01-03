@@ -168,7 +168,7 @@ int convhull_from_points(const s_points *points, double EPS_degenerate, double T
 
     int i = quickhull_3d(points, EPS_degenerate, TOL_duplicate, isused, &out->faces, &out->Nf);
     if (i == -1) goto error;
-    if (i == 0) goto error_degenerate;
+    if (i == 0) goto degenerate;
 
 
     int Nused = 0;
@@ -202,8 +202,8 @@ int convhull_from_points(const s_points *points, double EPS_degenerate, double T
     free(pmap);
     return 1;
 
-    error_degenerate:
-        fprintf(stderr, "Error in 'convhull_from_points'. Degenerate points?\n");
+    degenerate:
+        // fprintf(stderr, "Error in 'convhull_from_points'. Degenerate points?\n");
         free(isused);
         free(pmap);
         free_points(&out->points);

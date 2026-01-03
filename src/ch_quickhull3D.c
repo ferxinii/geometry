@@ -704,7 +704,8 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, double TOL_
     mark_dup = malloc(sizeof(bool) * in_vertices->N);
     if (!mark_dup) { fprintf(stderr, "ch_quickhull3D: error malloc.\n"); goto error; }
     int Ndup = mark_duplicate_points(in_vertices, TOL_dup, mark_dup);
-    if (in_vertices->N - Ndup <= 3) { fprintf(stderr, "ch_quickhull3D: N <= 3.\n"); goto error_degenerate; }
+    if (in_vertices->N - Ndup <= 3) 
+        { /* fprintf(stderr, "ch_quickhull3D: N <= 3.\n"); */ goto error_degenerate; }
 
 
     /* The initial convex hull is a tetrahedron with 4 faces (simplex) */
@@ -868,7 +869,8 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, double TOL_
     return 1;
     
     error_degenerate:
-        fprintf(stderr, "Error in 'quickhull_3d'. In vertices are degenerate?\n");
+    // assert(1==0);
+        // fprintf(stderr, "Error in 'quickhull_3d'. In vertices are degenerate?\n");
         if (mark_dup) free(mark_dup);
         if (faces.items) free_list(&faces);
         if (pleft) free(pleft);
