@@ -172,20 +172,21 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
     }
 
     int i = convhull_from_points(&(s_points){NpI, pI.list}, EPS_degenerate, TOL, out);
+    if (i == 0) goto degenerate;
     if (i == -1) goto error;
-    if (i == 0) {  /* Could not initialize I. It is empty / degenerate. */
-        free(buff);
-        free_list(&elist);
-        free_point_list(&pI);
-        *out = convhull_NAN;
-        return 0;
-    }
+        
     if (!convhull_is_valid(out)) goto error;  /* Should not happen, but sanity check */
     free(buff);
     free_list(&elist);
     free_point_list(&pI);
     return 1;
 
+    degenerate: 
+        free(buff);
+        free_list(&elist);
+        free_point_list(&pI);
+        *out = convhull_NAN;
+        return 0;
     error:
         free(buff);
         free_list(&elist);
@@ -271,18 +272,21 @@ int clip_convhull_halfspace(const s_convh *C, s_point plane[3], double EPS_degen
     }
     
     int i = convhull_from_points(&(s_points){Np, p.list}, EPS_degenerate, TOL, out);
+    if (i == 0) goto degenerate;
     if (i == -1) goto error;
-    if (i == 0) {
-        free_list(&elist);
-        free_point_list(&p);
-        free(ptest.indicator);
-        return 0;
-    }
+
     if (!convhull_is_valid(out)) goto error;
     free_list(&elist);
     free_point_list(&p);
     free(ptest.indicator);
     return 1;
+
+    degenerate:
+        if (p.list) free_point_list(&p);
+        if (elist.items) free_list(&elist);
+        if (ptest.indicator) free(ptest.indicator);
+        *out = convhull_NAN;
+        return 0;
 
     error:
         if (p.list) free_point_list(&p);
