@@ -398,16 +398,24 @@ static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int f
                 }
 
                 // printf("%g\n", orient2d(pA, pB, p2D));
-                if (orient2d(pA, pB, p2D) < 0) {  /* Face is visible! */
+                if (orient2d(pA, pB, p2D) < 0) {  /* Face is visible! Only mark if not already marked. */
+                    bool already = false;
+                    list_get_value(out_indicator, edges[e].fid, &already); 
+                    if (!already) {
+                        bool flag = true;
+                        list_change_entry(out_indicator, edges[e].fid, &flag);
+                        N_visible++;
+                    }
                     // printf("%d Visible.\n", edges[e].fid);
-                    int t = true;
-                    list_change_entry(out_indicator, edges[e].fid, &t);
-                    N_visible++;
+                    // int t = true;
+                    // list_change_entry(out_indicator, edges[e].fid, &t);
+                    // N_visible++;
                 }
             }
             e = run_end; 
         }
     }
+
     return N_visible;
 }
 
@@ -427,9 +435,16 @@ static int visible_faces_from_point(const s_points *points, int Nfaces, int face
         s_point face_pts[3]; vertices_face(points, faces, j, face_pts);
         int o = orientation_robust(face_pts, p);
         if (o < 0) {  /*  Visible, point lies on the side pointed to by face normal  (above the plane) */
-            bool t = true;
-            list_change_entry(out_indicator, j, &t);
-            N_visible++;
+            bool already = false;  /* Only mark if not already marked */
+            list_get_value(out_indicator, j, &already);
+            if (!already) {
+                bool t = true;
+                list_change_entry(out_indicator, j, &t);
+                N_visible++;
+            }
+            // bool t = true;
+            // list_change_entry(out_indicator, j, &t);
+            // N_visible++;
         } else if (o == 0) {  /* Point is coplanar. If inside triangle, return, else add to special list. */
             // printf("COPLANAR: p=(%g, %g, %g) with face %d: %d %d %d\n", p.x, p.y, p.z, j, faces[j*3+0], faces[j*3+1], faces[j*3+2]);
             e_geom_test test = test_point_in_triangle_3D(face_pts, p, EPS, 0);
@@ -840,12 +855,18 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, double TOL_
         int N_vf = visible_faces_from_point(in_vertices, Nfaces, faces.items, current_p, EPS_degenerate, TOL_dup, &AUX_cop_fids, &AUX_planes_n, &AUX_plane_of_face, &faces_isvisible);
         if (N_vf == -1) { fprintf(stderr, "ch_quickhull3D: error visible faces.\n"); goto error; }
 
+        // int Ntest = 0;
+        // for (int ii=0; ii<Nfaces; ii++) {
+        //     bool *aux = faces_isvisible.items;
+        //     if (aux[ii]) Ntest++;
+        // }
+        // printf("Nvf: %d, Ntest: %d\n", N_vf, Ntest);
         // FILE *f = fopen("visible.txt", "w");
         // for (int ii=0; ii<Nfaces; ii++) {
         //     if (((bool*)faces_isvisible.items)[ii]) {
         //         int *facess = faces.items;
-        //         // fprintf(f, "%d, %d, %d\n", facess[ii*3+0], facess[ii*3+1], facess[ii*3+2]);
-        //         printf("visible: %d, %d, %d\n", facess[ii*3+0], facess[ii*3+1], facess[ii*3+2]);
+        //         fprintf(f, "%d, %d, %d\n", facess[ii*3+0], facess[ii*3+1], facess[ii*3+2]);
+        //         // printf("visible: %d, %d, %d\n", facess[ii*3+0], facess[ii*3+1], facess[ii*3+2]);
         //     }
         // }
         // fclose(f);
@@ -888,35 +909,38 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, double TOL_
         // exit(1);
 
         /* DEBUG */
-    //     int Nv = count_used_vertices(in_vertices, Nfaces, faces.items, buff_isused);
-    //     int Nedges = count_edges_debug(Nfaces, faces.items, &edges);
-    //     int euler = Nv - Nedges + Nfaces;
-    //     if (hole_exists(in_vertices, Nfaces, faces.items, &edges) ||         debug_ensure_face_orientation(in_vertices, buff_isused, Nfaces, faces.items) != 1) {
-    //         printf("Just added: %d, HOLE!\n", current_id);
-    //         s_convh ch;
-    //         ch.Nf = Nfaces;
-    //         ch.faces = faces.items;
-    //         ch.points = *in_vertices;
-    //         write_convhull_to_m(&ch, "hole.m");
-    //
-    //         FILE *f = fopen("visible.txt", "w");
-    //         for (int ii=0; ii<Nfaces; ii++) {
-    //             if (((bool*)faces_isvisible.items)[ii]) {
-    //                 int *facess = faces.items;
-    //                 fprintf(f, "%d, %d, %d\n", facess[ii*3+0], facess[ii*3+1], facess[ii*3+2]);
-    //             }
-    //         }
-    //         fclose(f);
-    //
-    //         puts("HORIZON:");
-    //         for (int ii=0; ii<Nhorizon; ii++) {
-    //             int e0; list_get_value(&horizon, 2*ii, &e0);
-    //             int e1; list_get_value(&horizon, 2*ii+1, &e1);
-    //             printf("(%d, %d)\n", e0, e1);
-    //         }
-    //
-    //         exit(1);
-    //     }
+        // int Nv = count_used_vertices(in_vertices, Nfaces, faces.items, buff_isused);
+        // int Nedges = count_edges_debug(Nfaces, faces.items, &edges);
+        // int euler = Nv - Nedges + Nfaces;
+
+        // s_list edges = list_initialize(sizeof(int), 0);
+        // if (!edges.items) goto error;
+        // if (hole_exists(in_vertices, Nfaces, faces.items, &edges)) { // ||         debug_ensure_face_orientation(in_vertices, buff_isused, Nfaces, faces.items) != 1) {
+        //     printf("Just added: %d, HOLE!\n", current_id);
+        //     s_convh ch;
+        //     ch.Nf = Nfaces;
+        //     ch.faces = faces.items;
+        //     ch.points = *in_vertices;
+        //     write_convhull_to_m(&ch, "hole.m");
+        //
+        //     FILE *f = fopen("visible.txt", "w");
+        //     for (int ii=0; ii<Nfaces; ii++) {
+        //         if (((bool*)faces_isvisible.items)[ii]) {
+        //             int *facess = faces.items;
+        //             fprintf(f, "%d, %d, %d\n", facess[ii*3+0], facess[ii*3+1], facess[ii*3+2]);
+        //         }
+        //     }
+        //     fclose(f);
+        //
+        //     puts("HORIZON:");
+        //     for (int ii=0; ii<Nhorizon; ii++) {
+        //         int e0; list_get_value(&horizon, 2*ii, &e0);
+        //         int e1; list_get_value(&horizon, 2*ii+1, &e1);
+        //         printf("(%d, %d)\n", e0, e1);
+        //     }
+        //
+        //     exit(1);
+        // }
     //     if (euler != 2) {
     //         fprintf(stderr, "EULER=%d, N_pleft=%d, hole_exists=%d, interior_face_exists=%d\n", euler, N_pleft, hole_exists(in_vertices, Nfaces, faces.items, &edges), interior_face_exists(in_vertices, Nfaces, faces.items));
     //         fprintf(stderr, "dV = %d, dF = %d, dE = %d\n", 1, Nhorizon - N_vf, Nhorizon);

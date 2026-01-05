@@ -136,9 +136,9 @@ int main(void) {
         printf("Error making convhull of lung segment.\n");
         return 0;
     }
-    printf("LUNG SEGMENT: Volume = %g, area = %g\n", volume_convhull(&ch_cube_noise), surface_area_convhull(&ch_cube_noise));
+    printf("LUNG SEGMENT: Volume = %g, area = %g\n", volume_convhull(&S1), surface_area_convhull(&S1));
 
-    write_convhull_to_m(&ch_cube_noise, "lung_segment.m");
+    write_convhull_to_m(&S1, "lung_segment.m");
 
 
 
