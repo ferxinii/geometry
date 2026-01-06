@@ -143,7 +143,7 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
         int e1; list_get_value(&elist, ii*2+1, &e1);
         s_point segment[2] = {A->points.p[e0], A->points.p[e1]}; 
         s_segment_intersect clips = segment_convhull_surface_intersect(B, segment, EPS_degenerate, TOL);
-        for (int jj=0; jj<clips.N; jj++) {
+        /* if (clips.type == INTERSECT_NONDEGENERATE) */ for (int jj=0; jj<clips.N; jj++) {
             if (!increase_memory_point_list(&pI, NpI+1)) goto error;
             pI.list[NpI++] = clips.coords[jj];
         }
@@ -165,7 +165,7 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
         int e1; list_get_value(&elist, ii*2+1, &e1);
         s_point segment[2] = {B->points.p[e0], B->points.p[e1]};
         s_segment_intersect clips = segment_convhull_surface_intersect(A, segment, EPS_degenerate, TOL);
-        for (int jj=0; jj<clips.N; jj++) {
+        /* if (clips.type == INTERSECT_NONDEGENERATE) */ for (int jj=0; jj<clips.N; jj++) {
             if (!increase_memory_point_list(&pI, NpI+1)) goto error;
             pI.list[NpI++] = clips.coords[jj];
         }

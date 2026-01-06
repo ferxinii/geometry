@@ -51,6 +51,11 @@ static int cmp_indexed_edge(const void *pa, const void *pb)
     return cmp_edge(a->e, b->e);
 }
 
+typedef struct plane {
+    s_point n;
+    double d;
+} s_plane;
+
 
 /* Face helpers */
 static void vertices_face(const s_points *points, const int *faces, int face_id, s_point out[3])
@@ -154,6 +159,7 @@ static int find_any_non_coplanar_quad(const s_points *points, const bool *mask_d
             }
         }
     }}}
+    fprintf(stderr, "Could not find any non-coplanar quad.\n");
 	return 0;  /* all points are degenerate (coplanar/collinear/coincident) */
 }
 
@@ -174,6 +180,7 @@ static int initial_tetrahedron(const s_points *points, const bool *mask_dup, boo
     /* Ensure that faces are correctly oriented */
     for (int k=0; k<4; k++)
         if (orient_face_if_needed(points, isused, 4, faces, k) == -1) {
+            fprintf(stderr, "initial tetrahedron faces could not be oriented.\n");
             return 0;  /* Face could not be oriented */
         }
 
@@ -220,62 +227,25 @@ static int priority_vertices_ignoring_initial_tetra_deduping(const s_points *poi
 
     free(reldist);
     return N_aux;
-
-    // /* Check for duplicate points. IF I DONT DEDUPE, IT IS VERY LIKELY I GET ERRORS! */
-    // bool *mask_dup = calloc(N_aux, sizeof(bool));
-    // if (!mask_dup) { free(reldist); return 0; };
-    // const double TOL2 = TOL_dup * TOL_dup;
-    // for (int i=0; i<N_aux; ) {
-    //     int j = i + 1;
-    //     while (j<N_aux && fabs(reldist[j].val - reldist[j-1].val) <= TOL_dup) j++;
-    //
-    //     /* Now points [i, j) are in the same distance bucket */
-    //     for (int a = i; a < j; a++) if (!mask_dup[a])
-    //         for (int b = a + 1; b < j; b++) if (!mask_dup[b])
-    //             if (distance_squared(points->p[reldist[a].idx], points->p[reldist[b].idx]) <= TOL2) {
-    //                 mask_dup[b] = true;  /* duplicate */
-    //             }
-    //     i = j;
-    // }
-    //
-    // /* Rescue original indexing of non-duplicate points */
-    // int Nout = 0;
-    // for (int i=0; i<N_aux; i++) if (!mask_dup[i]) out_indices[Nout++] = reldist[i].idx;
-    //
-    // for (int ii=0; ii<Nout-1; ii++) {  /* DEBUGGING */
-    //     for (int jj=ii+1; jj<Nout; jj++) {
-    //         if (distance_squared(points->p[out_indices[ii]], points->p[out_indices[jj]]) <= TOL2) {
-    //         printf("distance: %.16f, TOL: %.16f\n", distance(points->p[out_indices[ii]], points->p[out_indices[jj]]), TOL_dup);
-    //         printf("ii:%d, reldist:%.16f\n", ii, reldist[ii].val);
-    //         printf("ii:%d, reldist:%.16f\n", jj, reldist[jj].val);
-    //         exit(1);
-    //         }
-    //     }
-    // }
-    //
-    // free(reldist);
-    // free(mask_dup);
-    // return Nout;
 }
 
 
-/* Visible and non visible faces, horizon */
-// static int find_plane(const s_points *points, int Nfaces, int faces[Nfaces*3], s_list *cop_fids, double EPS_degenerate, s_point *out_n) 
-// {   /* Iterate through coplanar faces until one is not degenerate and extract n, u, v */
-//     for (int ii=0; ii<(int)cop_fids->N; ii++) {   
-//         int fid; list_get_value(cop_fids, ii, &fid);
-//         int f1=faces[fid*3+0], f2=faces[fid*3+1], f3=faces[fid*3+2];
-//         s_point plane[3] = { points->p[f1], points->p[f2], points->p[f3] };
-//         if (basis_vectors_plane(plane, EPS_degenerate, out_n, NULL, NULL)) return 1;
-//     }
-//     return 0;
-// }
+/* Visible faces from point */
+static double distance_p_plane(s_plane plane, s_point p)
+{
+    return fabs(dot_prod(plane.n, p) + plane.d);
+}
 
+static bool point_in_plane(s_plane plane, double TOL, s_point p)
+{
+    double d = distance_p_plane(plane, p);
+    if (d <= TOL) return true;
+    else return false;
+}
 
-
-static int find_planes(const s_points *points, int Nfaces, int faces[Nfaces*3], s_list *cop_fids, double EPS_degenerate, double TOL, s_list *out_planes_n, int *out_plane_of_face)     
+static int find_planes(const s_points *points, int Nfaces, int faces[Nfaces*3], s_list *cop_fids, double EPS_degenerate, double TOL, s_list *out_planes, int *out_plane_of_face)     
 {   /* Finds normals of the possibly multiple planes (simplified non-general function for this use-case: planes that are coplanar with a single point) */
-    out_planes_n->N = 0;
+    out_planes->N = 0;
 
     assert(TOL >= 0);  /* TODO: Necessary? */
     for (int ii = 0; ii < (int)cop_fids->N; ii++) {
@@ -284,31 +254,42 @@ static int find_planes(const s_points *points, int Nfaces, int faces[Nfaces*3], 
         s_point tri[3] = { points->p[f1], points->p[f2], points->p[f3] };
         s_point n;
         if (!basis_vectors_plane(tri, EPS_degenerate, &n, NULL, NULL)) {
+            /* I will later try to assign an existing plane to these faces */
             out_plane_of_face[ii] = -1;
-            if (!list_push(out_planes_n, &point_NAN)) return 0;
             continue;
         }
-        // printf("n: %g, %g, %g\n", n.x, n.y, n.z);
 
          /* try to match an existing plane by absolute dot-product */
         int matched = -1;
-        for (int p = 0; p < (int)out_planes_n->N; p++) {
-            s_point p_n; list_get_value(out_planes_n, p, &p_n);
-            double dot = dot_prod(n, p_n);  
+        for (int p = 0; p < (int)out_planes->N; p++) {
+            s_plane plane; list_get_value(out_planes, p, &plane);
+            double dot = dot_prod(n, plane.n);  
             if (fabs(dot) >= 1-TOL) { matched = p; break; }
         }
 
         if (matched >= 0) out_plane_of_face[ii] = matched;
         else {
-            out_plane_of_face[ii] = out_planes_n->N;
-            if (!list_push(out_planes_n, &n)) return 0;
+            out_plane_of_face[ii] = out_planes->N;
+            double plane_d = -dot_prod(n, tri[0]);
+            s_plane plane = {n, plane_d};
+            if (!list_push(out_planes, &plane)) return 0;
         }
     }
-    // printf("Nplanes: %d\n", out_planes_n->N);
-    // for (int ii=0; ii<(int)out_planes_n->N; ii++) {
-    //     s_point test; list_get_value(out_planes_n, ii, &test);
-    //     printf("%d: %g, %g, %g\n", ii, test.x, test.y, test.z);
-    // }
+
+    for (int ii=0; ii<(int)cop_fids->N; ii++) if (out_plane_of_face[ii] == -1) {
+        int fid; list_get_value(cop_fids, ii, &fid);
+        s_point face_v[3]; vertices_face(points, faces, fid, face_v);
+        for (int jj=0; jj<(int)out_planes->N; jj++) {
+            s_plane plane; list_get_value(out_planes, jj, &plane);
+            if (point_in_plane(plane, TOL, face_v[0]) || 
+                point_in_plane(plane, TOL, face_v[1]) || 
+                point_in_plane(plane, TOL, face_v[2])) {
+                out_plane_of_face[ii] = jj;
+                break;
+            }
+        }
+    }
+
     return 1;
 }
 
@@ -321,30 +302,28 @@ static void drop_to_2D(const s_point p, int coord_to_drop, double out[2])
     out[1] = p.coords[i2];
 }
 
-static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int faces[Nfaces*3], s_list *cop_fids, double EPS_degenerate, double TOL, s_list *buff_planes_n, s_list *buff_plane_of_face, s_list *out_indicator)
+static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int faces[Nfaces*3], s_list *cop_fids, double EPS_degenerate, double TOL, s_list *buff_planes, s_list *buff_plane_of_face, s_list *out_indicator)
 {   /* Called by mark_visible_faces_from_point, treats coplanar case. */
-    // printf("COPLANAR FUNCTION: \n");;
     int N_visible = 0;
 
     /* Find planes */
-    s_list *planes_n = buff_planes_n;
+    s_list *planes = buff_planes;
     list_ensure_capacity(buff_plane_of_face, cop_fids->N);
     int *plane_of_face = buff_plane_of_face->items;
-    if (!find_planes(points, Nfaces, faces, cop_fids, EPS_degenerate, TOL, planes_n, plane_of_face)) return 0;
+    if (!find_planes(points, Nfaces, faces, cop_fids, EPS_degenerate, TOL, planes, plane_of_face)) return 0;
 
     /* Project to 2D */
-    for (int pid=0; pid<(int)planes_n->N; pid++) {
-        s_point n; list_get_value(planes_n, pid, &n);
+    for (int pid=0; pid<(int)planes->N; pid++) {
+        s_plane plane; list_get_value(planes, pid, &plane);
+        s_point n = plane.n; 
         int coord_to_drop = coord_with_largest_component_3D(n);
         double p2D[2]; drop_to_2D(p, coord_to_drop, p2D);
-        // printf("N: %g, %g, %g. Coord to drop: %d\n", n.x, n.y, n.z, coord_to_drop);
         
         /* For each plane group, build the edge list only from faces belonging to that group. */
         int faces_in_plane = 0;
         for (int ii = 0; ii < (int)cop_fids->N; ii++)
             if (plane_of_face[ii] == pid) faces_in_plane++;
         if (faces_in_plane == 0) continue;
-        // printf("plane %d, Nfaces %d\n", pid, faces_in_plane);
 
         /* Count how many times each edge appears (canonicalized) */
         s_indexed_edge edges[faces_in_plane * 3];  // TODO allocating on stack? Is this wrong? Use list?
@@ -387,7 +366,6 @@ static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int f
             }
 
             if (/* run_len */(run_end - run_start) == 1) {  /* Edge is unique -> exterior */
-                // printf("unique edge %d, %d\n", edges[e].e[0], edges[e].e[1]);
                 double pA[2]; drop_to_2D(points->p[edges[e].e[0]], coord_to_drop, pA);
                 double pB[2]; drop_to_2D(points->p[edges[e].e[1]], coord_to_drop, pB);
                 double pC[2]; drop_to_2D(points->p[edges[e].opp], coord_to_drop, pC);
@@ -397,7 +375,6 @@ static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int f
                     pB[0] = t[0]; pB[1] = t[1];
                 }
 
-                // printf("%g\n", orient2d(pA, pB, p2D));
                 if (orient2d(pA, pB, p2D) < 0) {  /* Face is visible! Only mark if not already marked. */
                     bool already = false;
                     list_get_value(out_indicator, edges[e].fid, &already); 
@@ -406,10 +383,6 @@ static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int f
                         list_change_entry(out_indicator, edges[e].fid, &flag);
                         N_visible++;
                     }
-                    // printf("%d Visible.\n", edges[e].fid);
-                    // int t = true;
-                    // list_change_entry(out_indicator, edges[e].fid, &t);
-                    // N_visible++;
                 }
             }
             e = run_end; 
@@ -442,15 +415,12 @@ static int visible_faces_from_point(const s_points *points, int Nfaces, int face
                 list_change_entry(out_indicator, j, &t);
                 N_visible++;
             }
-            // bool t = true;
-            // list_change_entry(out_indicator, j, &t);
-            // N_visible++;
         } else if (o == 0) {  /* Point is coplanar. If inside triangle, return, else add to special list. */
-            // printf("COPLANAR: p=(%g, %g, %g) with face %d: %d %d %d\n", p.x, p.y, p.z, j, faces[j*3+0], faces[j*3+1], faces[j*3+2]);
             e_geom_test test = test_point_in_triangle_3D(face_pts, p, EPS, 0);
             if (test == TEST_ERROR) printf("ERROR!\n");
             if (test == TEST_BOUNDARY || test == TEST_IN) return 0;  /* If p inside any face, then immediatly exit */
-            else if (test == TEST_OUT && !list_push(coplanar_fids, &j)) return 0;
+            else if ((test == TEST_OUT || test == TEST_DEGENERATE) && 
+                     !list_push(coplanar_fids, &j)) return 0;
         }
     }
 
@@ -548,6 +518,7 @@ static void delete_visible_faces(int Nfaces, int faces[Nfaces*3], const bool fac
             faces[l*3+2] = faces[j*3+2];
             l++;
         } else {
+            // printf("deleted: %d, %d, %d\n", faces[j*3+0], faces[j*3+1], faces[j*3+2]);
             isused[faces[j*3+0]] = false;
             isused[faces[j*3+1]] = false;
             isused[faces[j*3+2]] = false;
@@ -578,15 +549,6 @@ static int add_faces_from_horizon(const s_points *points, bool isused[points->N]
     /* Orient each new face properly */
     for (int k=start; k<Nfaces; k++)
         if (orient_face_if_needed(points, isused, Nfaces, faces->items, k) == -1) {
-            int *facess = faces->items;
-            printf("DEBUG: %d, %d, %d\n", facess[k*3+0], facess[k*3+1], facess[k*3+2]);
-            printf("DEBUG: %g, %g, %g\n", points->p[facess[k*3+0]].x, points->p[facess[k*3+0]].y, points->p[facess[k*3+0]].z);
-            printf("DEBUG: %g, %g, %g\n", points->p[facess[k*3+1]].x, points->p[facess[k*3+1]].y, points->p[facess[k*3+1]].z);
-            printf("DEBUG: %g, %g, %g\n", points->p[facess[k*3+2]].x, points->p[facess[k*3+2]].y, points->p[facess[k*3+2]].z);
-            printf("Rest of points:\n");
-            for (int ii=0; ii<points->N; ii++) if (isused[ii]) {
-                printf("%d: %g, %g, %g\n", ii, points->p[ii].x, points->p[ii].y, points->p[ii].z);
-            }
             fprintf(stderr, "add_faces_from_horizon: could not orient face?\n");
             return 0;
         }
@@ -615,38 +577,15 @@ static int edge_pair_cmp(const void *pa, const void *pb)
     return 0;
 }
 
-// static int count_edges_debug(int Nfaces, int *faces, s_list *out_edges)
-// {
-//     out_edges->N = 0;
-//     for (int f=0; f<Nfaces; f++) {
-//         int a0 = faces[f*3+0], a1 = faces[f*3+1], a2 = faces[f*3+2];
-//         if (!list_push(out_edges, &(int){(a0 < a1) ? a0 : a1})) return 0;
-//         if (!list_push(out_edges, &(int){(a0 < a1) ? a1 : a0})) return 0;
-//         if (!list_push(out_edges, &(int){(a1 < a2) ? a1 : a2})) return 0;
-//         if (!list_push(out_edges, &(int){(a1 < a2) ? a2 : a1})) return 0;
-//         if (!list_push(out_edges, &(int){(a2 < a0) ? a2 : a0})) return 0;
-//         if (!list_push(out_edges, &(int){(a2 < a0) ? a0 : a2})) return 0;
-//     }
-//     qsort(out_edges->items, Nfaces*3, sizeof(int)*2, edge_pair_cmp);
-//
-//     /* unique in place */
-//     int unique2 = 0;
-//     for (int i=0; i<Nfaces*3; i++) {
-//         if (unique2 == 0) {
-//             list_change_entry(out_edges, unique2++, list_get_ptr(out_edges, 2*i));
-//             list_change_entry(out_edges, unique2++, list_get_ptr(out_edges, 2*i+1));
-//         } else {
-//             int curr[2]; list_get_value(out_edges, 2*i, &curr[0]); list_get_value(out_edges, 2*i+1, &curr[1]);
-//             int prev[2]; list_get_value(out_edges, 2*unique2-2, &prev[0]); list_get_value(out_edges, 2*unique2-1, &prev[1]);
-//             if (curr[0] != prev[0] || curr[1] != prev[1]) {
-//                 list_change_entry(out_edges, unique2++, list_get_ptr(out_edges, 2*i));
-//                 list_change_entry(out_edges, unique2++, list_get_ptr(out_edges, 2*i+1));
-//             }
+// static void print_faces_sharing_edge(int Nfaces, int faces[], int v0, int v1) {
+//     printf("Faces sharing edge (%d,%d):\n", v0, v1);
+//     for (int f = 0; f < Nfaces; ++f) {
+//         int a = faces[3*f+0], b = faces[3*f+1], c = faces[3*f+2];
+//         int cnt = (a==v0||a==v1) + (b==v0||b==v1) + (c==v0||c==v1);
+//         if (cnt == 2) {
+//             printf("  face %d: (%d,%d,%d)\n", f, a,b,c);
 //         }
 //     }
-//
-//     out_edges->N = unique2;
-//     return unique2/2;
 // }
 
 static int hole_exists(const s_points *p, int Nfaces, int *faces, s_list *out_edges)
@@ -665,7 +604,6 @@ static int hole_exists(const s_points *p, int Nfaces, int *faces, s_list *out_ed
     qsort(out_edges->items, Nfaces*3, sizeof(int)*2, edge_pair_cmp);
 
     /* scan runs of identical pairs, count occurrences */
-    // FILE *f = fopen("hole.txt", "w");
 
     int i = 0;
     int seen_boundary = 0;
@@ -685,99 +623,23 @@ static int hole_exists(const s_points *p, int Nfaces, int *faces, s_list *out_ed
             // fprintf(f, "%g, %g, %g, %d\n", p->p[start[0]].x, p->p[start[0]].y, p->p[start[0]].z, start[0]);
             // fprintf(f, "%g, %g, %g, %d\n", p->p[start[1]].x, p->p[start[1]].y, p->p[start[1]].z, start[1]);
         }
-        else if (run_len > 2) {printf("Nonmanifold! edge_count > 2.\n");}
+        else if (run_len > 2) {
+            printf("Nonmanifold! edge_count > 2.\n"); 
+            // printf("%d %d, run_len = %d\n", start[0], start[1], run_len);
+            // FILE *f = fopen("nonmani.txt", "w");
+            // fprintf(f, "%d %d\n", start[0], start[1]);
+            // fclose(f);
+            return 1; 
+        }
 
         i = run_end;
     }
-    // fclose(f);
 
     if (seen_boundary) return 1;
     return 0;
 }
-//
-//
-// static int initialize_normals_convhull(s_convh *convh)
-// {   /* 0 if error, 1 if OK. UNNORMALIZED! */
-//     s_point ch_CM = point_average(&convh->points);
-//     convh->fnormals = malloc(sizeof(s_point) * convh->Nf);
-//     if (!convh->fnormals) return 0;
-//     for (int ii = 0; ii < convh->Nf; ii++) {
-//         s_point v0 = convh->points.p[convh->faces[ii * 3 + 0]];
-//         s_point v1 = convh->points.p[convh->faces[ii * 3 + 1]];
-//         s_point v2 = convh->points.p[convh->faces[ii * 3 + 2]];
-//         s_point n = cross_prod(subtract_points(v1, v0), subtract_points(v2, v0));
-//         s_point verts_face[3] = { v0, v1, v2 };
-//         int o = orientation_robust(verts_face, ch_CM);
-//         if (o == 0) { n = point_NAN; }
-//         if (o < 0) {  // Correctly order face vertices (Right hand rule?)
-//             n.x = -n.x;  n.y = -n.y;  n.z = -n.z;
-//             int tmp = convh->faces[ii * 3 + 1];
-//             convh->faces[ii * 3 + 1] = convh->faces[ii * 3 + 2];
-//             convh->faces[ii * 3 + 2] = tmp;
-//         }
-//         convh->fnormals[ii] = n;
-//     }
-//     return 1;
-// }
-//
-//
-// static int interior_face_exists(const s_points *points, int Nfaces, int *faces)
-// {
-//     s_convh ch;
-//     ch.Nf = Nfaces;
-//     ch.faces = faces;
-//     ch.points = *points;
-//     if (!initialize_normals_convhull(&ch)) { puts("ERROR NORMALS!"); exit(1); }
-//
-//     /* Check if face center of mass is on boundary of convhull? */
-//     for (int ii=0; ii<Nfaces; ii++) {
-//         s_point p0 = points->p[faces[ii*3+0]];
-//         s_point p1 = points->p[faces[ii*3+1]];
-//         s_point p2 = points->p[faces[ii*3+2]];
-//         s_point CM;
-//         CM.x = (p0.x + p1.x + p2.x) / 3.0;
-//         CM.y = (p0.y + p1.y + p2.y) / 3.0;
-//         CM.z = (p0.z + p1.z + p2.z) / 3.0;
-//
-//         e_geom_test test = test_point_in_convhull(&ch, CM, 1e-12, 1e-8);
-//         if (test == TEST_IN) {
-//             s_point closest = closest_point_on_convhull_boundary(&ch, CM, 1e-12);
-//             printf("distance: %g\n", distance(closest, CM));
-//             free(ch.fnormals);
-//             return 1;
-//         }
-//     }
-//     free(ch.fnormals);
-//     return 0;
-// }
-//
-//
-// static int debug_ensure_face_orientation(const s_points *p, bool *isused, int Nf, int *f)
-// {
-//     int Nused = 0;
-//     s_point CM = {0};
-//     for (int ii=0; ii<p->N; ii++) if (isused[ii]) {
-//         Nused++;
-//         CM = sum_points(CM, p->p[ii]);
-//     }
-//     CM = scale_point(CM, 1.0/Nused);
-//
-//     int out = 1;
-//     for (int ii=0; ii<Nf; ii++) {
-//         s_point face_vertices[3]; vertices_face(p, f, ii, face_vertices);
-//         
-//         int o = orientation_robust(face_vertices, CM);
-//         if (o < 1) {
-//             printf("face %d / %d not oriented\n", ii, Nf);
-//             out = 0;
-//         }
-//     }
-//
-//     FILE *file = fopen("CM.txt", "w");
-//     fprintf(file, "%g, %g, %g", CM.x, CM.y, CM.z);
-//     fclose(file);
-//     return out;
-// }
+
+
 
 /* Main algorithm */
 int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, double TOL_dup, bool buff_isused[in_vertices->N], int **out_faces, int *N_out_faces) 
@@ -788,7 +650,7 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, double TOL_
     */
     if (!in_vertices || !buff_isused || !out_faces || !N_out_faces) return -1;
     *out_faces = NULL;  *N_out_faces = 0;
-    s_list faces = {0}, faces_isvisible = {0}, horizon = {0}, AUX_nvf_sharing_edge = {0}, AUX_edges = {0}, AUX_cop_fids = {0}, AUX_planes_n = {0}, AUX_plane_of_face = {0};
+    s_list faces = {0}, faces_isvisible = {0}, horizon = {0}, AUX_nvf_sharing_edge = {0}, AUX_edges = {0}, AUX_cop_fids = {0}, AUX_planes = {0}, AUX_plane_of_face = {0};
     int *pleft = NULL;
     bool *mark_dup = NULL;
     int Nfaces = 0;
@@ -796,8 +658,7 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, double TOL_
     mark_dup = malloc(sizeof(bool) * in_vertices->N);
     if (!mark_dup) { fprintf(stderr, "ch_quickhull3D: error malloc.\n"); goto error; }
     int Ndup = mark_duplicate_points(in_vertices, TOL_dup, mark_dup);
-    if (in_vertices->N - Ndup <= 3) 
-        { /* fprintf(stderr, "ch_quickhull3D: N <= 3.\n"); */ goto error_degenerate; }
+    if (in_vertices->N - Ndup <= 3) goto error_degenerate;
 
 
     /* The initial convex hull is a tetrahedron with 4 faces (simplex) */
@@ -821,102 +682,53 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, double TOL_
     if (N_pleft == 0) { fprintf(stderr, "ch_quickhull3D: error priority vertices.\n"); goto error; }
 
 
-    // s_list edges = list_initialize(sizeof(int), 0);  /* DEBUG */
     /* The main loop for the quickhull algorithm */
     faces_isvisible = list_initialize(sizeof(bool), 0);
     AUX_nvf_sharing_edge = list_initialize(sizeof(bool), 0); 
     horizon = list_initialize(sizeof(int), 0);
     AUX_edges = list_initialize(sizeof(int), 0);  
     AUX_cop_fids = list_initialize(sizeof(int), 0);  
-    AUX_planes_n = list_initialize(sizeof(s_point), 3);
+    AUX_planes = list_initialize(sizeof(s_plane), 3);
     AUX_plane_of_face = list_initialize(sizeof(int), 0);
     if (!faces_isvisible.items || !AUX_nvf_sharing_edge.items || !horizon.items || 
-        !AUX_edges.items || !AUX_cop_fids.items || !AUX_planes_n.items || !AUX_plane_of_face.items) 
+        !AUX_edges.items || !AUX_cop_fids.items || !AUX_planes.items || !AUX_plane_of_face.items) 
         { fprintf(stderr, "ch_quickhull3D: error malloc.\n"); goto error; }
-    while (N_pleft > 0) {
-        // s_convh ch;
-        // ch.Nf = Nfaces;
-        // ch.faces = faces.items;
-        // ch.points = *in_vertices;
-        // write_convhull_to_m(&ch, "prev.m");
 
+    while (N_pleft > 0) {
         /* Process the LAST element of pleft */
         N_pleft--;
         int current_id = pleft[N_pleft];
         s_point current_p = in_vertices->p[current_id];
 
-        // for (int ii=0; ii<in_vertices->N; ii++) {
-        //     if (buff_isused[ii]) {
-        //         assert(distance(current_p, in_vertices->p[ii]) >= TOL_dup);
-        //     }
-        // }
-
-
         /* Mark visible faces from this point */
-        int N_vf = visible_faces_from_point(in_vertices, Nfaces, faces.items, current_p, EPS_degenerate, TOL_dup, &AUX_cop_fids, &AUX_planes_n, &AUX_plane_of_face, &faces_isvisible);
+        int N_vf = visible_faces_from_point(in_vertices, Nfaces, faces.items, current_p, EPS_degenerate, TOL_dup, &AUX_cop_fids, &AUX_planes, &AUX_plane_of_face, &faces_isvisible);
         if (N_vf == -1) { fprintf(stderr, "ch_quickhull3D: error visible faces.\n"); goto error; }
 
-        // int Ntest = 0;
-        // for (int ii=0; ii<Nfaces; ii++) {
-        //     bool *aux = faces_isvisible.items;
-        //     if (aux[ii]) Ntest++;
-        // }
-        // printf("Nvf: %d, Ntest: %d\n", N_vf, Ntest);
-        // FILE *f = fopen("visible.txt", "w");
-        // for (int ii=0; ii<Nfaces; ii++) {
-        //     if (((bool*)faces_isvisible.items)[ii]) {
-        //         int *facess = faces.items;
-        //         fprintf(f, "%d, %d, %d\n", facess[ii*3+0], facess[ii*3+1], facess[ii*3+2]);
-        //         // printf("visible: %d, %d, %d\n", facess[ii*3+0], facess[ii*3+1], facess[ii*3+2]);
-        //     }
-        // }
-        // fclose(f);
-
+        
         /* Proceed if N_visible_faces > 0 */
         if (N_vf == Nfaces) { fprintf(stderr, "quickhull_3d: Point sees all faces.\n"); goto error; }
         if (N_vf == 0) continue;  
+        buff_isused[current_id] = true;     
 
         /* Create horizon */
         int Nhorizon;
         if (!extract_horizon(Nfaces, faces.items, faces_isvisible.items, &AUX_edges, &AUX_nvf_sharing_edge, &Nhorizon, &horizon))
             { fprintf(stderr, "quickhull_3d: Error extracting horizon.\n"); goto error; }
 
-        // f = fopen("horizon.txt", "w");
-        // for (int ii=0; ii<Nhorizon; ii++) {
-        //     int *horizonn = horizon.items;
-        //     fprintf(f, "%d, %d\n", horizonn[ii*2+0], horizonn[ii*2+1]);
-        // }
-        // fclose(f);
-
-        buff_isused[current_id] = true;
 
         /* Delete visible faces */
         delete_visible_faces(Nfaces, faces.items, faces_isvisible.items, buff_isused);
         Nfaces -= N_vf;
+
         
         /* Add faces connecting horizon to the new point */
         if(!add_faces_from_horizon(in_vertices, buff_isused, Nfaces, &faces, Nhorizon, horizon.items, current_id))
             { fprintf(stderr, "quickhull_3d: Error adding new faces.\n"); goto error; }
-
         Nfaces += Nhorizon;
-
-        // for (int ii=0; ii<Nfaces; ii++) {
-        //     // if (((bool*)faces_isvisible.items)[ii]) {
-        //         int *facess = faces.items;
-        //         // fprintf(f, "%d, %d, %d\n", facess[ii*3+0], facess[ii*3+1], facess[ii*3+2]);
-        //         printf("face %d: %d, %d, %d\n", ii, facess[ii*3+0], facess[ii*3+1], facess[ii*3+2]);
-        //     // }
-        // }
-        // exit(1);
-
-        /* DEBUG */
-        // int Nv = count_used_vertices(in_vertices, Nfaces, faces.items, buff_isused);
-        // int Nedges = count_edges_debug(Nfaces, faces.items, &edges);
-        // int euler = Nv - Nedges + Nfaces;
 
         // s_list edges = list_initialize(sizeof(int), 0);
         // if (!edges.items) goto error;
-        // if (hole_exists(in_vertices, Nfaces, faces.items, &edges)) { // ||         debug_ensure_face_orientation(in_vertices, buff_isused, Nfaces, faces.items) != 1) {
+        // if (hole_exists(in_vertices, Nfaces, faces.items, &edges)) { 
         //     printf("Just added: %d, HOLE!\n", current_id);
         //     s_convh ch;
         //     ch.Nf = Nfaces;
@@ -924,37 +736,25 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, double TOL_
         //     ch.points = *in_vertices;
         //     write_convhull_to_m(&ch, "hole.m");
         //
-        //     FILE *f = fopen("visible.txt", "w");
-        //     for (int ii=0; ii<Nfaces; ii++) {
-        //         if (((bool*)faces_isvisible.items)[ii]) {
-        //             int *facess = faces.items;
-        //             fprintf(f, "%d, %d, %d\n", facess[ii*3+0], facess[ii*3+1], facess[ii*3+2]);
-        //         }
-        //     }
-        //     fclose(f);
         //
         //     puts("HORIZON:");
         //     for (int ii=0; ii<Nhorizon; ii++) {
         //         int e0; list_get_value(&horizon, 2*ii, &e0);
         //         int e1; list_get_value(&horizon, 2*ii+1, &e1);
         //         printf("(%d, %d)\n", e0, e1);
+        //
+        //     }
+        //     for (int ii = 0; ii < Nhorizon; ++ii) {
+        //         int e0; list_get_value(&horizon, 2*ii, &e0);
+        //         int e1; list_get_value(&horizon, 2*ii+1, &e1);
+        //         print_faces_sharing_edge(Nfaces, faces.items, e0, e1);
         //     }
         //
+        //     write_points_to_csv("problematic.csv", "w", in_vertices);
         //     exit(1);
         // }
-    //     if (euler != 2) {
-    //         fprintf(stderr, "EULER=%d, N_pleft=%d, hole_exists=%d, interior_face_exists=%d\n", euler, N_pleft, hole_exists(in_vertices, Nfaces, faces.items, &edges), interior_face_exists(in_vertices, Nfaces, faces.items));
-    //         fprintf(stderr, "dV = %d, dF = %d, dE = %d\n", 1, Nhorizon - N_vf, Nhorizon);
-    //         // assert(euler == 2);
-    //
-    //         // puts("HORIZON:");
-    //         // for (int ii=0; ii<Nhorizon; ii++) {
-    //         //     int e0; list_get_value(&horizon, 2*ii, &e0);
-    //         //     int e1; list_get_value(&horizon, 2*ii+1, &e1);
-    //         //     printf("(%d, %d)\n", e0, e1);
-    //         // }
-    //         // exit(1);
-    //     }
+        // free_list(&edges);
+
     }
     /* Debugging */
     s_list edges = list_initialize(sizeof(int), 0);
@@ -963,36 +763,31 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, double TOL_
         { fprintf(stderr, "ch_quickhull3D: hole exists.\n"); free_list(&edges); goto error; }
     free_list(&edges); 
 
-    // int Nv = count_used_vertices(in_vertices, Nfaces, faces.items, buff_isused);
-    // int Nedges = count_edges_debug(Nfaces, faces.items, &edges);
-    // int euler = Nv - Nedges + Nfaces;
-    // if (euler != 2) 
-    //     { fprintf(stderr, "ch_quickhull3D: euler = %d.\n", euler); goto error; }
-
-    
 
     /* clean-up and exit */
     free(pleft);
     free(mark_dup);
     free_list(&faces_isvisible); 
     free_list(&horizon);
+    free_list(&AUX_edges);
+    free_list(&AUX_cop_fids);
     free_list(&AUX_nvf_sharing_edge);
-    free_list(&AUX_planes_n);
+    free_list(&AUX_planes);
     free_list(&AUX_plane_of_face);
     *out_faces = realloc(faces.items, Nfaces * 3 * sizeof(int));
     *N_out_faces = Nfaces;
     return 1;
     
     error_degenerate:
-    // assert(1==0);
-        // fprintf(stderr, "Error in 'quickhull_3d'. In vertices are degenerate?\n");
         if (mark_dup) free(mark_dup);
         if (faces.items) free_list(&faces);
         if (pleft) free(pleft);
         if (faces_isvisible.items) free_list(&faces_isvisible); 
         if (horizon.items) free_list(&horizon);
+        if (AUX_edges.items) free_list(&AUX_edges);
+        if (AUX_cop_fids.items) free_list(&AUX_cop_fids);
         if (AUX_nvf_sharing_edge.items) free_list(&AUX_nvf_sharing_edge);
-        if (AUX_planes_n.items) free_list(&AUX_planes_n);
+        if (AUX_planes.items) free_list(&AUX_planes);
         if (AUX_plane_of_face.N) free_list(&AUX_plane_of_face);
         *out_faces = NULL;
         *N_out_faces = 0;
@@ -1005,8 +800,10 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, double TOL_
         if (pleft) free(pleft);
         if (faces_isvisible.items) free_list(&faces_isvisible); 
         if (horizon.items) free_list(&horizon);
+        if (AUX_edges.items) free_list(&AUX_edges);
+        if (AUX_cop_fids.items) free_list(&AUX_cop_fids);
         if (AUX_nvf_sharing_edge.items) free_list(&AUX_nvf_sharing_edge);
-        if (AUX_planes_n.items) free_list(&AUX_planes_n);
+        if (AUX_planes.items) free_list(&AUX_planes);
         if (AUX_plane_of_face.N) free_list(&AUX_plane_of_face);
         *out_faces = NULL;
         *N_out_faces = 0;

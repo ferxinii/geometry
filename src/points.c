@@ -96,7 +96,7 @@ int write_points_to_csv(const char *file, const char *f_access_mode, const s_poi
     if (!f) goto error;
 
     for (int ii=0; ii<points->N; ii++)
-        if (fprintf(f, "%f, %f, %f\n", points->p[ii].x, points->p[ii].y, points->p[ii].z) < 0)
+        if (fprintf(f, "%.17g,%.17g,%.17g\n", points->p[ii].x, points->p[ii].y, points->p[ii].z) < 0)
             goto error;
 
     if (fclose(f) == EOF) { f = NULL;  goto error; }

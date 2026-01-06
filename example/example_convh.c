@@ -141,6 +141,14 @@ int main(void) {
     write_convhull_to_m(&S1, "lung_segment.m");
 
 
+    /* Non-manifold */
+    s_convh nm; 
 
+    if (convhull_from_csv("../problematic.csv", EPS_degenerate, 0, &nm) != 1) {
+        printf("Error making convhull of nonmanifold.\n");
+        return 0;
+    }
+    printf("nonmanifold: Volume = %g, area = %g\n", volume_convhull(&nm), surface_area_convhull(&nm));
 
+    write_convhull_to_m(&nm, "nm.m");
 }
