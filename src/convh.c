@@ -116,7 +116,7 @@ int convhull_is_valid(const s_convh *convh)
 
 
 
-static int initialize_normals_convhull(s_convh *convh)
+static int initialize_normals_convhull(s_convh *convh, double EPS_degenerate)
 {   /* 0 if error, 1 if OK. UNNORMALIZED! */
     s_point ch_CM = point_average(&convh->points);
 
@@ -132,22 +132,22 @@ static int initialize_normals_convhull(s_convh *convh)
 
         s_point verts_face[3] = { v0, v1, v2 };
         int o = orientation_robust(verts_face, ch_CM);
-        if (o == 0) {
+        if (o == 0 || norm(n) <= EPS_degenerate) {
             // printf("%f, %f, %f\n", verts_face[0].x, verts_face[0].y, verts_face[0].z);
             // printf("%f, %f, %f\n", verts_face[1].x, verts_face[1].y, verts_face[1].z);
             // printf("%f, %f, %f\n", verts_face[2].x, verts_face[2].y, verts_face[2].z);
             // printf("CM: %f, %f, %f\n", ch_CM.x, ch_CM.y, ch_CM.z);
             // print_points(&convh->points);
             n = point_NAN;
-        }
-        // assert(o != 0);
-        if (o < 0) {  // Correctly order face vertices (Right hand rule?)
+        } else if (o < 0) {  // Correctly order face vertices (Right hand rule?)
             n.x = -n.x;  n.y = -n.y;  n.z = -n.z;
             int tmp = convh->faces[ii * 3 + 1];
             convh->faces[ii * 3 + 1] = convh->faces[ii * 3 + 2];
             convh->faces[ii * 3 + 2] = tmp;
         }
         convh->fnormals[ii] = n;
+
+        // if (norm(n) < EPS_degenerate) convh->fnormals[ii] = point_NAN;
     }
     return 1;
 }
@@ -191,12 +191,17 @@ int convhull_from_points(const s_points *points, double EPS_degenerate, double T
     for (int f=0; f<out->Nf; f++) {
         for (int v=0; v<3; v++) {
             int newi = pmap[out->faces[f*3+v]];
-            assert(newi >= 0 && "Face refers to unused vertex!");
+            // assert(newi >= 0 && "Face refers to unused vertex!");
+            if (newi < 0 || newi >= Nused) {
+                fprintf(stderr, "Face refers to unused vertex!\n");
+                write_points_to_csv("test.txt", "w", points);
+                exit(1);
+            }
             out->faces[f*3+v] = newi;
         }
     }
 
-    if (!initialize_normals_convhull(out)) goto error;
+    if (!initialize_normals_convhull(out, EPS_degenerate)) goto error;
 
     free(isused);
     free(pmap);
@@ -507,20 +512,57 @@ s_point closest_point_on_convhull_boundary(const s_convh *convh, s_point query, 
 }
 
 
+
 double volume_convhull(const s_convh *convh)
 {
     if (!convhull_is_valid(convh)) return 0;
 
-    double vol = 0;
+    double volx = 0;
     for (int ii=0; ii<convh->Nf; ii++) {
         if (!point_is_valid(convh->fnormals[ii])) continue;
         double Nx = convh->fnormals[ii].x;
-        vol += Nx * (convh->points.p[convh->faces[ii*3 + 0]].x +
-                     convh->points.p[convh->faces[ii*3 + 1]].x +
-                     convh->points.p[convh->faces[ii*3 + 2]].x);
+        volx += Nx * (convh->points.p[convh->faces[ii*3 + 0]].x +
+                      convh->points.p[convh->faces[ii*3 + 1]].x +
+                      convh->points.p[convh->faces[ii*3 + 2]].x);
     }
-    return vol / 6;
+
+    return volx / 6;
+
+    // /* I used the following when debugging. If convhull was correct, results were the same. */
+    // s_point ref1 = point_average(&convh->points);
+    // // printf("%.17g, %.17g, %.17g. Is inside: %d\n", ref1.x, ref1.y, ref1.z, test_point_in_convhull(convh, ref1, 0, 0) == TEST_IN);
+    // s_point ref2 = convh->points.p[12];
+    // // printf("%.17g, %.17g, %.17g. Is inside: %d\n", ref2.x, ref2.y, ref2.z, test_point_in_convhull(convh, ref2, 0, 0) == TEST_IN);
+    // // ref2 = sum_points(ref1, (s_point){{{0.01, 0.01, 0.01}}});
+    // /* Kahan-like compensated summation in long double */
+    // double total1 = 0, c1 = 0;
+    // double total2 = 0, c2 = 0;
+    // for (int fi = 0; fi < convh->Nf; ++fi) {
+    //     // if (!point_is_valid(convh->fnormals[fi])) { /* invalid_faces++;*/ continue; }
+    //     int i0 = convh->faces[fi*3 + 0];
+    //     int i1 = convh->faces[fi*3 + 1];
+    //     int i2 = convh->faces[fi*3 + 2];
+    //     s_point tetra1[4] = {convh->points.p[i0], convh->points.p[i1], convh->points.p[i2], ref1};
+    //     double contrib1 = signed_volume_tetra(tetra1);
+    //     s_point tetra2[4] = {convh->points.p[i0], convh->points.p[i1], convh->points.p[i2], ref2};
+    //     double contrib2 = signed_volume_tetra(tetra2);
+    //     // printf("%.17g\n", contrib);
+    //     // s_point tri[3] = {convh->points.p[i0], convh->points.p[i1], convh->points.p[i2]};
+    //     // printf("    contrib1: %.6g,   contrib2: %.6g,   area: %.6g\n", contrib1, contrib2, area_triangle(tri));
+    //     /* Kahan-compensated add */
+    //     double y1 = contrib1 - c1;
+    //     double t1 = total1 + y1;
+    //     c1 = (t1 - total1) - y1;
+    //     total1 = t1;
+    //     double y2 = contrib2 - c2;
+    //     double t2 = total2 + y2;
+    //     c2 = (t2 - total2) - y2;
+    //     total2 = t2;
+    // }
+    // printf("t1 - t2: %.16g\n", fabs(total1) - fabs(total2));
+    // return fabs(total1);
 }
+
 
 double surface_area_convhull(const s_convh *convh)
 {

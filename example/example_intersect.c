@@ -78,9 +78,25 @@ int main()
     write_convhull_to_m(&L2, "L2_post.m");
     write_convhull_to_m(&L3, "L3_post.m");
 
-    free_convhull(&L2);
-    free_convhull(&L3);
-    free_convhull(&I);
+    
+    /* PROBLEMATIC FROM VOR3D */
+    s_points p1 = read_points_from_csv("../prob_intersect_1.csv");
+    s_points p2 = read_points_from_csv("../prob_intersect_2.csv");
+
+    s_convh ch_p1; if (convhull_from_points(&p1, 1e-14, 1e-14, &ch_p1) != 1) {
+        printf("Error generating convhull of p1.\n");
+    }
+    s_convh ch_p2; if (convhull_from_points(&p2, 1e-14, 1e-14, &ch_p2) != 1) {
+        printf("Error generating convhull of p2.\n");
+    }
+
+    intersection_convhulls(&ch_p1, &ch_p2, 1e-14, 1e-14, &I);
+
+    write_convhull_to_m(&ch_p1, "problematic_pre_1.m");
+    write_convhull_to_m(&ch_p2, "problematic_pre_2.m");
+    write_convhull_to_m(&I, "problematic_post.m");
+
+
 }
 
 

@@ -33,7 +33,7 @@ void free_points(s_points *points)
 void print_points(const s_points *points)
 {
     for (int ii=0; ii<points->N; ii++) {
-        printf("%f, %f, %f\n", points->p[ii].x, points->p[ii].y, points->p[ii].z);
+        printf("%.17f, %.17f, %.17f\n", points->p[ii].x, points->p[ii].y, points->p[ii].z);
     }
 }
 
@@ -183,8 +183,9 @@ static s_cell_quant cell_of_point(s_point p, double TOL)
 
 int mark_duplicate_points(const s_points *points, double TOL, bool mark[points->N])
 {   /* Using hashing approach O(N)*/ /* -1 ERROR, Ndup >=0 OK */
-    // for (int ii=0; ii<points->N; ii++) mask[ii] = false;
     memset(mark, 0, sizeof(bool) * points->N);
+    if (TOL == 0) return 0;
+
     const double TOL2 = TOL * TOL;
     int Ndup = 0;
 
@@ -704,6 +705,8 @@ static int solve_3x3_ppivot(const double M_in[3][3], const double rhs_in[3], dou
 
 int circumcentre_tetrahedron(const s_point p[4], double EPS_degenerate, s_point *out)
 {
+    if (fabs(signed_volume_tetra(p)) < EPS_degenerate) return 0;
+
     /* Center & scale to reduce cancellation */
     s_point v[4];
     s_point centroid = point_average(&(s_points){.N = 4, .p = (s_point*)p});

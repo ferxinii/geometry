@@ -13,7 +13,7 @@ typedef struct point {
     };
 } s_point;
 
-_Static_assert(sizeof(s_point) == 3 * sizeof(double), "size mismatch");
+_Static_assert(sizeof(s_point) == 3 * sizeof(long double), "size mismatch");
 
 typedef struct points {
     int N;

@@ -1,3 +1,1 @@
 [ ] Smarter convhull algorithm?? Implement and exploit face connectivity?
-[ ] Convhull return only used points.
-[ ] Can I avoid deduplication of points before convhull? I THINK NOT! MAKE MODEL WORK WITH DUPLICATION / DEGENERATE FACES.
