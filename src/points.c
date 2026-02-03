@@ -1,5 +1,5 @@
 #include "points.h"
-#include "new_hash.h"
+#include "hash.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
