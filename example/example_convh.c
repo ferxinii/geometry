@@ -143,6 +143,17 @@ int main(void) {
     write_convhull_to_m(&S1, "lung_segment.m");
 
 
+    // /* Lung */
+    // puts("");
+    // s_convh lung; 
+    // if (convhull_from_csv("lobes/lung.csv", EPS_degenerate, 0, &lung) != 1) {
+    //     printf("Error making convhull of lung segment.\n");
+    //     return 0;
+    // }
+    // printf("LUNG SEGMENT: Volume = %g, area = %g\n", volume_convhull(&lung), surface_area_convhull(&lung));
+    // write_convhull_to_m(&lung, "lung_segment.m");
+    //
+
     /* Non-manifold */
     puts("");
     s_convh nm; 

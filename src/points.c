@@ -1,6 +1,5 @@
 #include "points.h"
-#include "hash.h"
-#include "lists.h"
+#include "new_hash.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -134,43 +133,31 @@ void homotethy_points(s_points *points, double s, s_point pivot)
 
 
 /* Deduping of points using hashing */
+/* Each entry is a cell. key: triplet of int, value: linked list of point ids */
 typedef struct cell_quant {
     int ix, iy, iz;
 } s_cell_quant;
 
 static inline size_t cell_hash(const void *k)
-{
+{   /* FNV-1 hash */
     const s_cell_quant *c = k;
-    size_t h = 1469598103934665603ULL;
-    h = (h ^ (size_t)c->ix) * 1099511628211ULL;
-    h = (h ^ (size_t)c->iy) * 1099511628211ULL;
-    h = (h ^ (size_t)c->iz) * 1099511628211ULL;
+    uint64_t h = 1469598103934665603ULL;
+    h = (h ^ (uint64_t)c->ix) * 1099511628211ULL;
+    h = (h ^ (uint64_t)c->iy) * 1099511628211ULL;
+    h = (h ^ (uint64_t)c->iz) * 1099511628211ULL;
     return h;
 }
 
-static inline int cell_equals(const void *a, const void *b)
+static inline bool cell_equals(const void *a, const void *b)
 {
-    const s_cell_quant *x = a;
-    const s_cell_quant *y = b;
-    return x->ix == y->ix &&
-           x->iy == y->iy &&
-           x->iz == y->iz;
+    const s_cell_quant *x = a, *y = b;
+    return (x->ix == y->ix) && (x->iy == y->iy) && (x->iz == y->iz);
 }
 
-typedef struct idx_node {
+typedef struct idx_node {  /* Linked list of point ids */
     int idx;
     struct idx_node *next;
 } idx_node;
-
-static void free_bucket(void *value)
-{
-    idx_node *n = *(idx_node **)value;
-    while (n) {
-        idx_node *next = n->next;
-        free(n);
-        n = next;
-    }
-}
 
 static s_cell_quant cell_of_point(s_point p, double TOL)
 {
@@ -182,15 +169,19 @@ static s_cell_quant cell_of_point(s_point p, double TOL)
 }
 
 int mark_duplicate_points(const s_points *points, double TOL, bool mark[points->N])
-{   /* Using hashing approach O(N)*/ /* -1 ERROR, Ndup >=0 OK */
+{   /* Using hashing approach O(N) */ /* -1 ERROR, Ndup >=0 OK */
     memset(mark, 0, sizeof(bool) * points->N);
     if (TOL == 0) return 0;
 
     const double TOL2 = TOL * TOL;
     int Ndup = 0;
 
+    idx_node *node_pool = malloc(points->N * sizeof(idx_node));
+    if (!node_pool) return -1;
+    int pool_used = 0;
+
     s_hash_table grid;  /* choose bucket count ~ 2×N for low collision rate */
-    if (!hash_init(&grid, sizeof(s_cell_quant), sizeof(idx_node*), 2*points->N, cell_hash, cell_equals, free_bucket)) return -1;
+    if (!hash_init(&grid, sizeof(s_cell_quant), sizeof(idx_node*), 2*points->N, points->N, cell_hash, cell_equals, NULL)) return -1;
 
     for (int ii=0; ii<points->N; ii++) {
         s_cell_quant c = cell_of_point(points->p[ii], TOL);
@@ -216,16 +207,18 @@ int mark_duplicate_points(const s_points *points, double TOL, bool mark[points->
             }
         }}}
 
-        if (!duplicate) {
-            idx_node **bucket = hash_get_or_insert(&grid, &c);
-            idx_node *n = malloc(sizeof(*n));
-            if (!bucket || !n) { hash_free(&grid); return -1; }
+        if (!duplicate) {  /* Add this point to the linked list of the cell */
+            idx_node **bucket = hash_get_or_create(&grid, &c);
+            if (!bucket) { free(node_pool); hash_free(&grid); return -1; }
+            if (pool_used >= points->N) { free(node_pool); hash_free(&grid); return -1; }  /* should not happen */
+            idx_node *n = &node_pool[pool_used++];  /* Get memory from pool */
             n->idx = ii;
             n->next = *bucket;
             *bucket = n;
         }
     }
 
+    free(node_pool);
     hash_free(&grid);
     return Ndup;
 }
