@@ -190,10 +190,10 @@ int convhull_from_points(const s_points *points, double EPS_degenerate, double T
     /* Update face indices */
     for (int f=0; f<out->Nf; f++) {
         for (int v=0; v<3; v++) {
-            int newi = pmap[out->faces[f*3+v]];
-            // assert(newi >= 0 && "Face refers to unused vertex!");
+            int pid = out->faces[f*3+v];
+            int newi = pmap[pid];
             if (newi < 0 || newi >= Nused) {
-                fprintf(stderr, "Face refers to unused vertex!\n");
+                fprintf(stderr, "FATAL ERROR convhull_from_points: Face refers to unused vertex!\n");
                 write_points_to_csv("test.txt", "w", points);
                 exit(1);
             }
