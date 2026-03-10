@@ -1,7 +1,8 @@
+// A bit messy how I mix *int arrays and dynarray structs.... Can improve!
 #include "points.h"  
 #include "gtests.h"
 #include "ch_quickhull3D.h"
-#include "lists.h"
+#include "dynarray.h"
 #include "convh.h" // TODO DEBUG, In the future remove this.
 
 #include <stdlib.h>
@@ -64,22 +65,17 @@ static bool set_true_if_not_already(bool *arr, int id)
 
 
 /* Face helpers */
-static void vertices_face(const s_points *points, const int *faces, int face_id, s_point out[3])
+static void vertices_face(const s_points *points, const int *faces, int face_id,
+                          s_point out[3])
 {
     int i;
     i = faces[face_id*3+0];
-    if (i>=points->N || i<0) printf("ii=%d, face_id=%d. face: %d, %d, %d\n", i, face_id, faces[face_id*3+0], faces[face_id*3+1], faces[face_id*3+2]);
-    assert(i < points->N && i >= 0);
     out[0] = points->p[i];
 
     i = faces[face_id*3+1];
-    if (i>=points->N || i<0) printf("ii=%d, face_id=%d. face: %d, %d, %d\n", i, face_id, faces[face_id*3+0], faces[face_id*3+1], faces[face_id*3+2]);
-    assert(i < points->N && i >= 0);
     out[1] = points->p[i];
 
     i = faces[face_id*3+2];
-    if (i>=points->N || i<0) printf("ii=%d, face_id=%d. face: %d, %d, %d\n", i, face_id, faces[face_id*3+0], faces[face_id*3+1], faces[face_id*3+2]);
-    assert(i < points->N && i >= 0);
     out[2] = points->p[i];
 }
 
@@ -102,7 +98,7 @@ static int count_shared_vertices(int *faces, int f1, int f2)
 
 static int next_vid_isused_notinface(int Np, bool isused[Np], int face_ids[3], int current_id)
 {   /* If current_id -1, return the first vertex used in the convex hull that is not in the face */
-    /* Returns -1 if reached the end of the list without finding said point */
+    /* Returns -1 if reached the end without finding said point */
     int start = current_id + 1;
     assert(start >= 0);
 
@@ -113,7 +109,8 @@ static int next_vid_isused_notinface(int Np, bool isused[Np], int face_ids[3], i
     return -1;
 }
 
-static int orient_face_if_needed(const s_points *points, bool isused[points->N], int Nfaces, int faces[3*Nfaces], int face_id)
+static int orient_face_if_needed(const s_points *points, bool isused[points->N], int Nfaces,
+                                 int faces[3*Nfaces], int face_id)
 {   /* Face is oriented if its normal points outside the convex hull (Right hand rule) */ 
     /* Returns 1 if reoriented, 0 if not, -1 if error (Could not orient it!) */
     int face_vids[3] = {faces[face_id*3+0], faces[face_id*3+1], faces[face_id*3+2]};
@@ -151,7 +148,8 @@ static double tetrahedron_volume(const s_point a, const s_point b, const s_point
     return dot_prod(ad, cross_prod(ab, ac)) / 6.0;
 }
 
-static int find_any_non_coplanar_quad(const s_points *points, const bool *mask_dup, double EPS_degenerate, int out[4])
+static int find_any_non_coplanar_quad(const s_points *points, const bool *mask_dup, 
+                                      double EPS_degenerate, int out[4])
 {   /* brute-force combinations i<j<k<l */
 	int N = points->N;
     assert(N >= 4  && "Not enough points");
@@ -161,7 +159,8 @@ static int find_any_non_coplanar_quad(const s_points *points, const bool *mask_d
         s_point tri[3] = {points->p[i], points->p[j], points->p[k]};
         for (int l=k+1; l<N; l++) if (!mask_dup[l]) {
             if (EPS_degenerate > 0) {
-                double vol = tetrahedron_volume(points->p[i], points->p[j], points->p[k], points->p[l]);
+                double vol = tetrahedron_volume(points->p[i], points->p[j], points->p[k],
+                                                points->p[l]);
                 if (fabs(vol) > EPS_degenerate) { 
                     out[0]=i; out[1]=j; out[2]=k; out[3]=l;
                     return 1;
@@ -179,7 +178,8 @@ static int find_any_non_coplanar_quad(const s_points *points, const bool *mask_d
 	return 0;  /* all points are degenerate (coplanar/collinear/coincident) */
 }
 
-static int initial_tetrahedron(const s_points *points, const bool *mask_dup, bool *isused, double EPS_degenerate, int faces[4*3])
+static int initial_tetrahedron(const s_points *points, const bool *mask_dup, bool *isused,
+                               double EPS_degenerate, int faces[4*3])
 {
     /* Set the indices of the points defining the face  */
     int vertex_ids[4];
@@ -203,7 +203,9 @@ static int initial_tetrahedron(const s_points *points, const bool *mask_dup, boo
     return 1;
 }
 
-static int priority_vertices_ignoring_initial_tetra_deduping(const s_points *points, const bool *mark_dup, const bool isused[points->N], double EPS, int out_indices[points->N-4])
+static int priority_vertices_ignoring_initial_tetra_deduping(
+            const s_points *points, const bool *mark_dup, const bool isused[points->N], double EPS, 
+            int out_indices[points->N-4])
 {   /* Return 0 if error, Nout>0 if OK */
     /* Coordinates of the centre of the remaining point set */
     int N_aux = 0;
@@ -268,19 +270,21 @@ static int count_vertices_face_in_plane(const s_point face[3], s_plane plane, do
     return count;
 }
 
-static int find_planes(const s_points *points, int Nfaces, int faces[Nfaces*3], s_list *cop_fids, double EPS_degenerate, double TOL, s_list *out_planes, int *out_plane_of_face)     
+static int find_planes(const s_points *points, int Nfaces, int *faces, s_dynarray *cop_fids,
+                       double EPS_degenerate, double TOL, s_dynarray *out_planes, int *out_plane_of_face)     
 {   /* Finds the set of different planes where coplanar faces to the point live */   
+    (void)Nfaces;
     out_planes->N = 0;
 
     for (int ii = 0; ii < (int)cop_fids->N; ii++) {
-        int fid; list_get_value(cop_fids, ii, &fid);
+        int fid; if (!dynarray_get_value(cop_fids, ii, &fid)) return 0;
         int f1 = faces[fid*3 + 0], f2 = faces[fid*3 + 1], f3 = faces[fid*3 + 2];
         s_point tri[3] = { points->p[f1], points->p[f2], points->p[f3] };
 
         /* Try to match into existing plane by number of vertices in said plane */
         int matched = -1;
         for (int p=0; p<(int)out_planes->N; p++) {
-            s_plane plane; list_get_value(out_planes, p, &plane);
+            s_plane plane; if (!dynarray_get_value(out_planes, p, &plane)) return 0;
             if (count_vertices_face_in_plane(tri, plane, TOL) == 3) { 
                 matched = p;
                 break; 
@@ -302,7 +306,7 @@ static int find_planes(const s_points *points, int Nfaces, int faces[Nfaces*3], 
                 /* Try to match existing planes by angle (needed to fix some extreme case) */
                 int matched = -1;
                 for (int p=0; p<(int)out_planes->N; p++) {
-                    s_plane test_plane; list_get_value(out_planes, p, &test_plane);
+                    s_plane test_plane; if (!dynarray_get_value(out_planes, p, &test_plane)) return 0;
                     double dot = dot_prod(n, test_plane.n);
                     if (fabs(1-fabs(dot)) <= 1e-12) {  /* This TOL can be hard-coded */
                         // fprintf(stderr, "detect_planes: Forceful match! dot: %.17g .   %.17g\n", dot, fabs(1-fabs(dot)));
@@ -310,7 +314,7 @@ static int find_planes(const s_points *points, int Nfaces, int faces[Nfaces*3], 
                     }
                 }
                 if (matched >= 0) out_plane_of_face[ii] = matched;
-                else if (!list_push(out_planes, &plane)) return 0;
+                else if (!dynarray_push(out_planes, &plane)) return 0;
             }
         }
      }
@@ -318,20 +322,20 @@ static int find_planes(const s_points *points, int Nfaces, int faces[Nfaces*3], 
     /* Try to assign degenerate faces to one of the detected planes */
     LOOP:
     for (int ii=0; ii<(int)cop_fids->N; ii++) if (out_plane_of_face[ii] == -1) {
-        int fid; list_get_value(cop_fids, ii, &fid);
+        int fid; if (!dynarray_get_value(cop_fids, ii, &fid)) return 0;
         s_point face_v[3]; vertices_face(points, faces, fid, face_v);
         for (int jj=0; jj<(int)out_planes->N; jj++) {
-            s_plane plane; list_get_value(out_planes, jj, &plane);
+            s_plane plane; if (!dynarray_get_value(out_planes, jj, &plane)) return 0;
 
             if (count_vertices_face_in_plane(face_v, plane, TOL) == 3) {
-                // int fid; list_get_value(cop_fids, ii, &fid);
+                // int fid; dynarray_get_value(cop_fids, ii, &fid);
                 // fprintf(stderr, "Assigned plane to degenerate face (%d %d %d). Count in: %d\n", faces[fid*3+0], faces[fid*3+1], faces[fid*3+2], count_in);
                 out_plane_of_face[ii] = jj;
                 goto LOOP;
             }
         }
         // if (out_plane_of_face[ii] == -1) {
-        //     int fid; list_get_value(cop_fids, ii, &fid);
+        //     int fid; dynarray_get_value(cop_fids, ii, &fid);
         //     fprintf(stderr, "Could not assign plane to degenerate face (%d %d %d)!\n", faces[fid*3+0], faces[fid*3+1], faces[fid*3+2]);
         //     printf("N_planes: %d, N_cop_fids: %d\n", out_planes->N, cop_fids->N);
         // }
@@ -349,26 +353,28 @@ static void drop_to_2D(const s_point p, int coord_to_drop, double out[2])
     out[1] = p.coords[i2];
 }
 
-static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int faces[Nfaces*3], s_list *cop_fids, double EPS_degenerate, double TOL, s_list *buff_planes, s_list *buff_plane_of_face, s_list *out_indicator)
+static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int faces[Nfaces*3],
+                            s_dynarray *cop_fids, double EPS_degenerate, double TOL, s_dynarray *buff_planes,
+                            s_dynarray *buff_plane_of_face, s_dynarray *out_indicator)
 {   /* Called by mark_visible_faces_from_point, processes coplanar faces to the point. */
     int N_visible = 0;
 
     /* Find planes */
-    s_list *planes = buff_planes;
-    list_ensure_capacity(buff_plane_of_face, cop_fids->N);
+    s_dynarray *planes = buff_planes;
+    dynarray_ensure_capacity(buff_plane_of_face, cop_fids->N);
     int *plane_of_face = buff_plane_of_face->items;
     if (!find_planes(points, Nfaces, faces, cop_fids, EPS_degenerate, TOL, planes, plane_of_face)) return 0;
     // printf("Ncop: %d,   Nplanes: %d\n", cop_fids->N, planes->N);
 
     /* Project to 2D into each plane and test visiblity in the 2D POV */
     for (int pid=0; pid<(int)planes->N; pid++) {
-        s_plane plane; list_get_value(planes, pid, &plane);
+        s_plane plane; if (!dynarray_get_value(planes, pid, &plane)) return 0;;
         s_point n = plane.n; 
         int coord_to_drop = coord_with_largest_component_3D(n);
         double p2D[2]; drop_to_2D(p, coord_to_drop, p2D);
         // printf("%d: %g, %g, %g.   %g.\n", pid, n.x, n.y, n.z, plane.d);
         
-        /* For each plane group, build the edge list only from faces belonging to that group. */
+        /* For each plane group, build the edge dynarray only from faces belonging to that group. */
         int faces_in_plane = 0;
         for (int ii = 0; ii < (int)cop_fids->N; ii++)
             if (plane_of_face[ii] == pid) faces_in_plane++;
@@ -376,12 +382,12 @@ static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int f
         // printf("faces_in_plane: %d\n", faces_in_plane);
 
         /* Count how many times each edge appears (canonicalized) */
-        s_indexed_edge edges[faces_in_plane * 3];  // TODO allocating on stack? Is this wrong? Use list?
+        s_indexed_edge edges[faces_in_plane * 3];  // TODO allocating on stack? Is this wrong? Use dynarray?
         int Ne = 0;
         for (int ii=0; ii<(int)cop_fids->N; ii++) {  /* Store all edges */
             if (plane_of_face[ii] != pid) continue;
 
-            int fid; list_get_value(cop_fids, ii, &fid);
+            int fid; if (!dynarray_get_value(cop_fids, ii, &fid)) return 0;
             int vA = faces[fid*3+0], vB = faces[fid*3+1];
             if (vA > vB) { int t = vA; vA = vB; vB = t; }
             edges[Ne].e[0] = vA; edges[Ne].e[1] = vB; 
@@ -424,7 +430,7 @@ static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int f
                     // printf("COLLINEARRR! %d %d %d\n", edges[e].e[0], edges[e].e[1], edges[e].opp);
                     /* Mark corresponding face as problematic and check visibility later */
                     for (int ii=0; ii<(int)cop_fids->N; ii++) {
-                        int fid; list_get_value(cop_fids, ii, &fid);
+                        int fid; if (!dynarray_get_value(cop_fids, ii, &fid)) return 0;
                         if (fid == edges[e].fid) {
                             plane_of_face[ii] = -1;
                             break;
@@ -456,7 +462,7 @@ static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int f
         for (int fi = 0; fi<(int)cop_fids->N; fi++) {
             /* Select non-visible faces in this plane, fi */
             if (plane_of_face[fi] != pid) continue;
-            int fi_id; list_get_value(cop_fids, fi, &fi_id);
+            int fi_id; if (!dynarray_get_value(cop_fids, fi, &fi_id)) return 0;
             if (((bool*)out_indicator->items)[fi_id]) continue;  
             
             /* Count the number of adjacent visible faces */
@@ -465,7 +471,7 @@ static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int f
                 if (fi == jj) continue;
                 if (plane_of_face[jj] != pid) continue;
 
-                int jj_id; list_get_value(cop_fids, jj, &jj_id);
+                int jj_id; if (!dynarray_get_value(cop_fids, jj, &jj_id)) return 0;
                 int N_shared_vertices = count_shared_vertices(faces, fi_id, jj_id);
                 if (N_shared_vertices >= 2 && ((bool*)out_indicator->items)[jj_id]) 
                     N_adj_vis++;  
@@ -487,7 +493,8 @@ static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int f
 }
 
 
-static bool point_close_to_degenerate_triangle(const s_point triangle[3], s_point p, double EPS_degenerate, double TOL)
+static bool point_close_to_degenerate_triangle(const s_point triangle[3], s_point p,
+                                               double EPS_degenerate, double TOL)
 {
     /* Test if point is EPS close to any of the edges of the degenerate triangle */
     s_point closest = closest_point_on_segment((s_point[2]){triangle[0], triangle[1]}, EPS_degenerate, p);
@@ -503,13 +510,15 @@ static bool point_close_to_degenerate_triangle(const s_point triangle[3], s_poin
 }
 
 
-static int visible_faces_from_point(const s_points *points, int Nfaces, int faces[Nfaces*3], s_point p, double EPS, double TOL, s_list *coplanar_fids, s_list *buff_planes_n, s_list *buff_plane_of_face, s_list *out_indicator)
+static int visible_faces_from_point(const s_points *points, int Nfaces, int faces[Nfaces*3],
+                                    s_point p, double EPS, double TOL, s_dynarray *coplanar_fids,
+                                    s_dynarray *buff_planes_n, s_dynarray *buff_plane_of_face, s_dynarray *out_indicator)
 {   /* Returns -1 if error, Nvisible >= 0 if OK */
     /* A face is visible if its normal points to the halfspace containing the point,
        or if it is coplanar and the point sees it in the 2D POV */
-    if (!list_ensure_capacity(out_indicator, Nfaces))
-        { fprintf(stderr, "visible_faces_from_point: error list.\n"); return -1; }
-    list_memset0(out_indicator);
+    if (!dynarray_ensure_capacity(out_indicator, Nfaces))
+        { fprintf(stderr, "visible_faces_from_point: error dynarray.\n"); return -1; }
+    dynarray_memset0(out_indicator);
     out_indicator->N = Nfaces;
     int N_visible = 0;
     coplanar_fids->N = 0; 
@@ -532,19 +541,20 @@ static int visible_faces_from_point(const s_points *points, int Nfaces, int face
                 (test == TEST_DEGENERATE && point_close_to_degenerate_triangle(face_pts, p, EPS, TOL))) 
                 return 0;  /* If p inside any face, then immediatly exit */
             else if ((test == TEST_OUT || test == TEST_DEGENERATE) && 
-                     !list_push(coplanar_fids, &j)) return 0;
+                     !dynarray_push(coplanar_fids, &j)) return 0;
         }
     }
 
 
     if (coplanar_fids->N > 0) {  /* Process coplanar and/or degenerate faces */
-        N_visible += coplanar_visible(points, p, Nfaces, faces, coplanar_fids, EPS, TOL, buff_planes_n, buff_plane_of_face,  out_indicator);
+        N_visible += coplanar_visible(points, p, Nfaces, faces, coplanar_fids, EPS, TOL,
+                                      buff_planes_n, buff_plane_of_face,  out_indicator);
     }
 
     /* We have to check if degenerate faces are adjacent to any visible face, if so, mark them visible */
     LOOP:
     for (int ii=0; ii<(int)coplanar_fids->N; ii++) if (((int*)buff_plane_of_face->items)[ii] == -1) {
-        int cop_fid; list_get_value(coplanar_fids, ii, &cop_fid);
+        int cop_fid; if (!dynarray_get_value(coplanar_fids, ii, &cop_fid)) return 0;
         for (int jj=0; jj<Nfaces; jj++) {
             if (jj == ((int*)coplanar_fids->items)[ii]) continue;  /* skip current face */
             if (!((bool*)out_indicator->items)[jj]) continue;  /* Only consider visible faces */
@@ -555,7 +565,7 @@ static int visible_faces_from_point(const s_points *points, int Nfaces, int face
                     N_visible++;
                     /* Mark it so that it will not be processed again */
                     int tmp = -2;
-                    list_change_entry(buff_plane_of_face, ii, &tmp);  
+                    if (!dynarray_change_entry(buff_plane_of_face, ii, &tmp)) return 0;  
                     goto LOOP;
                 }
             }
@@ -566,11 +576,13 @@ static int visible_faces_from_point(const s_points *points, int Nfaces, int face
 }
 
 
-static int nonvisible_faces_sharing_edge_with_face(int Nfaces, int faces[Nfaces], bool is_visible[Nfaces], int query_faceid, s_list *out_indicator)
+static int nonvisible_faces_sharing_edge_with_face(
+                int Nfaces, int faces[Nfaces], bool is_visible[Nfaces], int query_faceid, 
+                s_dynarray *out_indicator)
 {   /* 0 error, 1 OK */
-    if (!list_ensure_capacity(out_indicator, Nfaces))
-        { fprintf(stderr, "nonvisible_faces_sharing_edge_with_face: error list.\n"); return 0; }
-    list_memset0(out_indicator);
+    if (!dynarray_ensure_capacity(out_indicator, Nfaces))
+        { fprintf(stderr, "nonvisible_faces_sharing_edge_with_face: error dynarray.\n"); return 0; }
+    dynarray_memset0(out_indicator);
     out_indicator->N = Nfaces;
 
     for (int i=0; i<Nfaces; i++) if (!is_visible[i]) {
@@ -581,9 +593,11 @@ static int nonvisible_faces_sharing_edge_with_face(int Nfaces, int faces[Nfaces]
     return 1;
 }
 
-static int extract_horizon(int Nfaces, int faces[Nfaces], bool is_visible[Nfaces], s_list *buff_edges, s_list *nvf_sharing_edge, int *out_Nhorizon, s_list *horizon)         
+static int extract_horizon(int Nfaces, int faces[Nfaces], bool is_visible[Nfaces],
+                           s_dynarray *buff_edges, s_dynarray *nvf_sharing_edge,
+                           int *out_Nhorizon, s_dynarray *horizon)         
 {   /* Returns 0 if eror, 1 if OK.  Size of horizon: 2*out_Nhorizon */
-    s_list *edges = buff_edges; 
+    s_dynarray *edges = buff_edges; 
     edges->N = 0;
     int edge_count = 0;
 
@@ -593,7 +607,7 @@ static int extract_horizon(int Nfaces, int faces[Nfaces], bool is_visible[Nfaces
         if (!nonvisible_faces_sharing_edge_with_face(Nfaces, faces, is_visible, i, nvf_sharing_edge)) 
             { fprintf(stderr, "extract_horizon: could not mark faces.\n"); return 0; }
         for (int j=0; j<Nfaces; j++) {
-            bool ind; list_get_value(nvf_sharing_edge, j, &ind);
+            bool ind; if (!dynarray_get_value(nvf_sharing_edge, j, &ind)) return 0;
             if (!ind) continue;
 
             /* But which edge ? */
@@ -607,8 +621,8 @@ static int extract_horizon(int Nfaces, int faces[Nfaces], bool is_visible[Nfaces
             assert(vA != -1 && vB != -1 && vA != vB);
 
             if (vA > vB) { int t = vA; vA = vB; vB = t; }  /* canonicalize */
-            if (!list_push(edges, &vA)) return 0;
-            if (!list_push(edges, &vB)) return 0;
+            if (!dynarray_push(edges, &vA)) return 0;
+            if (!dynarray_push(edges, &vB)) return 0;
             edge_count++;
         }
     }
@@ -617,14 +631,15 @@ static int extract_horizon(int Nfaces, int faces[Nfaces], bool is_visible[Nfaces
     qsort(edges->items, edge_count, sizeof(int)*2, cmp_edge);
 
     horizon->N = 0;
-    if (!list_push(horizon, (int*)edges->items)) return 0;
-    if (!list_push(horizon, (int*)edges->items + 1)) return 0;
+    if (!dynarray_push(horizon, (int*)edges->items)) return 0;
+    if (!dynarray_push(horizon, (int*)edges->items + 1)) return 0;
     for (int e = 1; e < edge_count; e++) {
-        int *prev = list_get_ptr(horizon, horizon->N-2);
-        int *curr = list_get_ptr(edges, 2*e);
+        int *prev = dynarray_get_ptr(horizon, horizon->N-2);
+        int *curr = dynarray_get_ptr(edges, 2*e);
+        if (!prev || !curr) return 0;
         if (curr[0] != prev[0] || curr[1] != prev[1]) {
-            if (!list_push(horizon, &curr[0])) return 0;
-            if (!list_push(horizon, &curr[1])) return 0;
+            if (!dynarray_push(horizon, &curr[0])) return 0;
+            if (!dynarray_push(horizon, &curr[1])) return 0;
         }
     }
 
@@ -634,7 +649,7 @@ static int extract_horizon(int Nfaces, int faces[Nfaces], bool is_visible[Nfaces
 
 
 /* Add and delete faces */
-static void delete_visible_faces(int Nfaces, int faces[Nfaces*3], const bool faces_isvisible[Nfaces], bool *isused)
+static void delete_visible_faces(int Nfaces, int *faces, const bool *faces_isvisible, bool *isused)
 {
     for (int j=0, l=0; j<Nfaces; j++) {
         if (!faces_isvisible[j]) {
@@ -651,21 +666,23 @@ static void delete_visible_faces(int Nfaces, int faces[Nfaces*3], const bool fac
     }
 }
 
-static int add_faces_from_horizon(const s_points *points, bool isused[points->N], int Nfaces, s_list *faces, int Nhorizon, int horizon[Nhorizon*2], int query_pid)
+static int add_faces_from_horizon(const s_points *points, bool *isused, int Nfaces, s_dynarray *faces,
+                                  int Nhorizon, int horizon[Nhorizon*2], int query_pid)
 {   /* Returns 0 if error, -1 if OK */
     int N_realloc_faces = Nfaces + Nhorizon;
     if (N_realloc_faces >= CH_MAX_NUM_FACES) {
         fprintf(stderr, "add_faces_from_horizon: Max faces! (%d + %d)\n", Nfaces, Nhorizon);
         return 0; 
     }
+    faces->N = N_realloc_faces*3;
 
-    if (!list_ensure_capacity(faces, N_realloc_faces*3))
-        { fprintf(stderr, "add_faces_from_horizon: error list.\n"); return 0; }
+    if (!dynarray_ensure_capacity(faces, N_realloc_faces*3))
+        { fprintf(stderr, "add_faces_from_horizon: error dynarray.\n"); return 0; }
     int start = Nfaces;  /* start is the first row of the new faces */
     for (int j=0; j<Nhorizon; j++) {
-        list_change_entry(faces, Nfaces*3+0, &horizon[j*2+0]);
-        list_change_entry(faces, Nfaces*3+1, &horizon[j*2+1]);
-        list_change_entry(faces, Nfaces*3+2, &query_pid);
+        if (!dynarray_change_entry(faces, Nfaces*3+0, &horizon[j*2+0])) return 0;
+        if (!dynarray_change_entry(faces, Nfaces*3+1, &horizon[j*2+1])) return 0;
+        if (!dynarray_change_entry(faces, Nfaces*3+2, &query_pid)) return 0;
 
         isused[horizon[j*2+0]] = true;
         isused[horizon[j*2+1]] = true;
@@ -694,31 +711,31 @@ static int edge_pair_cmp(const void *pa, const void *pb)
     return 0;
 }
 
-static int hole_exists(const s_points *p, int Nfaces, int *faces, s_list *out_edges)
+static int hole_exists(const s_points *p, int Nfaces, int *faces, s_dynarray *out_edges)
 {   /* Counts appearances of each edge to determine if surface is topologically correct. */
     (void)p;
     out_edges->N = 0;
     for (int f=0; f<Nfaces; f++) {
         int a0 = faces[f*3+0], a1 = faces[f*3+1], a2 = faces[f*3+2];
-        if (!list_push(out_edges, &(int){(a0 < a1) ? a0 : a1})) return 0;
-        if (!list_push(out_edges, &(int){(a0 < a1) ? a1 : a0})) return 0;
-        if (!list_push(out_edges, &(int){(a1 < a2) ? a1 : a2})) return 0;
-        if (!list_push(out_edges, &(int){(a1 < a2) ? a2 : a1})) return 0;
-        if (!list_push(out_edges, &(int){(a2 < a0) ? a2 : a0})) return 0;
-        if (!list_push(out_edges, &(int){(a2 < a0) ? a0 : a2})) return 0;
+        if (!dynarray_push(out_edges, &(int){(a0 < a1) ? a0 : a1})) return 0;
+        if (!dynarray_push(out_edges, &(int){(a0 < a1) ? a1 : a0})) return 0;
+        if (!dynarray_push(out_edges, &(int){(a1 < a2) ? a1 : a2})) return 0;
+        if (!dynarray_push(out_edges, &(int){(a1 < a2) ? a2 : a1})) return 0;
+        if (!dynarray_push(out_edges, &(int){(a2 < a0) ? a2 : a0})) return 0;
+        if (!dynarray_push(out_edges, &(int){(a2 < a0) ? a0 : a2})) return 0;
     }
     qsort(out_edges->items, Nfaces*3, sizeof(int)*2, edge_pair_cmp);
+
 
     /* scan runs of identical pairs, count occurrences */
     int i = 0;
     int seen_boundary = 0;
     while (i < Nfaces*3) {
-        int *start = (int *)list_get_ptr(out_edges, 2*i);
-        if (!start) return -1;
+        int *start = (int *)dynarray_get_ptr(out_edges, 2*i);
         int run_start = i;
         int run_end = i + 1;
         while (run_end < Nfaces*3) {
-            int *curr = (int *)list_get_ptr(out_edges, 2*run_end);
+            int *curr = (int *)dynarray_get_ptr(out_edges, 2*run_end);
             if (!curr) return -1;
             if (curr[0] != start[0] || curr[1] != start[1]) break;
             run_end++;
@@ -740,7 +757,8 @@ static int hole_exists(const s_points *p, int Nfaces, int *faces, s_list *out_ed
 
 
 /* Main algorithm */
-int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, double TOL_dup, bool buff_isused[in_vertices->N], int **out_faces, int *N_out_faces) 
+int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, double TOL_dup,
+                 bool buff_isused[in_vertices->N], int **out_faces, int *N_out_faces) 
 {   /* Returns:
        -1: computational error (memory, reached max_faces, ...)
        0: degeneracy error
@@ -748,7 +766,8 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, double TOL_
     */
     if (!in_vertices || !buff_isused || !out_faces || !N_out_faces) return -1;
     *out_faces = NULL;  *N_out_faces = 0;
-    s_list faces = {0}, faces_isvisible = {0}, horizon = {0}, AUX_nvf_sharing_edge = {0}, AUX_edges = {0}, AUX_cop_fids = {0}, AUX_planes = {0}, AUX_plane_of_face = {0};
+    s_dynarray faces = {0}, faces_isvisible = {0}, horizon = {0}, AUX_nvf_sharing_edge = {0},
+               AUX_edges = {0}, AUX_cop_fids = {0}, AUX_planes = {0}, AUX_plane_of_face = {0};
     int *pleft = NULL;
     bool *mark_dup = NULL;
     int Nfaces = 0;
@@ -761,13 +780,14 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, double TOL_
 
     /* The initial convex hull is a tetrahedron with 4 faces (simplex) */
     Nfaces = 4;
-    faces = list_initialize(sizeof(int), 12);
+    faces = dynarray_initialize(sizeof(int), 12);
     if (!faces.items) { fprintf(stderr, "ch_quickhull3D: error malloc.\n"); goto error; }
     if (!initial_tetrahedron(in_vertices, mark_dup, buff_isused, EPS_degenerate, faces.items)) 
         { fprintf(stderr, "ch_quickhull3D: error initial tetrahedron.\n"); goto error_degenerate; }
     if (in_vertices->N - Ndup == 4) {
         *out_faces = faces.items;
         *N_out_faces = 4;
+        free(mark_dup);
         return 1;
     }
     
@@ -781,13 +801,13 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, double TOL_
 
 
     /* The main loop for the quickhull algorithm */
-    faces_isvisible = list_initialize(sizeof(bool), 0);
-    AUX_nvf_sharing_edge = list_initialize(sizeof(bool), 0); 
-    horizon = list_initialize(sizeof(int), 0);
-    AUX_edges = list_initialize(sizeof(int), 0);  
-    AUX_cop_fids = list_initialize(sizeof(int), 0);  
-    AUX_planes = list_initialize(sizeof(s_plane), 3);
-    AUX_plane_of_face = list_initialize(sizeof(int), 0);
+    faces_isvisible = dynarray_initialize(sizeof(bool), 0);
+    AUX_nvf_sharing_edge = dynarray_initialize(sizeof(bool), 0); 
+    horizon = dynarray_initialize(sizeof(int), 0);
+    AUX_edges = dynarray_initialize(sizeof(int), 0);  
+    AUX_cop_fids = dynarray_initialize(sizeof(int), 0);  
+    AUX_planes = dynarray_initialize(sizeof(s_plane), 3);
+    AUX_plane_of_face = dynarray_initialize(sizeof(int), 0);
     if (!faces_isvisible.items || !AUX_nvf_sharing_edge.items || !horizon.items || 
         !AUX_edges.items || !AUX_cop_fids.items || !AUX_planes.items || !AUX_plane_of_face.items) 
         { fprintf(stderr, "ch_quickhull3D: error malloc.\n"); goto error; }
@@ -829,6 +849,7 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, double TOL_
         /* Delete visible faces */
         delete_visible_faces(Nfaces, faces.items, faces_isvisible.items, buff_isused);
         Nfaces -= N_vf;
+        faces.N = Nfaces * 3;
 
         // ch.Nf = Nfaces;
         // ch.faces = faces.items;
@@ -839,9 +860,10 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, double TOL_
         if(!add_faces_from_horizon(in_vertices, buff_isused, Nfaces, &faces, Nhorizon, horizon.items, current_id))
             { fprintf(stderr, "quickhull_3d: Error adding new faces.\n"); goto error; }
         Nfaces += Nhorizon;
+        // faces.N = Nfaces * 3;
 
         // /* Debugging. Check if hole after each step. */
-        // s_list edges = list_initialize(sizeof(int), 0);
+        // s_dynarray edges = dynarray_initialize(sizeof(int), 0);
         // if (!edges.items) goto error;
         // if (hole_exists(in_vertices, Nfaces, faces.items, &edges)) { 
         //     printf("Just added: %d, HOLE!\n", current_id);
@@ -855,8 +877,8 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, double TOL_
         //     puts("HORIZON:");
         //     FILE *f = fopen("horizon.txt", "w");
         //     for (int ii=0; ii<Nhorizon; ii++) {
-        //         int e0; list_get_value(&horizon, 2*ii, &e0);
-        //         int e1; list_get_value(&horizon, 2*ii+1, &e1);
+        //         int e0; dynarray_get_value(&horizon, 2*ii, &e0);
+        //         int e1; dynarray_get_value(&horizon, 2*ii+1, &e1);
         //         printf("(%d, %d)\n", e0, e1);
         //         fprintf(f, "%d, %d\n", e0+1, e1+1);
         //     }
@@ -865,45 +887,45 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, double TOL_
         //     write_points_to_csv("problematic.csv", "w", in_vertices);
         //     exit(1);
         // }
-        // free_list(&edges);
+        // dynarray_free(&edges);
     }
     /* Debugging */
-    s_list edges = list_initialize(sizeof(int), 0);
+    s_dynarray edges = dynarray_initialize(sizeof(int), 0);
     if (!edges.items) goto error;
     if (hole_exists(in_vertices, Nfaces, faces.items, &edges)) { 
         write_points_to_csv("problematic.csv", "w", in_vertices);
         fprintf(stderr, "ch_quickhull3D: hole exists. Wrote problematic set of points into \"problematic.csv\". EPS: %g, TOL: %g\n", EPS_degenerate, TOL_dup);
         // exit(1);
-        free_list(&edges); goto error; 
+        dynarray_free(&edges); goto error; 
     }
-    free_list(&edges); 
+    dynarray_free(&edges); 
 
 
     /* clean-up and exit */
     free(pleft);
     free(mark_dup);
-    free_list(&faces_isvisible); 
-    free_list(&horizon);
-    free_list(&AUX_edges);
-    free_list(&AUX_cop_fids);
-    free_list(&AUX_nvf_sharing_edge);
-    free_list(&AUX_planes);
-    free_list(&AUX_plane_of_face);
+    dynarray_free(&faces_isvisible); 
+    dynarray_free(&horizon);
+    dynarray_free(&AUX_edges);
+    dynarray_free(&AUX_cop_fids);
+    dynarray_free(&AUX_nvf_sharing_edge);
+    dynarray_free(&AUX_planes);
+    dynarray_free(&AUX_plane_of_face);
     *out_faces = realloc(faces.items, Nfaces * 3 * sizeof(int));
     *N_out_faces = Nfaces;
     return 1;
     
     error_degenerate:
         if (mark_dup) free(mark_dup);
-        if (faces.items) free_list(&faces);
+        if (faces.items) dynarray_free(&faces);
         if (pleft) free(pleft);
-        if (faces_isvisible.items) free_list(&faces_isvisible); 
-        if (horizon.items) free_list(&horizon);
-        if (AUX_edges.items) free_list(&AUX_edges);
-        if (AUX_cop_fids.items) free_list(&AUX_cop_fids);
-        if (AUX_nvf_sharing_edge.items) free_list(&AUX_nvf_sharing_edge);
-        if (AUX_planes.items) free_list(&AUX_planes);
-        if (AUX_plane_of_face.N) free_list(&AUX_plane_of_face);
+        if (faces_isvisible.items) dynarray_free(&faces_isvisible); 
+        if (horizon.items) dynarray_free(&horizon);
+        if (AUX_edges.items) dynarray_free(&AUX_edges);
+        if (AUX_cop_fids.items) dynarray_free(&AUX_cop_fids);
+        if (AUX_nvf_sharing_edge.items) dynarray_free(&AUX_nvf_sharing_edge);
+        if (AUX_planes.items) dynarray_free(&AUX_planes);
+        if (AUX_plane_of_face.N) dynarray_free(&AUX_plane_of_face);
         *out_faces = NULL;
         *N_out_faces = 0;
         return 0;
@@ -911,15 +933,15 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate, double TOL_
     error:
         fprintf(stderr, "Error in 'quickhull_3d'. Faces N = %d / %d\n", Nfaces, CH_MAX_NUM_FACES);
         if (mark_dup) free(mark_dup);
-        if (faces.items) free_list(&faces);
+        if (faces.items) dynarray_free(&faces);
         if (pleft) free(pleft);
-        if (faces_isvisible.items) free_list(&faces_isvisible); 
-        if (horizon.items) free_list(&horizon);
-        if (AUX_edges.items) free_list(&AUX_edges);
-        if (AUX_cop_fids.items) free_list(&AUX_cop_fids);
-        if (AUX_nvf_sharing_edge.items) free_list(&AUX_nvf_sharing_edge);
-        if (AUX_planes.items) free_list(&AUX_planes);
-        if (AUX_plane_of_face.N) free_list(&AUX_plane_of_face);
+        if (faces_isvisible.items) dynarray_free(&faces_isvisible); 
+        if (horizon.items) dynarray_free(&horizon);
+        if (AUX_edges.items) dynarray_free(&AUX_edges);
+        if (AUX_cop_fids.items) dynarray_free(&AUX_cop_fids);
+        if (AUX_nvf_sharing_edge.items) dynarray_free(&AUX_nvf_sharing_edge);
+        if (AUX_planes.items) dynarray_free(&AUX_planes);
+        if (AUX_plane_of_face.N) dynarray_free(&AUX_plane_of_face);
         *out_faces = NULL;
         *N_out_faces = 0;
         return -1;

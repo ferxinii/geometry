@@ -2,7 +2,7 @@
 #include "gtests.h"
 #include "convh.h"
 #include "ch_intersect.h"
-#include "lists.h"
+#include "dynarray.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -10,6 +10,7 @@
 #include <math.h>
 
 
+/* Define the following structure for simplicity, even if using dynarray.h */
 typedef struct point_list {
     s_point *list;
     int Nmax;
@@ -125,7 +126,7 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
     */
     // puts("\n\n NEW");
     e_geom_test *buff = malloc((int)fmax(A->points.N, B->points.N) * sizeof(e_geom_test));
-    s_list elist = list_initialize(sizeof(int), (int)fmax(3*A->Nf, 3*B->Nf));
+    s_dynarray elist = dynarray_initialize(sizeof(int), (int)fmax(3*A->Nf, 3*B->Nf));
     s_point_list pI = initialize_point_list(0);
     if (!buff || !elist.items || !pI.list) goto error;
 
@@ -152,8 +153,8 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
     // f = fopen("intersect.txt", "w");
     if (!list_edges_convhull(A, &elist)) goto error;
     for (unsigned ii=0; ii<elist.N/2; ii++) {
-        int e0; list_get_value(&elist, ii*2+0, &e0);
-        int e1; list_get_value(&elist, ii*2+1, &e1);
+        int e0; dynarray_get_value(&elist, ii*2+0, &e0);
+        int e1; dynarray_get_value(&elist, ii*2+1, &e1);
         // if (e0 == 6 || e1 == 6) printf("using it! (%d, %d)\n", e0, e1);
         s_point segment[2] = {A->points.p[e0], A->points.p[e1]}; 
         s_segment_intersect clips = segment_convhull_surface_intersect(B, segment, EPS_degenerate, TOL);
@@ -183,8 +184,8 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
     /* Intersect all edges of B with A */
     if (!list_edges_convhull(B, &elist)) goto error;
     for (unsigned ii=0; ii<elist.N/2; ii++) {
-        int e0; list_get_value(&elist, ii*2+0, &e0);
-        int e1; list_get_value(&elist, ii*2+1, &e1);
+        int e0; dynarray_get_value(&elist, ii*2+0, &e0);
+        int e1; dynarray_get_value(&elist, ii*2+1, &e1);
         s_point segment[2] = {B->points.p[e0], B->points.p[e1]};
         s_segment_intersect clips = segment_convhull_surface_intersect(A, segment, EPS_degenerate, TOL);
         if (clips.type == INTERSECT_NONDEGENERATE) for (int jj=0; jj<clips.N; jj++) {
@@ -199,19 +200,19 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
         
     if (!convhull_is_valid(out)) goto error;  /* Should not happen, but sanity check */
     free(buff);
-    free_list(&elist);
+    dynarray_free(&elist);
     free_point_list(&pI);
     return 1;
 
     degenerate: 
         free(buff);
-        free_list(&elist);
+        dynarray_free(&elist);
         free_point_list(&pI);
         *out = convhull_NAN;
         return 0;
     error:
         free(buff);
-        free_list(&elist);
+        dynarray_free(&elist);
         free_point_list(&pI);
         *out = convhull_NAN;
         return -1;
@@ -261,7 +262,7 @@ int clip_convhull_halfspace(const s_convh *C, s_point plane[3], double EPS_degen
                 0 if not clipped
                 -1 if error
     */
-    s_points_test ptest = {0};  s_point_list p = {0};  s_list elist = {0};
+    s_points_test ptest = {0};  s_point_list p = {0};  s_dynarray elist = {0};
     /* Select points non-strictly inside halfspace */
     ptest = test_points_in_halfspace(plane, &C->points, EPS_degenerate, TOL, NULL);
     if (!ptest.indicator) goto error;
@@ -275,12 +276,12 @@ int clip_convhull_halfspace(const s_convh *C, s_point plane[3], double EPS_degen
         if (ptest.indicator[ii] == TEST_IN || ptest.indicator[ii] == TEST_BOUNDARY) p.list[Np++] = C->points.p[ii];
     
     /* Clip edges that cross the plane */
-    elist = list_initialize(sizeof(int), 3 * C->Nf * 2);
+    elist = dynarray_initialize(sizeof(int), 3 * C->Nf * 2);
     if (!elist.items) goto error;
     if (!list_edges_convhull(C, &elist)) goto error;
     for (unsigned ii=0; ii<elist.N/2; ii++) {
-        int e0; list_get_value(&elist, 2*ii+0, &e0);
-        int e1; list_get_value(&elist, 2*ii+1, &e1);
+        int e0; dynarray_get_value(&elist, 2*ii+0, &e0);
+        int e1; dynarray_get_value(&elist, 2*ii+1, &e1);
         if (ptest.indicator[e0] != TEST_ERROR && 
             ptest.indicator[e1] != TEST_ERROR &&
             ptest.indicator[e0] != ptest.indicator[e1]) {  /* Boundary points already considered */
@@ -298,21 +299,21 @@ int clip_convhull_halfspace(const s_convh *C, s_point plane[3], double EPS_degen
     if (i == -1) goto error;
 
     if (!convhull_is_valid(out)) goto error;
-    free_list(&elist);
+    dynarray_free(&elist);
     free_point_list(&p);
     free(ptest.indicator);
     return 1;
 
     degenerate:
         if (p.list) free_point_list(&p);
-        if (elist.items) free_list(&elist);
+        if (elist.items) dynarray_free(&elist);
         if (ptest.indicator) free(ptest.indicator);
         *out = convhull_NAN;
         return 0;
 
     error:
         if (p.list) free_point_list(&p);
-        if (elist.items) free_list(&elist);
+        if (elist.items) dynarray_free(&elist);
         if (ptest.indicator) free(ptest.indicator);
         *out = convhull_NAN;
         return -1;

@@ -40,9 +40,9 @@ int main()
     write_convhull_to_m(&ch1, "cube1.m");
     write_convhull_to_m(&ch2, "cube2.m");
     write_convhull_to_m(&I, "intersection_cubes.m");
-    // free_convhull(&ch1);
-    // free_convhull(&ch2);
-    // free_convhull(&I);
+    free_convhull(&ch1);
+    free_convhull(&ch2);
+    free_convhull(&I);
 
     /* SPIKE */
     s_point cube3[8] = { {{{-0.1, 0, 0}}},
@@ -59,6 +59,9 @@ int main()
     intersection_convhulls(&ch1, &ch3, EPS_degenerate, TOL, &I);
     write_convhull_to_m(&ch3, "cube3.m");
     write_convhull_to_m(&I, "intersection_cubes_contained.m");
+    free_convhull(&ch1);
+    free_convhull(&ch3);
+    free_convhull(&I);
 
 
     /* LUNG LOBES */
@@ -67,7 +70,6 @@ int main()
     s_convh L2; convhull_from_points(&pL2, EPS_degenerate, TOL, &L2);
     s_convh L3; convhull_from_points(&pL3, EPS_degenerate, TOL, &L3);
     
-    free_convhull(&I);
     intersection_convhulls(&L2, &L3, EPS_degenerate, TOL, &I);
 
     write_convhull_to_m(&L2, "L2.m");
@@ -77,6 +79,12 @@ int main()
     remove_intersection_convhulls(&L2, &L3, EPS_degenerate, TOL, min_vol_I);
     write_convhull_to_m(&L2, "L2_post.m");
     write_convhull_to_m(&L3, "L3_post.m");
+
+    free_points(&pL2);
+    free_points(&pL3);
+    free_convhull(&L2);
+    free_convhull(&L3);
+    free_convhull(&I);
 
     
     /* PROBLEMATIC FROM VOR3D */
@@ -96,7 +104,11 @@ int main()
     write_convhull_to_m(&ch_p2, "problematic_pre_2.m");
     write_convhull_to_m(&I, "problematic_post.m");
 
-
+    free_points(&p1);
+    free_points(&p2);
+    free_convhull(&ch_p1);
+    free_convhull(&ch_p2);
+    free_convhull(&I);
 }
 
 

@@ -28,6 +28,7 @@ int main(void) {
     printf("CUBE: Volume = %g, area = %g\n", volume_convhull(&ch_cube), surface_area_convhull(&ch_cube));
 
     write_convhull_to_m(&ch_cube, "cube.m");
+    free_convhull(&ch_cube);
 
 
     /* Duplicate vertices */
@@ -57,6 +58,7 @@ int main(void) {
     printf("CUBE DUPLICATES: Volume = %g, area = %g\n", volume_convhull(&ch_cube_duplicates), surface_area_convhull(&ch_cube_duplicates));
 
     write_convhull_to_m(&ch_cube_duplicates, "cube_duplicates.m");
+    free_convhull(&ch_cube_duplicates);
 
 
     /* Degeneracies */
@@ -101,6 +103,7 @@ int main(void) {
     printf("CUBE DEGENERATE: Volume = %g, area = %g\n", volume_convhull(&ch_cube_degenerate), surface_area_convhull(&ch_cube_degenerate));
 
     write_convhull_to_m(&ch_cube_degenerate, "cube_degenerate.m");
+    free_convhull(&ch_cube_degenerate);
 
 
     /* Noise */
@@ -130,6 +133,7 @@ int main(void) {
     printf("CUBE NOISY: Volume = %g, area = %g\n", volume_convhull(&ch_cube_noise), surface_area_convhull(&ch_cube_noise));
 
     write_convhull_to_m(&ch_cube_noise, "cube_noise.m");
+    free_convhull(&ch_cube_noise);
 
 
     /* Segment */
@@ -141,6 +145,7 @@ int main(void) {
     }
     printf("LUNG SEGMENT: Volume = %g, area = %g\n", volume_convhull(&S1), surface_area_convhull(&S1));
     write_convhull_to_m(&S1, "lung_segment.m");
+    free_convhull(&S1);
 
 
     // /* Lung */
@@ -163,6 +168,7 @@ int main(void) {
     }
     printf("nonmanifold: Volume = %g, area = %g\n", volume_convhull(&nm), surface_area_convhull(&nm));
     write_convhull_to_m(&nm, "nm.m");
+    free_convhull(&nm);
 
 
     /* Problematic 2: adding collinear faces */
@@ -174,6 +180,7 @@ int main(void) {
     }
     printf("nonmanifold2: Volume = %g, area = %g\n", volume_convhull(&nm2), surface_area_convhull(&nm2));
     write_convhull_to_m(&nm2, "nm2.m");
+    free_convhull(&nm2);
 
     /* Problematic 3: adding collinear faces */
     puts("");
@@ -184,6 +191,7 @@ int main(void) {
     }
     printf("nonmanifold3: Volume = %g, area = %g\n", volume_convhull(&nm3), surface_area_convhull(&nm3));
     write_convhull_to_m(&nm3, "nm3.m");
+    free_convhull(&nm3);
 
     /* Problematic 4: adding collinear faces */
     puts("");
@@ -194,6 +202,7 @@ int main(void) {
     }
     printf("nonmanifold4: Volume = %g, area = %g\n", volume_convhull(&nm4), surface_area_convhull(&nm4));
     write_convhull_to_m(&nm4, "nm4.m");
+    free_convhull(&nm4);
 
     /* Problematic 5: adding collinear faces */
     puts("");
@@ -204,6 +213,7 @@ int main(void) {
     }
     printf("nonmanifold5: Volume = %g, area = %g\n", volume_convhull(&nm5), surface_area_convhull(&nm5));
     write_convhull_to_m(&nm5, "nm5.m");
+    free_convhull(&nm5);
 
     /* Problematic 6: adding collinear faces */
     puts("");
@@ -214,6 +224,7 @@ int main(void) {
     }
     printf("nonmanifold6: Volume = %g, area = %g\n", volume_convhull(&nm6), surface_area_convhull(&nm6));
     write_convhull_to_m(&nm6, "nm6.m");
+    free_convhull(&nm6);
 
     /* Problematic 7*/
     puts("");
@@ -224,6 +235,7 @@ int main(void) {
     }
     printf("nonmanifold7: Volume = %g, area = %g\n", volume_convhull(&nm7), surface_area_convhull(&nm7));
     write_convhull_to_m(&nm7, "nm7.m");
+    free_convhull(&nm7);
 
     /* Overlapping faces */
     puts("");
@@ -234,6 +246,7 @@ int main(void) {
     }
     printf("overlapping_faces: Volume = %g, area = %g\n", volume_convhull(&of), surface_area_convhull(&of));
     write_convhull_to_m(&of, "of.m");
+    free_convhull(&of);
 
     /* Problematic 8 */
     puts("");
@@ -244,6 +257,7 @@ int main(void) {
     }
     printf("overlapping_faces: Volume = %g, area = %g\n", volume_convhull(&nm8), surface_area_convhull(&nm8));
     write_convhull_to_m(&nm8, "nm8.m");
+    free_convhull(&nm8);
 
     /* Problematic 9 */
     puts("");
@@ -254,6 +268,7 @@ int main(void) {
     }
     printf("overlapping_faces: Volume = %g, area = %g\n", volume_convhull(&nm9), surface_area_convhull(&nm9));
     write_convhull_to_m(&nm9, "nm9.m");
+    free_convhull(&nm9);
     
     /* Overlapping faces 2*/
     puts("");
@@ -264,6 +279,7 @@ int main(void) {
     }
     printf("overlapping_faces: Volume = %g, area = %g\n", volume_convhull(&of2), surface_area_convhull(&of2));
     write_convhull_to_m(&of2, "of2.m");
+    free_convhull(&of2);
 
 
 

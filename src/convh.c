@@ -2,7 +2,7 @@
 #include "ch_quickhull3D.h"
 #include "points.h"
 #include "gtests.h"
-#include "lists.h"
+#include "dynarray.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -305,20 +305,20 @@ static int edge_pair_cmp(const void *pa, const void *pb)
     return 0;
 }
 
-int list_edges_convhull(const s_convh *C, s_list *out_edges)
+int list_edges_convhull(const s_convh *C, s_dynarray *out_edges)
 {
     out_edges->N = 0;
     for (int f=0; f<C->Nf; f++) {
         int a0 = C->faces[f*3+0], a1 = C->faces[f*3+1], a2 = C->faces[f*3+2];
 
-        if (!list_push(out_edges, &(int){(a0 < a1) ? a0 : a1})) return 0;
-        if (!list_push(out_edges, &(int){(a0 < a1) ? a1 : a0})) return 0;
+        if (!dynarray_push(out_edges, &(int){(a0 < a1) ? a0 : a1})) return 0;
+        if (!dynarray_push(out_edges, &(int){(a0 < a1) ? a1 : a0})) return 0;
 
-        if (!list_push(out_edges, &(int){(a1 < a2) ? a1 : a2})) return 0;
-        if (!list_push(out_edges, &(int){(a1 < a2) ? a2 : a1})) return 0;
+        if (!dynarray_push(out_edges, &(int){(a1 < a2) ? a1 : a2})) return 0;
+        if (!dynarray_push(out_edges, &(int){(a1 < a2) ? a2 : a1})) return 0;
 
-        if (!list_push(out_edges, &(int){(a2 < a0) ? a2 : a0})) return 0;
-        if (!list_push(out_edges, &(int){(a2 < a0) ? a0 : a2})) return 0;
+        if (!dynarray_push(out_edges, &(int){(a2 < a0) ? a2 : a0})) return 0;
+        if (!dynarray_push(out_edges, &(int){(a2 < a0) ? a0 : a2})) return 0;
     }
 
     qsort(out_edges->items, C->Nf*3, sizeof(int)*2, edge_pair_cmp);
@@ -327,14 +327,14 @@ int list_edges_convhull(const s_convh *C, s_list *out_edges)
     int unique2 = 0;
     for (int i=0; i<C->Nf*3; i++) {
         if (unique2 == 0) {
-            list_change_entry(out_edges, unique2++, list_get_ptr(out_edges, 2*i));
-            list_change_entry(out_edges, unique2++, list_get_ptr(out_edges, 2*i+1));
+            dynarray_change_entry(out_edges, unique2++, dynarray_get_ptr(out_edges, 2*i));
+            dynarray_change_entry(out_edges, unique2++, dynarray_get_ptr(out_edges, 2*i+1));
         } else {
-            int curr[2]; list_get_value(out_edges, 2*i, &curr[0]); list_get_value(out_edges, 2*i+1, &curr[1]);
-            int prev[2]; list_get_value(out_edges, 2*unique2-2, &prev[0]); list_get_value(out_edges, 2*unique2-1, &prev[1]);
+            int curr[2]; dynarray_get_value(out_edges, 2*i, &curr[0]); dynarray_get_value(out_edges, 2*i+1, &curr[1]);
+            int prev[2]; dynarray_get_value(out_edges, 2*unique2-2, &prev[0]); dynarray_get_value(out_edges, 2*unique2-1, &prev[1]);
             if (curr[0] != prev[0] || curr[1] != prev[1]) {
-                list_change_entry(out_edges, unique2++, list_get_ptr(out_edges, 2*i));
-                list_change_entry(out_edges, unique2++, list_get_ptr(out_edges, 2*i+1));
+                dynarray_change_entry(out_edges, unique2++, dynarray_get_ptr(out_edges, 2*i));
+                dynarray_change_entry(out_edges, unique2++, dynarray_get_ptr(out_edges, 2*i+1));
             }
         }
     }

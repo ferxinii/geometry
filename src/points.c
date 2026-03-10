@@ -39,17 +39,17 @@ void print_points(const s_points *points)
 
 static int count_lines(FILE *file)
 {
-    const int BUF_SIZE = 2048;
-    char buf[BUF_SIZE];
+    #define count_lines_BUF_SIZE 2048
+    char buf[count_lines_BUF_SIZE];
     int counter = 0;
     while(1) {
-        int nread = fread(buf, 1, BUF_SIZE, file);
+        int nread = fread(buf, 1, count_lines_BUF_SIZE, file);
         if (ferror(file)) return -1;
 
         for(int ii=0; ii<nread; ii++)
             if (buf[ii] == '\n') counter++;
 
-        if (nread < BUF_SIZE && feof(file)) {
+        if (nread < count_lines_BUF_SIZE && feof(file)) {
             if (nread > 0 && buf[nread - 1] != '\n') counter++;
             break;
         }
@@ -695,6 +695,7 @@ static int solve_3x3_ppivot(const double M_in[3][3], const double rhs_in[3], dou
     out[0]=sol[0]; out[1]=sol[1]; out[2]=sol[2];
     return 3;
 }
+
 
 int circumcentre_tetrahedron(const s_point p[4], double EPS_degenerate, s_point *out)
 {

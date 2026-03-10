@@ -1,14 +1,26 @@
-#ifndef FERXINII_HASH_H
-#define FERXINII_HASH_H
+/* 
+ * Header-only hash table implementation.
+ * Keys and values have arbitrary size, the user must provide the hash function
+ * and key comparator. Optionally, if the number of elements to key-value pairs 
+ * is guessed beforehand, an arena allocator is used for efficiency (more 
+ * elements can still be added).
+ * 
+ * Copyright (c) 2026 Fernando Muñoz
+ * MIT license. See bottom of file.
+ *
+ * TODO: Right now, nbuckets is fixed. In the future, might allow for the table to 
+ * grow (and rehash) if it becomes too full. 
+ */
 
-/* TODO: Right now, nbuckets is fixed. In the future, might allow for the table to grow (and rehash) if it becomes too full. */
-
+#ifndef HLIBS_HASH_H
+#define HLIBS_HASH_H
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <stdalign.h>
+
 
 /* To be defined by the user: */
 typedef size_t (*f_hash_func)(const void *key);  /* Hash function */
@@ -20,7 +32,7 @@ typedef void (*f_hash_value_free)(void *value);  /* OPTIONAL function to free va
 typedef struct hash_entry { 
     struct hash_entry *next;
     /* Memory buffer follows immediately in memory */
-    /* [ key bytes ][ value bytes ] */
+    /* [ key bytes ][ padding ][ value bytes ]  */
 } s_hash_entry;
 
 typedef struct hash_table {
@@ -29,6 +41,8 @@ typedef struct hash_table {
 
     size_t key_size;
     size_t value_size;
+    size_t value_offset;  /* Internal */
+    size_t entry_size;    /* Internal */
 
     f_hash_func hash;
     f_hash_key_cmp equals;
@@ -44,11 +58,13 @@ typedef struct hash_table {
 } s_hash_table;
 
 
+/* INTERFACE */
 static inline int hash_init(s_hash_table *ht, size_t key_size, size_t value_size, size_t nbuckets, size_t expected_entries, f_hash_func hash, f_hash_key_cmp equals, f_hash_value_free value_free);  /* If expected_entries > 0, arena is enabled */ /* 0 ERROR, 1 0K */
 static inline void hash_free(s_hash_table *ht);
-static inline void *hash_get(s_hash_table *ht, const void *key);  /* value* (void*) FOUND, null NOT FOUND */
+static inline void *hash_get(s_hash_table *ht, const void *key);  /* ptr to value (void*) if FOUND, NULL if NOT FOUND */
 static inline int hash_insert(s_hash_table *ht, const void *key, const void *value);  /* -1 DUPLICATE, 0 ERROR, 1 OK */
-static inline void *hash_get_or_create(s_hash_table *ht, const void *key);  /* value* (void*) OK, null ERROR. If created, initializes entry to 0. */
+static inline void *hash_get_or_create(s_hash_table *ht, const void *key);  /* ptr to value (void*) if OK, null if ERROR. If created, initializes entry to 0. */
+
 
 
 
@@ -56,15 +72,47 @@ static inline void *hash_get_or_create(s_hash_table *ht, const void *key);  /* v
 
 #define HASH_ARENA_ALIGN alignof(max_align_t)
 
-static inline size_t compute_arena_entry_stride(size_t key_size, size_t value_size)
-{
-	size_t header = sizeof(s_hash_entry) + key_size + value_size;
-	size_t stride = (header + HASH_ARENA_ALIGN - 1) & ~(HASH_ARENA_ALIGN - 1);
-	return stride;
+static inline size_t align_up(size_t x) {
+    return (x + HASH_ARENA_ALIGN - 1) & ~(HASH_ARENA_ALIGN - 1);
 }
 
+/* ENTRY:  
+ *         [ s_hash_entry* ][ key ][ padding ][ value ][ padding ] 
+ *         |---------- VALUE OFFSET ---------|        |          |
+ *         |---------------- ENTRY SIZE --------------|          |
+ *         |-------------------- ENTRY STRIDE -------------------|
+ */
+
+static inline size_t compute_entry_value_offset(size_t key_size)
+{
+    return align_up(sizeof(s_hash_entry) + key_size);
+}
+
+static inline size_t compute_entry_size(size_t key_size, size_t value_size)
+{
+    return compute_entry_value_offset(key_size) + value_size;
+}
+
+static inline size_t compute_entry_stride(size_t key_size, size_t value_size)
+{
+	return align_up(compute_entry_size(key_size, value_size));
+}
+
+static inline void *entry_key(const s_hash_entry *e)
+{
+	return (void*)( (char*)e + sizeof(s_hash_entry) );
+}
+
+static inline void *entry_value(const s_hash_table *ht, const s_hash_entry *e)
+{
+	return (void*)( (char*)e + ht->value_offset );
+}
+
+
+
+
 static inline s_hash_entry *entry_alloc(s_hash_table *ht)
-{   /* Allocate one memory blob for entry + key + value, initialized to 0 */
+{   /* Allocate one memory blob for entry + key + (offset) + value, initialized to 0 */
     if (ht->arena) {
 		if (ht->arena_used < ht->arena_capacity) {
 			char *base = (char*)ht->arena;
@@ -76,10 +124,9 @@ static inline s_hash_entry *entry_alloc(s_hash_table *ht)
 	}
 
 	/* Heap allocation: exact-sized blob */
-	size_t total = sizeof(s_hash_entry) + ht->key_size + ht->value_size;
-	s_hash_entry *e = malloc(total);
+	s_hash_entry *e = malloc(ht->entry_size);
 	if (!e) return NULL;
-	memset(e, 0, total);
+	memset(e, 0, ht->entry_size);
 	return e;
 }
 
@@ -92,15 +139,7 @@ static inline bool entry_is_in_arena(const s_hash_table *ht, const s_hash_entry 
 	return (ptr >= base) && (ptr < base + block);
 }
 
-static inline void *entry_key(const s_hash_entry *e)
-{
-	return (void*)( (char*)e + sizeof(s_hash_entry) );
-}
 
-static inline void *entry_value(const s_hash_table *ht, const s_hash_entry *e)
-{
-	return (void*)( (char*)e + sizeof(s_hash_entry) + ht->key_size );
-}
 
 
 static inline int hash_init(s_hash_table *ht, size_t key_size, size_t value_size, size_t nbuckets, size_t expected_entries, f_hash_func hash, f_hash_key_cmp equals, f_hash_value_free value_free)
@@ -112,6 +151,8 @@ static inline int hash_init(s_hash_table *ht, size_t key_size, size_t value_size
     ht->nbuckets = nbuckets;
     ht->key_size = key_size;
     ht->value_size = value_size;
+    ht->value_offset = compute_entry_value_offset(key_size);
+    ht->entry_size = compute_entry_size(key_size, value_size);
     ht->hash = hash;
     ht->equals = equals;
     ht->value_free = value_free;
@@ -123,7 +164,7 @@ static inline int hash_init(s_hash_table *ht, size_t key_size, size_t value_size
 	ht->arena_used = 0;
 	ht->arena_entry_stride = 0;
     if (expected_entries > 0) {  /* compute stride and allocate arena block */
-        ht->arena_entry_stride = compute_arena_entry_stride(key_size, value_size);
+        ht->arena_entry_stride = compute_entry_stride(key_size, value_size);
 
         size_t total = ht->arena_entry_stride * expected_entries;
         void *arena = malloc(total);
@@ -152,9 +193,7 @@ static inline void hash_free(s_hash_table *ht)
             }
 
             /* Free entry memory if it does not belong to the arena */
-			if (!entry_is_in_arena(ht, e)) {
-				free(e);
-			}
+			if (!entry_is_in_arena(ht, e)) free(e);
 
             e = next;
         }
@@ -230,7 +269,28 @@ static inline void *hash_get_or_create(s_hash_table *ht, const void *key)
     return entry_value(ht, e);
 }
 
-
-
-
 #endif
+
+/* MIT License.
+ *
+ * Copyright (c) 2026 Fernando Muñoz.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+

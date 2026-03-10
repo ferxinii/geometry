@@ -25,8 +25,8 @@ s_convh copy_convhull(const s_convh *in);
 int serialize_convhull(const s_convh *convh, uint8_t *buff_write, size_t *size, uint8_t **data);
 int deserialize_convhull(const uint8_t *data, s_convh *out, size_t *bytes_read);
 
-typedef struct list s_list;  /* Definition in lists.h */
-int list_edges_convhull(const s_convh *C, s_list *out_edges);
+typedef struct dynarray s_dynarray;  /* Definition in dynarray.h */
+int list_edges_convhull(const s_convh *C, s_dynarray *out_edges);
 
 e_geom_test test_point_in_convhull(const s_convh *convh, s_point query, double EPS_degenerate, double TOL_boundary);  
 s_points_test test_points_in_convhull(const s_convh *convh, const s_points *query, double EPS_degenerate, double TOL_boundary, e_geom_test buff[query->N]);
