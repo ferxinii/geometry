@@ -11,13 +11,22 @@
 #include <stdatomic.h>
 #include <float.h>
 
+static atomic_bool predicates_initialized = false;
+static atomic_flag init_lock = ATOMIC_FLAG_INIT;
 
-static atomic_flag predicates_init_flag = ATOMIC_FLAG_INIT;
 static inline void ensure_predicates_initialized(void)
 {
-    if (!atomic_flag_test_and_set(&predicates_init_flag))
-        exactinit();
+    /* __builtin_expect hints the compiler that almost always the results will be 0 */
+    if (__builtin_expect(!atomic_load_explicit(&predicates_initialized, memory_order_relaxed), 0))
+    {
+        if (!atomic_flag_test_and_set_explicit(&init_lock, memory_order_acquire))
+        {
+            exactinit();
+            atomic_store_explicit(&predicates_initialized, true, memory_order_release);
+        }
+    }
 }
+
 
 int orientation_robust(const s_point p[3], s_point q)
 {
