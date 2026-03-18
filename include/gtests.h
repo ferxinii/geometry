@@ -35,12 +35,14 @@ typedef struct segment_intersect {
 /* My wrappers, +1, 0, -1 */
 int orientation_robust(const s_point p[3], s_point q);
 int insphere_robust(const s_point p[4], s_point q);
+int insphere_weighted_robust(const s_point p[4], const double wp[4], s_point q, double wq);
 /* Shewchuck's robust geometric predicates */
 extern void exactinit(void);  
 extern double orient2d(const double *pa, const double *pb, const double *pc);
 extern double orient3d(const double *pa, const double *pb, const double *pc, const double *pd);
 extern double incircle(const double *pa, const double *pb, const double *pc, const double *pd);
 extern double insphere(const double *pa, const double *pb, const double *pc, const double *pd, const double *pe);
+extern double insphere_weighted(const double *pa, double wa, const double *pb, double wb, const double *pc, double wc, const double *pd, double wd, const double *pe, double we);
 
 /* EPS_degenerate is a scale for the minimum value of an object to be non-degenerate. Avoids division by 0, ignore too small / degenerate triangles, ...
  * TOL_boundary is the distance from a point to the object's boundary to be considered as belonging to it. If ==0, tests are ROBUST. */

@@ -42,14 +42,28 @@ int insphere_robust(const s_point p[4], s_point q)
 {   
     ensure_predicates_initialized();
 
-    int o = orientation_robust(p, p[3]);
-    int factor;
+    double o = orient3d(p[0].coords, p[1].coords, p[2].coords, p[3].coords);
     if (o == 0) return 0;
-    else if (o == 1) factor = 1;
-    else factor = -1;
+    int factor = (o > 0) ? 1 : -1;
 
     double aux = insphere(p[0].coords, p[1].coords, p[2].coords, p[3].coords, q.coords);
     
+    if (aux > 0) return factor;
+    else if (aux < 0) return -factor;
+    else return 0;
+}
+
+int insphere_weighted_robust(const s_point p[4], const double wp[4], s_point q, double wq)
+{
+    ensure_predicates_initialized();
+
+    double o = orient3d(p[0].coords, p[1].coords, p[2].coords, p[3].coords);
+    if (o == 0) return 0;
+    int factor = (o > 0) ? 1 : -1;
+
+    double aux = insphere_weighted(p[0].coords, wp[0], p[1].coords, wp[1],
+                    p[2].coords, wp[2], p[3].coords, wp[3], q.coords, wq);
+
     if (aux > 0) return factor;
     else if (aux < 0) return -factor;
     else return 0;

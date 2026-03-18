@@ -3,6 +3,7 @@ project(predicates_shewchuck LANGUAGES C)
 
 add_library(predicates STATIC
     predicates.c
+    insphere_weighted.c
 )
 
 set_target_properties(predicates PROPERTIES

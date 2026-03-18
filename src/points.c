@@ -1,5 +1,6 @@
 #include "points.h"
 #include "hash.h"
+#include "linalg.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -572,6 +573,13 @@ s_point project_point_to_plane(s_point p, const s_point plane[3], double EPS_deg
     return subtract_points(p, scale_point(n, dist));
 }
 
+void project_point_to_plane_2D(s_point p, s_point p0_in_plane, s_point t1, s_point t2, double out[2])
+{
+    s_point d = subtract_points(p, p0_in_plane);
+    out[0] = dot_prod(d, t1);
+    out[1] = dot_prod(d, t2);
+}
+
 
 double signed_distance_point_to_plane(s_point p, const s_point plane[3], double EPS_degenerate)
 {
@@ -656,47 +664,6 @@ s_point closest_point_on_segment(const s_point segment[2], double EPS_degenerate
 
 
 
-static int solve_3x3_ppivot(const double M_in[3][3], const double rhs_in[3], double out[3], double pivot_tol)
-{   /* Gaussian elimination with partial pivoting */ 
-    /* if rank == 3, x is stored in out */
-    double M[3][4];
-    for (int ii=0; ii<3; ii++)
-        { M[ii][0] = M_in[ii][0]; M[ii][1] = M_in[ii][1]; M[ii][2] = M_in[ii][2]; M[ii][3] = rhs_in[ii]; }
-
-    int rank = 3;
-    for (int col=0; col<3; col++) {
-        /* find pivot */
-        int piv = col;
-        double best = fabs(M[col][col]);
-        for (int r=col+1; r<3; r++) {
-            double val = fabs(M[r][col]);
-            if (val > best) { best = val; piv = r; }
-        }
-        if (best <= pivot_tol) { rank = col;  break; }  /* rank < 3 */
-        if (piv != col)
-            for (int c=col; c<4; ++c) {
-                double t = M[col][c]; M[col][c] = M[piv][c]; M[piv][c] = t;
-            }
-        /* eliminate */
-        for (int r = col+1; r<3; ++r) {
-            double fac = M[r][col] / M[col][col];
-            for (int c = col; c < 4; ++c) M[r][c] -= fac * M[col][c];
-        }
-    }
-    if (rank < 3) return rank;
-
-    /* back-substitute */
-    double sol[3];
-    for (int ii=2; ii>=0; ii--) {
-        double s = M[ii][3];
-        for (int jj=ii+1; jj<3; jj++) s -= M[ii][jj]*sol[jj];
-        sol[ii] = s / M[ii][ii];
-    }
-    out[0]=sol[0]; out[1]=sol[1]; out[2]=sol[2];
-    return 3;
-}
-
-
 int circumcentre_tetrahedron(const s_point p[4], double EPS_degenerate, s_point *out)
 {
     if (fabs(signed_volume_tetra(p)) < EPS_degenerate) return 0;
@@ -730,7 +697,7 @@ int circumcentre_tetrahedron(const s_point p[4], double EPS_degenerate, s_point 
     double pivot_eps = EPS_degenerate * maxabs;
 
     s_point x;
-    int rank = solve_3x3_ppivot(A, rhs, x.coords, pivot_eps);
+    int rank = solve_3x3_ppivot_inplace(A, rhs, x.coords, pivot_eps);
     if (rank == 3) {
         // s_point center_scaled = sum_points(v[0], x);
         *out = sum_points(scale_point(x, scale), centroid);
@@ -739,4 +706,5 @@ int circumcentre_tetrahedron(const s_point p[4], double EPS_degenerate, s_point 
 
     return 0;
 }
+
 
