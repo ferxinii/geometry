@@ -743,10 +743,10 @@ REAL permanent;
   Two_Diff_Tail(pd[1], pe[1], dey, deytail);
   Two_Diff_Tail(pd[2], pe[2], dez, deztail);
   // MODIFIED 
-  Two_Diff_Tail(wa, pe[3], wda, wdatail);
-  Two_Diff_Tail(wb, pe[3], wdb, wdbtail);
-  Two_Diff_Tail(wc, pe[3], wdc, wdctail);
-  Two_Diff_Tail(wd, pe[3], wdd, wddtail);
+  Two_Diff_Tail(wa, we, wda, wdatail);
+  Two_Diff_Tail(wb, we, wdb, wdbtail);
+  Two_Diff_Tail(wc, we, wdc, wdctail);
+  Two_Diff_Tail(wd, we, wdd, wddtail);
 
   if ((aextail == 0.0) && (aeytail == 0.0) && (aeztail == 0.0)
       && (bextail == 0.0) && (beytail == 0.0) && (beztail == 0.0)
