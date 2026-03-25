@@ -54,7 +54,8 @@ double absolute_tolerance_from_scale(const s_points *points, double rel_tol);
 s_point point_average(const s_points *points);
 int coord_with_largest_component_3D(s_point n);
 int coord_with_smallest_component_3D(s_point v);
-s_point random_point_uniform_3D(s_point min, s_point max);
+s_point random_point_uniform_3D(double (*randd01)(void *rctx), void *rctx,
+                                s_point min, s_point max);
 double area_triangle(const s_point face[3]);
 double signed_volume_tetra(const s_point tetra[4]);
 int basis_vectors_plane(const s_point plane[3], double EPS_degenerate, s_point *out_n, s_point *out_t1, s_point *out_t2);

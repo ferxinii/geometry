@@ -462,11 +462,13 @@ int coord_with_smallest_component_3D(s_point v)
 }
 
 
-s_point random_point_uniform_3D(s_point min, s_point max)
+s_point random_point_uniform_3D(double (*randd01)(void*), void *rctx,
+                                s_point min, s_point max)
 {
-    double ux = rand() / ((double) RAND_MAX + 1.0);
-    double uy = rand() / ((double) RAND_MAX + 1.0);
-    double uz = rand() / ((double) RAND_MAX + 1.0);
+    double ux = randd01(rctx);
+    double uy = randd01(rctx);
+    double uz = randd01(rctx);
+
     s_point out;
     out.x = min.x + (max.x - min.x) * ux;
     out.y = min.y + (max.y - min.y) * uy;

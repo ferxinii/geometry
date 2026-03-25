@@ -474,16 +474,18 @@ s_points points_boundary_convhull(const s_convh *convh, int buff_isboundary[conv
 }
 
 
-s_point random_point_inside_convhull(const s_convh *convh, double EPS_degenerate, s_point min, s_point max)
+s_point random_point_inside_convhull(double (*randd01)(void*), void *rctx,
+                                     const s_convh *convh, double EPS_degenerate, 
+                                     s_point min, s_point max)
 {
     if (!point_is_valid(min) || !point_is_valid(max)) 
         bounding_box_points(&convh->points, &min, &max);
 
     int MAX_IT = 10000;
     int it = 0;
-    s_point out = random_point_uniform_3D(min, max);
+    s_point out = random_point_uniform_3D(randd01, rctx, min, max);
     while (test_point_in_convhull(convh, out, EPS_degenerate, 0) != TEST_IN) {
-        out = random_point_uniform_3D(min, max);
+        out = random_point_uniform_3D(randd01, rctx, min, max);
         assert(it < MAX_IT && "Reached maximum iters looking for point inside convhull.");
         it++;
     }
