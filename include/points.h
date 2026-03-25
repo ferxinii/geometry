@@ -66,6 +66,7 @@ int circumcentre_tetrahedron(const s_point p[4], double EPS_degenerate, s_point 
 s_point project_point_to_plane(s_point p, const s_point plane[3], double EPS_degenerate);  
 void project_point_to_plane_2D(s_point p, s_point p0, s_point t1, s_point t2, double out[2]);
 double signed_distance_point_to_plane(s_point p, const s_point plane[3], double EPS_degenerate);
+double signed_distance_point_to_plane_v2(s_point p, s_point plane_n, double plane_d);
 s_point closest_point_on_segment(const s_point segment[2], double EPS_degenerate, s_point p); 
 s_point closest_point_on_triangle(const s_point triangle[3], double EPS_degenerate, s_point p);  
 

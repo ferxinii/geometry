@@ -592,6 +592,11 @@ double signed_distance_point_to_plane(s_point p, const s_point plane[3], double 
     return dot_prod(p, n) - d;
 }
 
+double signed_distance_point_to_plane_v2(s_point p, s_point plane_n, double plane_d)
+{
+    return fabs(dot_prod(plane_n, p) - plane_d);
+}
+
 
 s_point closest_point_on_triangle(const s_point triangle[3], double EPS_degenerate, s_point p)
 {   /* From "C Ericson. Real-Time Collision Detection" */
