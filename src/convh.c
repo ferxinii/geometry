@@ -131,7 +131,7 @@ static int initialize_normals_convhull(s_convh *convh, double EPS_degenerate)
         s_point n = cross_prod(subtract_points(v1, v0), subtract_points(v2, v0));
 
         s_point verts_face[3] = { v0, v1, v2 };
-        int o = orientation_robust(verts_face, ch_CM);
+        int o = test_orientation(verts_face, ch_CM);
         if (o == 0 || norm(n) <= EPS_degenerate) {
             // printf("%f, %f, %f\n", verts_face[0].x, verts_face[0].y, verts_face[0].z);
             // printf("%f, %f, %f\n", verts_face[1].x, verts_face[1].y, verts_face[1].z);
@@ -355,7 +355,7 @@ static e_geom_test test_point_in_convhull_robust(const s_convh *convh, s_point q
                           convh->points.p[convh->faces[3*f + 1]],
                           convh->points.p[convh->faces[3*f + 2]] };
         
-        int sign = orientation_robust(pf, query);
+        int sign = test_orientation(pf, query);
 
         if (sign == 0) {  // Point is coplanar, but inside face?
             e_geom_test intri = test_point_in_triangle_3D(pf, query, EPS_degenerate, 0);

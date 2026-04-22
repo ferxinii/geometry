@@ -122,11 +122,11 @@ static int orient_face_if_needed(const s_points *points, bool isused[points->N],
     p = next_vid_isused_notinface(points->N, isused, face_vids, p);
     if (p == -1) return -1;
 
-    int o = orientation_robust(face_vertices, points->p[p]);
+    int o = test_orientation(face_vertices, points->p[p]);
     while (o == 0) {
         p = next_vid_isused_notinface(points->N, isused, face_vids, p);
         if (p == -1) return -1;  
-        o = orientation_robust(face_vertices, points->p[p]);
+        o = test_orientation(face_vertices, points->p[p]);
     }
 
     /* Orient faces so that each point on the original simplex can't see the opposite face */
@@ -166,7 +166,7 @@ static int find_any_non_coplanar_quad(const s_points *points, const bool *mask_d
                     return 1;
                 }
             } else {
-                int o = orientation_robust(tri, points->p[l]);
+                int o = test_orientation(tri, points->p[l]);
                 if (o != 0) {
                     out[0] = i; out[1] = j; out[2] = k; out[3] = l; 
                     return 1;
@@ -425,7 +425,7 @@ static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int f
                 double pA[2]; drop_to_2D(points->p[edges[e].e[0]], coord_to_drop, pA);
                 double pB[2]; drop_to_2D(points->p[edges[e].e[1]], coord_to_drop, pB);
                 double pC[2]; drop_to_2D(points->p[edges[e].opp], coord_to_drop, pC);
-                double o = orient2d(pA, pB, pC);
+                double o = test_orientation_2d(pA, pB, pC);
                 if (o == 0) {   /* Face projection is fully degenerate */
                     // printf("COLLINEARRR! %d %d %d\n", edges[e].e[0], edges[e].e[1], edges[e].opp);
                     /* Mark corresponding face as problematic and check visibility later */
@@ -444,7 +444,7 @@ static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int f
                 }
 
                 /* Test if edge is visible from p */
-                if (orient2d(pA, pB, p2D) <= 0) {
+                if (test_orientation_2d(pA, pB, p2D) <= 0) {
                     if (set_true_if_not_already(out_indicator->items, edges[e].fid)) {
                         N_visible++;
                         // s_point tri[3]; vertices_face(points, faces, edges[e].fid, tri);
@@ -525,7 +525,7 @@ static int visible_faces_from_point(const s_points *points, int Nfaces, int face
 
     for (int j = 0; j < Nfaces; ++j) {
         s_point face_pts[3]; vertices_face(points, faces, j, face_pts);
-        int o = orientation_robust(face_pts, p);
+        int o = test_orientation(face_pts, p);
         if (o < 0) {  /*  Visible, point lies on the side pointed to by face normal  (above the plane) */
             if (set_true_if_not_already(out_indicator->items, j)) {
                 N_visible++;

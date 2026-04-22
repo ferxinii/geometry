@@ -13,8 +13,6 @@ add_library(geometry STATIC
 target_include_directories(geometry
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
-    # PRIVATE
-        # ${CMAKE_CURRENT_SOURCE_DIR}/external/predicates/include
 )
 
 target_compile_options(geometry
@@ -24,12 +22,12 @@ target_compile_options(geometry
 
 
 if (NOT TARGET predicates)
-    add_subdirectory(external/predicates_shewchuck)
+    add_subdirectory(external/robust_predicates)
 endif()
 
 
 target_link_libraries(geometry
     PRIVATE
-        predicates
+        robust_predicates
 )
 

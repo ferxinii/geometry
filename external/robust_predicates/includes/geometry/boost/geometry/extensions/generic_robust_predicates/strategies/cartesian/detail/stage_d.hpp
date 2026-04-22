@@ -1,0 +1,133 @@
+// Boost.Geometry (aka GGL, Generic Geometry Library)
+
+// Copyright (c) 2020 Tinko Bartels, Berlin, Germany.
+
+// Contributed and/or modified by Tinko Bartels,
+//   as part of Google Summer of Code 2020 program.
+
+// Use, modification and distribution is subject to the Boost Software License,
+// Version 1.0. (See accompanying file LICENSE_1_0.txt or copy at
+// http://www.boost.org/LICENSE_1_0.txt)
+
+#ifndef BOOST_GEOMETRY_EXTENSIONS_GENERIC_ROBUST_PREDICATES_STRATEGIES_CARTESIAN_DETAIL_STAGE_D_HPP
+#define BOOST_GEOMETRY_EXTENSIONS_GENERIC_ROBUST_PREDICATES_STRATEGIES_CARTESIAN_DETAIL_STAGE_D_HPP
+
+#include <cstddef>
+#include <array>
+#include <algorithm>
+
+#include <boost/mp11/integral.hpp>
+#include <boost/mp11/list.hpp>
+#include <boost/mp11/function.hpp>
+#include <boost/mp11/algorithm.hpp>
+
+#include <boost/geometry/extensions/generic_robust_predicates/strategies/cartesian/detail/expression_tree.hpp>
+#include <boost/geometry/extensions/generic_robust_predicates/strategies/cartesian/detail/expansion_eval.hpp>
+
+namespace boost { namespace geometry
+{
+
+namespace detail { namespace generic_robust_predicates
+{
+
+template
+<
+    auto Expression,
+    typename Real = double,
+    template <int> class ZEPolicy = default_zero_elimination_policy,
+    template <int, int> class FEPolicy = default_fast_expansion_sum_policy
+>
+struct stage_d
+{
+    static constexpr bool stateful = false;
+    static constexpr bool updates = false;
+
+    using expression_t = decltype(Expression);
+
+    template <typename ...Reals>
+    static inline int apply(const Reals&... args)
+    {
+        using stack = typename boost::mp11::mp_unique<post_order<expression_t>>;
+        using evals = typename boost::mp11::mp_remove_if<stack, is_leaf>;
+        using sizes_pre = boost::mp11::mp_transform
+            <
+                expansion_size,
+                boost::mp11::mp_pop_back<evals>
+            >;
+        using sizes = boost::mp11::mp_push_back
+            <
+                sizes_pre,
+                boost::mp11::mp_size_t
+                    <
+                        final_expansion_size
+                            <
+                                expression_t,
+                                expansion_size<typename expression_t::left>::value,
+                                expansion_size<typename expression_t::right>::value
+                            >()
+                    >
+            >;
+        using accumulated_sizes = boost::mp11::mp_push_front
+            <
+                boost::mp11::mp_partial_sum
+                    <
+                        sizes,
+                        boost::mp11::mp_size_t<0>,
+                        boost::mp11::mp_plus
+                    >,
+                boost::mp11::mp_size_t<0>
+            >;
+
+        using result_array =
+            std::array<Real, boost::mp11::mp_back<accumulated_sizes>::value>;
+        result_array results;
+
+        auto most_significant = eval_expansions
+            <
+                evals,
+                sizes,
+                accumulated_sizes,
+                decltype(results.begin()),
+                Real,
+                false,
+                ZEPolicy,
+                FEPolicy
+            >(results.begin(), results.end(), args...) - 1;
+        if( *most_significant == 0)
+        {
+            return 0;
+        }
+        else if( *most_significant > 0 )
+        {
+            return 1;
+        }
+        else
+        {
+            return -1;
+        }
+    }
+};
+
+template
+<
+    auto E,
+    typename CT,
+    template <int> class ZEP,
+    template <int, int> class FEP
+>
+std::string stage_label<stage_d<E, CT, ZEP, FEP >> =
+          std::string("stage_d < Expression = ")
+        + expression_label<E>
+        + std::string(", CalculationType = ")
+        + boost::core::demangle( typeid( CT ).name() )
+        + std::string(", Zero elimination policy = ")
+        + boost::core::demangle( typeid( ZEP<2> ).name() )
+        + std::string(", Fast expansion sum policy = ")
+        + boost::core::demangle( typeid( FEP<2, 2> ).name() )
+        + std::string(" >");
+
+}} // namespace detail::generic_robust_predicates
+
+}} // namespace boost::geometry
+
+#endif // BOOST_GEOMETRY_EXTENSIONS_GENERIC_ROBUST_PREDICATES_STRATEGIES_CARTESIAN_DETAIL_STAGE_D_HPP

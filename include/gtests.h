@@ -32,17 +32,50 @@ typedef struct segment_intersect {
 } s_segment_intersect;
 
 
-/* My wrappers, +1, 0, -1 */
-int orientation_robust(const s_point p[3], s_point q);
-int insphere_robust(const s_point p[4], s_point q);
-int insphere_weighted_robust(const s_point p[4], const double wp[4], s_point q, double wq);
-/* Shewchuck's robust geometric predicates */
-extern void exactinit(void);  
-extern double orient2d(const double *pa, const double *pb, const double *pc);
-extern double orient3d(const double *pa, const double *pb, const double *pc, const double *pd);
-extern double incircle(const double *pa, const double *pb, const double *pc, const double *pd);
-extern double insphere(const double *pa, const double *pb, const double *pc, const double *pd, const double *pe);
-extern double insphere_weighted(const double *pa, double wa, const double *pb, double wb, const double *pc, double wc, const double *pd, double wd, const double *pe, double we);
+/* My wrappers (considers orientation of first points) */
+int test_orientation_2d(const double a[2], const double b[2], const double p[2]);
+int test_orientation(const s_point plane[3], s_point p);
+int test_incircle(const double c1[2], const double c2[2], const double c3[2],
+                  const double p[2]);
+int test_insphere(const s_point sph[4], s_point q);
+int test_orthosegment(const double x[2], double wx[2], 
+                      double xp, double wp);
+int test_orthocircle(const double c1[2], double wc1,
+                     const double c2[2], double wc2,
+                     const double c3[2], double wc3,
+                     const double p[2], double wp);
+int test_orthosphere(const s_point sph[4], const double wsph[4],
+                     s_point p, double wp);
+
+/* Robust Geometric Predicates external/robust_predicates */
+extern int orient2d(double ax, double ay,
+                    double bx, double by,
+                    double cx, double cy);
+extern int orient3d(double ax, double ay, double az,
+                    double bx, double by, double bz,
+                    double cx, double cy, double cz,
+                    double dx, double dy, double dz);
+extern int incircle(double ax, double ay,
+                    double bx, double by,
+                    double cx, double cy,
+                    double dx, double dy);
+extern int insphere(double ax, double ay, double az,
+                    double bx, double by, double bz,
+                    double cx, double cy, double cz,
+                    double dx, double dy, double dz,
+                    double ex, double ey, double ez);
+extern int powertest1d(double xa, double wa,
+                       double xb, double wb,
+                       double xc, double wc);
+extern int powertest2d(double ax, double ay, double wa,
+                       double bx, double by, double wb,
+                       double cx, double cy, double wc,
+                       double dx, double dy, double wd);
+extern int powertest3d(double ax, double ay, double az, double wa,
+                       double bx, double by, double bz, double wb,
+                       double cx, double cy, double cz, double wc,
+                       double dx, double dy, double dz, double wd,
+                       double ex, double ey, double ez, double we);
 
 /* EPS_degenerate is a scale for the minimum value of an object to be non-degenerate. Avoids division by 0, ignore too small / degenerate triangles, ...
  * TOL_boundary is the distance from a point to the object's boundary to be considered as belonging to it. If ==0, tests are ROBUST. */

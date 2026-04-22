@@ -1,0 +1,16 @@
+# build directory
+build/
+
+# static library
+*.a
+
+# object files
+*.o
+
+# cmake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
+

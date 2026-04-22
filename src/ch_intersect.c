@@ -80,8 +80,8 @@ static e_intersect_type core_segment_convhull_surface_intersect(const s_convh *C
         s_point face[3];
         convh_get_face(C, ii, face);
         
-        int o0 = orientation_robust(face, segment[0]);
-        int o1 = orientation_robust(face, segment[1]);
+        int o0 = test_orientation(face, segment[0]);
+        int o1 = test_orientation(face, segment[1]);
         if (o0 != 0 && o1 != 0 && o0 == o1) continue;  /* Skip if on same side of plane */
 
         s_segment_intersect fi = segment_triangle_intersect_3D(segment, face, EPS_degenerate, TOL);
