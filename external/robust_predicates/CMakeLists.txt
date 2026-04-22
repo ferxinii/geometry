@@ -14,8 +14,9 @@ target_include_directories(robust_predicates PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+target_compile_definitions(robust_predicates PRIVATE NDEBUG)
 target_compile_features(robust_predicates PRIVATE cxx_std_20)
-target_compile_options(robust_predicates PRIVATE -O3)
+target_compile_options(robust_predicates PRIVATE -O3 -march=native)
 
 # Force any target linking against this to use the C++ linker
 target_link_libraries(robust_predicates INTERFACE stdc++)
