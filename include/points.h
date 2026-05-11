@@ -13,6 +13,15 @@ typedef struct point {
     };
 } s_point;
 
+typedef struct point2d {
+    union {
+        double coords[2];
+        struct {
+            double x, y;
+        };
+    };
+} s_point2d;
+
 _Static_assert(sizeof(s_point) == 3 * sizeof(long double), "size mismatch");
 
 typedef struct points {

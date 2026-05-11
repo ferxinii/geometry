@@ -345,12 +345,14 @@ static int find_planes(const s_points *points, int Nfaces, int *faces, s_dynarra
 }
 
 
-static void drop_to_2D(const s_point p, int coord_to_drop, double out[2])
+static s_point2d drop_to_2D(const s_point p, int coord_to_drop)
 {
     int i1 = (coord_to_drop + 1) % 3;
     int i2 = (coord_to_drop + 2) % 3;
-    out[0] = p.coords[i1];
-    out[1] = p.coords[i2];
+    s_point2d out;
+    out.x = p.coords[i1];
+    out.y = p.coords[i2];
+    return out;
 }
 
 static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int faces[Nfaces*3],
@@ -371,7 +373,7 @@ static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int f
         s_plane plane; if (!dynarray_get_value(planes, pid, &plane)) return 0;;
         s_point n = plane.n; 
         int coord_to_drop = coord_with_largest_component_3D(n);
-        double p2D[2]; drop_to_2D(p, coord_to_drop, p2D);
+        s_point2d p2D = drop_to_2D(p, coord_to_drop);
         // printf("%d: %g, %g, %g.   %g.\n", pid, n.x, n.y, n.z, plane.d);
         
         /* For each plane group, build the edge dynarray only from faces belonging to that group. */
@@ -422,10 +424,10 @@ static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int f
             }
 
             if ((run_end - run_start) == 1) {  /* Edge is unique -> exterior! Test its visiblity */
-                double pA[2]; drop_to_2D(points->p[edges[e].e[0]], coord_to_drop, pA);
-                double pB[2]; drop_to_2D(points->p[edges[e].e[1]], coord_to_drop, pB);
-                double pC[2]; drop_to_2D(points->p[edges[e].opp], coord_to_drop, pC);
-                double o = test_orientation_2d(pA, pB, pC);
+                s_point2d pA = drop_to_2D(points->p[edges[e].e[0]], coord_to_drop);
+                s_point2d pB = drop_to_2D(points->p[edges[e].e[1]], coord_to_drop);
+                s_point2d pC = drop_to_2D(points->p[edges[e].opp], coord_to_drop);
+                double o = test_orientation_2d((s_point2d[]){pA, pB}, pC);
                 if (o == 0) {   /* Face projection is fully degenerate */
                     // printf("COLLINEARRR! %d %d %d\n", edges[e].e[0], edges[e].e[1], edges[e].opp);
                     /* Mark corresponding face as problematic and check visibility later */
@@ -438,13 +440,13 @@ static int coplanar_visible(const s_points *points, s_point p, int Nfaces, int f
                     }
                     goto SKIP;
                 } else if (o < 0) {  /* Edge vertices are reversed */
-                    double t[2] = {pA[0], pA[1]};
-                    pA[0] = pB[0]; pA[1] = pB[1];
-                    pB[0] = t[0]; pB[1] = t[1];
+                    s_point2d t = pA;
+                    pA.x = pB.x; pA.y = pB.y;
+                    pB.x = t.x; pB.y = t.y;
                 }
 
                 /* Test if edge is visible from p */
-                if (test_orientation_2d(pA, pB, p2D) <= 0) {
+                if (test_orientation_2d((s_point2d[]){pA, pB}, p2D) <= 0) {
                     if (set_true_if_not_already(out_indicator->items, edges[e].fid)) {
                         N_visible++;
                         // s_point tri[3]; vertices_face(points, faces, edges[e].fid, tri);

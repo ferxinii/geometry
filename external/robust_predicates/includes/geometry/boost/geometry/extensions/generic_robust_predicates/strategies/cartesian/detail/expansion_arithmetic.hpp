@@ -976,7 +976,11 @@ constexpr OutIter scale_expansion(InIter e_begin,
                                   OutIter h_begin,
                                   OutIter)
 {
-    assert(debug_expansion::expansion_nonoverlapping(e_begin, e_end));
+    // FERNANDO: Added this if, otherwise the assert would trigger in some benign cases
+    if (b != Real(0)) {
+        assert(debug_expansion::expansion_nonoverlapping(e_begin, e_end));
+    }
+    // assert(debug_expansion::expansion_nonoverlapping(e_begin, e_end));
 
 #ifndef NDEBUG
     bool nonadjacent = debug_expansion::expansion_nonadjacent(e_begin, e_end);

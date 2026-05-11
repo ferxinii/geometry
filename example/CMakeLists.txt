@@ -8,7 +8,7 @@ add_executable(example_gtests example_gtests.c)
 target_link_libraries(example_gtests PUBLIC geometry)
 target_compile_options(example_gtests
     PRIVATE
-        -Wall -Werror -Wextra -O3
+        -Wall -Werror -Wextra -O3 -Wno-missing-braces
 )
 
 

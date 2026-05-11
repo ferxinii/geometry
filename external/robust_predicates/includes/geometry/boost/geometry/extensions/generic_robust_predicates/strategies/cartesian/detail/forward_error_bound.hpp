@@ -17,6 +17,10 @@ namespace boost { namespace geometry
 
 namespace detail { namespace generic_robust_predicates
 {
+// PATCH: constexpr abs for AppleClang compatibility
+template <typename T>
+static constexpr T constexpr_abs_local(T x) { return x < 0 ? -x : x; }
+
 
 template <typename Expression, typename CalculationType, typename Rules>
 struct forward_error_bound;
@@ -129,7 +133,7 @@ struct inexact_leaves
         template <typename Constant>
         struct abs_constant : public Constant
         {
-            static constexpr auto value = std::abs(Constant::value);
+            static constexpr auto value = constexpr_abs_local(Constant::value);
         };
 
         static constexpr auto magnitude_impl()
@@ -173,7 +177,7 @@ struct exact_leaves
         template <typename Constant>
         struct abs_constant : public Constant
         {
-            static constexpr auto value = std::abs(Constant::value);
+            static constexpr auto value = constexpr_abs_local(Constant::value);
         };
 
         static constexpr auto magnitude_impl()

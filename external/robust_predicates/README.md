@@ -17,6 +17,65 @@ repository of:
 These files are provided under the Boost Software License 1.0. 
 See `includes/LICENSE.txt` for details.
 
+### Local patches
+
+`forward_error_bound.hpp` :
+    Replaced `std::abs` with a local `constexpr_abs_local` helper in the
+    `abs_constant` structs inside `inexact_leaves` and `exact_leaves`.
+    `std::abs` is not marked `constexpr` in AppleClang 17, causing compilation
+    failures when using compile-time constants in predicate expressions.
+
+`expression_tree.hpp` :
+    Added `constexpr argument<21> _21` to support predicates with 21 input
+    arguments (e.g. powertest_n3_k4 which takes 4 weighted 3D points plus
+    an alpha parameter).
+
+`expansion_arithmetic.hpp`:
+    `scale_expansion` in  was patched to skip the non-overlapping assertion
+    when `b == 0`, since the result is trivially all-zeros regardless of
+    the input expansion's internal structure. The assert is a false precondition
+    for this degenerate case.
+
+### Bugs found
+
+**Bare leaf node crash in `stage_d` on Apple Clang / ARM64**
+
+`stage_d` crashes with `EXC_BAD_ACCESS` inside `eval_expansion_impl` when
+any argument placeholder (e.g. `grp::_5`) appears as a **bare leaf** in the
+expression tree — that is, as the direct child of the root node rather than
+wrapped inside a `difference<argument<i>, argument<j>>` pair.
+
+All standard predicates (orient2d, orient3d, incircle, insphere) are unaffected
+because every argument in those expressions is wrapped in a leaf-difference.
+The bug only surfaces for custom predicates that add a runtime threshold or
+weight directly, such as `dx*dx + wa - wb - alpha` where `alpha` is passed
+as a bare `argument<N>`.
+
+*Root cause.* When `eval_expansion_impl` is instantiated with
+`LeftLeaf=true, RightLeaf=true, MostSigOnly=true`, it constructs
+`std::array<Real, sizeof...(Reals)> input {{ static_cast<Real>(args)... }}`
+from the forwarded variadic `const Reals&... args` pack. On Apple Clang 17 /
+ARM64, these references are null by the time this line executes. Whether this
+is a compiler bug or undefined behaviour in the library's variadic forwarding
+chain has not been conclusively determined.
+
+*Workaround (used in this codebase).* Express every runtime scalar as a
+difference of two arguments, with the second argument always passed as `0.0`:
+
+```cpp
+// Instead of: constexpr auto expr = dx*dx + wa - wb - alpha;
+//                     called as: pred{}.apply(xa, wa, xb, wb, alpha);
+constexpr auto alpha_diff = grp::_5 - grp::_6;   // alpha - 0.0 = alpha exactly
+constexpr auto expr = dx*dx + wa - wb - alpha_diff;
+//                     called as: pred{}.apply(xa, wa, xb, wb, alpha, 0.0);
+```
+
+`two_difference_tail(alpha, 0.0, alpha) == 0` exactly, so `alpha - 0.0`
+produces the two-component expansion `[0, alpha]` with zero rounding error.
+This forces the root node into the `LeftLeaf=false, RightLeaf=false`
+specialisation, which reads directly from the pre-computed expansion buffer
+and avoids the problematic code path entirely. No library files are modified.
+
 
 ## Printing Error Bounds
 
@@ -24,7 +83,7 @@ Compile with `cmake -DBUILD_PRINT_EXPRESSIONS=ON` to build executable to
 print error bounds.
 
 
-### Summary of "Robust Geometric Predicates" (done with Claude)
+## Summary of "Robust Geometric Predicates" (done with Claude)
 
   - *expression_tree.hpp*: the foundation. Defines argument<N>, sum, difference, product, abs, the _1.._20 placeholders, and the overloaded +, -, * operators that build expression trees. Everything else depends on this.
   - *expressions.hpp*: pre-built expression trees for standard predicates: orient2d, orient3d, incircle, insphere and some variants. Uses the generic det<> template to construct them.
