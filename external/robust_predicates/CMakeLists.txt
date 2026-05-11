@@ -2,7 +2,11 @@ cmake_minimum_required(VERSION 3.13)
 project(robust_predicates LANGUAGES CXX)
 
 add_library(robust_predicates STATIC
-    robust_predicates.cpp
+    robust_predicates_orient.cpp
+    robust_predicates_n1.cpp
+    robust_predicates_n2.cpp
+    robust_predicates_n3_k12.cpp
+    robust_predicates_n3_k34.cpp
 )
 
 target_include_directories(robust_predicates PRIVATE
@@ -16,13 +20,11 @@ target_include_directories(robust_predicates PUBLIC
 
 target_compile_features(robust_predicates PRIVATE cxx_std_20)
 
-# Only add NDEBUG and -O3 in Release mode
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_compile_options(robust_predicates PRIVATE -O0 -g -fno-omit-frame-pointer)
-else()
-    target_compile_definitions(robust_predicates PRIVATE NDEBUG)
-    target_compile_options(robust_predicates PRIVATE -O3 -march=native)
-endif()
+# Always compile at -O3 regardless of CMAKE_BUILD_TYPE.
+# -g0 explicitly disables debug info even when Debug flags are injected.
+target_compile_options(robust_predicates PRIVATE
+    -O3 -march=native -DNDEBUG -g0
+)
 
 
 # Force any target linking against this to use the C++ linker
