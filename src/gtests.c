@@ -44,133 +44,145 @@ int test_insphere(const s_point sph[4], s_point p)
 }
 
 int test_orthosegment(int k, const double c[k], const double wc[k], 
-                      double xp, double wp, double alpha)
+                      double xp, double wp)
 {
     assert(1 <= k && k <= 2);
     
-    if (alpha == 0) {
-        switch (k) {
-            case 1:
-                return - powertest_n1_k1(c[0], wc[0], xp, wp); 
-            case 2:
-                return - powertest_n1_k2(c[0], wc[0], c[1], wc[1], xp, wp);
-            default:
-                printf("Unsupported case in test_orthosegment (%d not in {1,2})\n", k);
-                exit(1);
-        }
-    } else {
-        switch (k) {
-            case 1:
-                return - powertest_n1_k1_alpha(c[0], wc[0], xp, wp, alpha); 
-            case 2:
-                return - powertest_n1_k2_alpha(c[0], wc[0], c[1], wc[1], xp, wp, alpha);
-            default:
-                printf("Unsupported case in test_orthosegment (%d not in {1,2})\n", k);
-                exit(1);
-        }
+    switch (k) {
+        case 1:
+            return - powertest_n1_k1(c[0], wc[0], xp, wp); 
+        case 2:
+            return - powertest_n1_k2(c[0], wc[0], c[1], wc[1], xp, wp);
+        default:
+            printf("Unsupported case in test_orthosegment (%d not in {1,2})\n", k);
+            exit(1);
     }
 }
 
 int test_orthocircle(int k, const s_point2d c[k], const double wc[k], 
-                     s_point2d p, double wp, double alpha)
+                     s_point2d p, double wp)
 {   
     assert(1 <= k && k <= 3);
     
-    if (alpha == 0) {
-        switch (k) {
-            case 1:
-                return - powertest_n2_k1(c[0].x, c[0].y, wc[0],
-                                         p.x, p.y, wp);
-            case 2:
-                return - powertest_n2_k2(c[0].x, c[0].y, wc[0],
-                                         c[1].x, c[1].y, wc[1],
-                                         p.x, p.y, wp);
-            case 3:
-                return - powertest_n2_k3(c[0].x, c[0].y, wc[0],
-                                         c[1].x, c[1].y, wc[1],
-                                         c[2].x, c[2].y, wc[2],
-                                         p.x, p.y, wp);
-            default:
-                printf("Unsupported case in test_orthocircle (%d not in {1,2,3})\n", k);
-                exit(1);
-        }
-    } else {
-        switch (k) {
-            case 1:
-                return - powertest_n2_k1_alpha(c[0].x, c[0].y, wc[0],
-                                               p.x, p.y, wp, alpha);
-            case 2:
-                return - powertest_n2_k2_alpha(c[0].x, c[0].y, wc[0],
-                                               c[1].x, c[1].y, wc[1],
-                                               p.x, p.y, wp, alpha);
-            case 3:
-                return - powertest_n2_k3_alpha(c[0].x, c[0].y, wc[0],
-                                               c[1].x, c[1].y, wc[1],
-                                               c[2].x, c[2].y, wc[2],
-                                               p.x, p.y, wp, alpha);
-            default:
-                printf("Unsupported case in test_orthocircle (%d not in {1,2,3})\n", k);
-                exit(1);
-        }
+    switch (k) {
+        case 1:
+            return - powertest_n2_k1(c[0].x, c[0].y, wc[0],
+                                     p.x, p.y, wp);
+        case 2:
+            return - powertest_n2_k2(c[0].x, c[0].y, wc[0],
+                                     c[1].x, c[1].y, wc[1],
+                                     p.x, p.y, wp);
+        case 3:
+            return - powertest_n2_k3(c[0].x, c[0].y, wc[0],
+                                     c[1].x, c[1].y, wc[1],
+                                     c[2].x, c[2].y, wc[2],
+                                     p.x, p.y, wp);
+        default:
+            printf("Unsupported case in test_orthocircle (%d not in {1,2,3})\n", k);
+            exit(1);
     }
-}
+ }
 
 int test_orthosphere(int k, const s_point c[k], const double wc[k],
-                     s_point p, double wp, double alpha)
+                     s_point p, double wp)
 {   
     assert(1 <= k && k <= 4);
-    
 
-    if (alpha == 0) {
-        switch (k) {
-            case 1:
-                return - powertest_n3_k1(c[0].x, c[0].y, c[0].z, wc[0],
-                                         p.x, p.y, p.z, wp);
-            case 2:
-                return - powertest_n3_k2(c[0].x, c[0].y, c[0].z, wc[0],
-                                         c[1].x, c[1].y, c[1].z, wc[1],
-                                         p.x, p.y, p.z, wp);
-            case 3:
-                return - powertest_n3_k3(c[0].x, c[0].y, c[0].z, wc[0],
-                                         c[1].x, c[1].y, c[1].z, wc[1],
-                                         c[2].x, c[2].y, c[2].z, wc[2],
-                                         p.x, p.y, p.z, wp);
-            case 4:
-                return - powertest_n3_k4(c[0].x, c[0].y, c[0].z, wc[0],
-                                         c[1].x, c[1].y, c[1].z, wc[1],
-                                         c[2].x, c[2].y, c[2].z, wc[2],
-                                         c[3].x, c[3].y, c[3].z, wc[3],
-                                         p.x, p.y, p.z, wp);
-            default:
-                printf("Unsupported case in test_orthosphere (%d not in {1,2,3,4})\n", k);
-                exit(1);
-        }
-    } else {
-        switch (k) {
-            case 1:
-                return - powertest_n3_k1_alpha(c[0].x, c[0].y, c[0].z, wc[0],
-                                               p.x, p.y, p.z, wp, alpha);
-            case 2:
-                return - powertest_n3_k2_alpha(c[0].x, c[0].y, c[0].z, wc[0],
-                                               c[1].x, c[1].y, c[1].z, wc[1],
-                                               p.x, p.y, p.z, wp, alpha);
-            case 3:
-                return - powertest_n3_k3_alpha(c[0].x, c[0].y, c[0].z, wc[0],
-                                               c[1].x, c[1].y, c[1].z, wc[1],
-                                               c[2].x, c[2].y, c[2].z, wc[2],
-                                               p.x, p.y, p.z, wp, alpha);
-            case 4:
-                return - powertest_n3_k4_alpha(c[0].x, c[0].y, c[0].z, wc[0],
-                                               c[1].x, c[1].y, c[1].z, wc[1],
-                                               c[2].x, c[2].y, c[2].z, wc[2],
-                                               c[3].x, c[3].y, c[3].z, wc[3],
-                                               p.x, p.y, p.z, wp, alpha);
-            default:
-                printf("Unsupported case in test_orthosphere (%d not in {1,2,3,4})\n", k);
-                exit(1);
-        }
+    switch (k) {
+        case 1:
+            return - powertest_n3_k1(c[0].x, c[0].y, c[0].z, wc[0],
+                                     p.x, p.y, p.z, wp);
+        case 2:
+            return - powertest_n3_k2(c[0].x, c[0].y, c[0].z, wc[0],
+                                     c[1].x, c[1].y, c[1].z, wc[1],
+                                     p.x, p.y, p.z, wp);
+        case 3:
+            return - powertest_n3_k3(c[0].x, c[0].y, c[0].z, wc[0],
+                                     c[1].x, c[1].y, c[1].z, wc[1],
+                                     c[2].x, c[2].y, c[2].z, wc[2],
+                                     p.x, p.y, p.z, wp);
+        case 4:
+            return - powertest_n3_k4(c[0].x, c[0].y, c[0].z, wc[0],
+                                     c[1].x, c[1].y, c[1].z, wc[1],
+                                     c[2].x, c[2].y, c[2].z, wc[2],
+                                     c[3].x, c[3].y, c[3].z, wc[3],
+                                     p.x, p.y, p.z, wp);
+        default:
+            printf("Unsupported case in test_orthosphere (%d not in {1,2,3,4})\n", k);
+            exit(1);
     }
 }
+
+int test_orthosegment_w(int k, const double c[k], const double wc[k], 
+                        double alpha)
+{
+    assert(1 <= k && k <= 2);
+    
+    switch (k) {
+        case 1:
+            return - orthow_n1_k1(c[0],wc[0], alpha); 
+        case 2:
+            return - orthow_n1_k2(c[0],wc[0], c[1],wc[1], alpha);
+        default:
+            printf("Unsupported case in test_orthosegment_w (%d not in {1,2})\n", k);
+            exit(1);
+    }
+}
+
+int test_orthocircle_w(int k, const s_point2d c[k], const double wc[k], 
+                       double alpha)
+{   
+    assert(1 <= k && k <= 3);
+    
+    switch (k) {
+        case 1:
+            return - orthow_n2_k1(c[0].x, c[0].y, wc[0],
+                                  alpha);
+        case 2:
+            return - orthow_n2_k2(c[0].x, c[0].y, wc[0],
+                                  c[1].x, c[1].y, wc[1],
+                                  alpha);
+        case 3:
+            return - orthow_n2_k3(c[0].x, c[0].y, wc[0],
+                                  c[1].x, c[1].y, wc[1],
+                                  c[2].x, c[2].y, wc[2],
+                                  alpha);
+        default:
+            printf("Unsupported case in test_orthocircle_w (%d not in {1,2,3})\n", k);
+            exit(1);
+    }
+ }
+
+int test_orthosphere_w(int k, const s_point c[k], const double wc[k],
+                       double alpha)
+{   
+    assert(1 <= k && k <= 4);
+
+    switch (k) {
+        case 1:
+            return - orthow_n3_k1(c[0].x, c[0].y, c[0].z, wc[0],
+                                  alpha);
+        case 2:
+            return - orthow_n3_k2(c[0].x, c[0].y, c[0].z, wc[0],
+                                  c[1].x, c[1].y, c[1].z, wc[1],
+                                  alpha);
+        case 3:
+            return - orthow_n3_k3(c[0].x, c[0].y, c[0].z, wc[0],
+                                  c[1].x, c[1].y, c[1].z, wc[1],
+                                  c[2].x, c[2].y, c[2].z, wc[2],
+                                  alpha);
+        case 4:
+            return - orthow_n3_k4(c[0].x, c[0].y, c[0].z, wc[0],
+                                  c[1].x, c[1].y, c[1].z, wc[1],
+                                  c[2].x, c[2].y, c[2].z, wc[2],
+                                  c[3].x, c[3].y, c[3].z, wc[3],
+                                  alpha);
+        default:
+            printf("Unsupported case in test_orthosphere_w (%d not in {1,2,3,4})\n", k);
+            exit(1);
+    }
+}
+
 
 
 

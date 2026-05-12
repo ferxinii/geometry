@@ -38,11 +38,20 @@ int test_orientation(const s_point plane[3], s_point p);
 int test_incircle(const s_point2d circle[3], s_point2d p);
 int test_insphere(const s_point sph[4], s_point p);
 int test_orthosegment(int k, const double c[k], const double wc[k], 
-                      double xp, double wp, double alpha);
+                      double xp, double wp);
 int test_orthocircle(int k, const s_point2d c[k], const double wc[k], 
-                     s_point2d p, double wp, double alpha);
+                     s_point2d p, double wp);
 int test_orthosphere(int k, const s_point c[k], const double wc[k],
-                     s_point p, double wp, double alpha);
+                     s_point p, double wp);
+int test_orthosegment_w(int k, const double c[k], const double wc[k], 
+                        double alpha);
+int test_orthocircle_w(int k, const s_point2d c[k], const double wc[k], 
+                       double alpha);
+int test_orthosphere_w(int k, const s_point c[k], const double wc[k],
+                       double alpha);
+
+
+
 
 
 /* EPS_degenerate is a scale for the minimum value of an object to be non-degenerate. Avoids division by 0, ignore too small / degenerate triangles, ...

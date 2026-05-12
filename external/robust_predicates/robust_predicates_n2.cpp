@@ -6,6 +6,12 @@
 
 namespace grp = boost::geometry::detail::generic_robust_predicates;
 
+
+// ---------------------------------------------------------------------------
+// orient2d
+// | ax-cx  ay-cy |
+// | bx-cx  by-cy |
+// ---------------------------------------------------------------------------
 namespace orient2d_impl {
     constexpr auto ax = grp::_1;
     constexpr auto ay = grp::_2;
@@ -24,6 +30,13 @@ namespace orient2d_impl {
     using semi_static = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
     using exact       = grp::stage_d<expr, double>;
     using pred        = grp::staged_predicate<semi_static, exact>;
+}
+
+extern "C" int orient2d(double ax, double ay,
+                        double bx, double by,
+                        double cx, double cy)
+{
+    return orient2d_impl::pred{}.apply(ax, ay, bx, by, cx, cy);
 }
 
 
@@ -87,71 +100,6 @@ extern "C" int powertest_n2_k3_unweighted(double ax, double ay,
 }
 
 
-
-// ---------------------------------------------------------------------------
-// powertest_n2_k3
-// | ax-dx  ay-dy  (ax-dx)^2+(ay-dy)^2-(wa-wd) |
-// | bx-dx  by-dy  (bx-dx)^2+(by-dy)^2-(wb-wd) |
-// | cx-dx  cy-dy  (cx-dx)^2+(cy-dy)^2-(wc-wd) |
-// ---------------------------------------------------------------------------
-namespace powertest_n2_k3_D_impl {
-    constexpr auto ax = grp::_1;
-    constexpr auto ay = grp::_2;
-    constexpr auto wa = grp::_3;
-    constexpr auto bx = grp::_4;
-    constexpr auto by = grp::_5;
-    constexpr auto wb = grp::_6;
-    constexpr auto cx = grp::_7;
-    constexpr auto cy = grp::_8;
-    constexpr auto wc = grp::_9;
-    constexpr auto dx = grp::_10;
-    constexpr auto dy = grp::_11;
-    constexpr auto wd = grp::_12;
-
-    constexpr auto dax = ax - dx;
-    constexpr auto day = ay - dy;
-    constexpr auto dwa = wa - wd;
-    constexpr auto dbx = bx - dx;
-    constexpr auto dby = by - dy;
-    constexpr auto dwb = wb - wd;
-    constexpr auto dcx = cx - dx;
-    constexpr auto dcy = cy - dy;
-    constexpr auto dwc = wc - wd;
-
-    constexpr auto la = dax*dax + day*day - dwa;
-    constexpr auto lb = dbx*dbx + dby*dby - dwb;
-    constexpr auto lc = dcx*dcx + dcy*dcy - dwc;
-
-    // Use built-in det<> to avoid writing expansion manually
-    using expr_t = grp::det <
-        decltype(dax), decltype(day), decltype(la),
-        decltype(dbx), decltype(dby), decltype(lb),
-        decltype(dcx), decltype(dcy), decltype(lc)
-    >;
-    constexpr auto expr = expr_t{};
-
-    using semi_static = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
-    using exact       = grp::stage_d<expr, double>;
-    using pred        = grp::staged_predicate<semi_static, exact>;
-}
-
-extern "C" int powertest_n2_k3(double ax, double ay, double wa,
-                               double bx, double by, double wb,
-                               double cx, double cy, double wc,
-                               double dx, double dy, double wd)
-{
-    int orient_sign = orient2d_impl::pred{}.apply(ax, ay, bx, by, cx, cy);
-    if (orient_sign == 0) return 0;
-
-    int D_sign      = powertest_n2_k3_D_impl::pred{}.apply(ax, ay, wa,
-                                                           bx, by, wb,
-                                                           cx, cy, wc,
-                                                           dx, dy, wd);
-    int out = - orient_sign * D_sign;
-    if (out > 0) return 1;
-    else if (out < 0) return -1;
-    else return 0;
-}
 
 // ---------------------------------------------------------------------------
 // powertest_n2_k1
@@ -244,117 +192,25 @@ extern "C" int powertest_n2_k2(double ax, double ay, double wa,
                                                 cx, cy, wc);
 }
 
-
-
-
-
-
 // ---------------------------------------------------------------------------
-// powertest_n2_k1_alpha
+// powertest_n2_k3
+// | ax-dx  ay-dy  (ax-dx)^2+(ay-dy)^2-(wa-wd) |
+// | bx-dx  by-dy  (bx-dx)^2+(by-dy)^2-(wb-wd) |
+// | cx-dx  cy-dy  (cx-dx)^2+(cy-dy)^2-(wc-wd) |
 // ---------------------------------------------------------------------------
-namespace powertest_n2_k1_alpha_impl {
-    constexpr auto ax    = grp::_1;
-    constexpr auto ay    = grp::_2;
-    constexpr auto wa    = grp::_3;
-    constexpr auto bx    = grp::_4;
-    constexpr auto by    = grp::_5;
-    constexpr auto wb    = grp::_6;
-    constexpr auto alph1 = grp::_7;
-    constexpr auto zero  = grp::_8;  // I need to make alpha a subtraction, 
-                                     // otherwise if it is a leaf node, the
-                                     // library crashes 
-
-    constexpr auto dx   = bx - ax;
-    constexpr auto dy   = by - ay;
-    constexpr auto dw = wa - wb;  // orthogonal has -wa
-    constexpr auto alpha = alph1 - zero;
-    constexpr auto expr = dx*dx + dy*dy + dw - alpha;  
-
-    using filter = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
-    using exact  = grp::stage_d<expr, double>;
-    using pred   = grp::staged_predicate<filter, exact>;
-}
-
-extern "C" int powertest_n2_k1_alpha(double ax, double ay, double wa,
-                                     double bx, double by, double wb,
-                                     double alpha)
-{
-    return powertest_n2_k1_alpha_impl::pred{}.apply(ax, ay, wa, bx, by, wb, alpha, 0.0);
-}
-
-
-// ---------------------------------------------------------------------------
-// powertest_n2_k2_alpha
-// ---------------------------------------------------------------------------
-namespace powertest_n2_k2_D_alpha_impl {
-    constexpr auto ax    = grp::_1;
-    constexpr auto ay    = grp::_2;
-    constexpr auto wa    = grp::_3;
-    constexpr auto bx    = grp::_4;
-    constexpr auto by    = grp::_5;
-    constexpr auto wb    = grp::_6;
-    constexpr auto cx    = grp::_7;
-    constexpr auto cy    = grp::_8;
-    constexpr auto wc    = grp::_9;
-    constexpr auto alpha = grp::_10;
-
-    constexpr auto dax = ax - cx;
-    constexpr auto day = ay - cy;
-    constexpr auto dwa = wa - wc;
-    constexpr auto dbx = bx - cx;
-    constexpr auto dby = by - cy;
-    constexpr auto dwb = wb - wc;
-
-    constexpr auto la = dax*dax + day*day - dwa + alpha;
-    constexpr auto lb = dbx*dbx + dby*dby - dwb + alpha;
-
-    constexpr auto v1x = by - ay;
-    constexpr auto v1y = ax - bx;
-
-    constexpr auto mu1_h = dax*dby - day*dbx;
-    constexpr auto mu1 = mu1_h + mu1_h;
-
-    using expr_t = grp::det <
-        decltype(dax), decltype(day), decltype(la),
-        decltype(dbx), decltype(dby), decltype(lb),
-        decltype(v1x), decltype(v1y), decltype(mu1)
-    >;
-    constexpr auto expr = expr_t{};
-
-    using semi_static = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
-    using exact       = grp::stage_d<expr, double>;
-    using pred        = grp::staged_predicate<semi_static, exact>;
-}
-
-extern "C" int powertest_n2_k2_alpha(double ax, double ay, double wa,
-                                     double bx, double by, double wb,
-                                     double cx, double cy, double wc,
-                                     double alpha)
-{
-    return powertest_n2_k2_D_alpha_impl::pred{}.apply(ax, ay, wa,
-                                                      bx, by, wb,
-                                                      cx, cy, wc,
-                                                      alpha);
-}
-
-
-// ---------------------------------------------------------------------------
-// powertest_n2_k3_alpha
-// ---------------------------------------------------------------------------
-namespace powertest_n2_k3_D_alpha_impl {
-    constexpr auto ax    = grp::_1;
-    constexpr auto ay    = grp::_2;
-    constexpr auto wa    = grp::_3;
-    constexpr auto bx    = grp::_4;
-    constexpr auto by    = grp::_5;
-    constexpr auto wb    = grp::_6;
-    constexpr auto cx    = grp::_7;
-    constexpr auto cy    = grp::_8;
-    constexpr auto wc    = grp::_9;
-    constexpr auto dx    = grp::_10;
-    constexpr auto dy    = grp::_11;
-    constexpr auto wd    = grp::_12;
-    constexpr auto alpha = grp::_13;
+namespace powertest_n2_k3_D_impl {
+    constexpr auto ax = grp::_1;
+    constexpr auto ay = grp::_2;
+    constexpr auto wa = grp::_3;
+    constexpr auto bx = grp::_4;
+    constexpr auto by = grp::_5;
+    constexpr auto wb = grp::_6;
+    constexpr auto cx = grp::_7;
+    constexpr auto cy = grp::_8;
+    constexpr auto wc = grp::_9;
+    constexpr auto dx = grp::_10;
+    constexpr auto dy = grp::_11;
+    constexpr auto wd = grp::_12;
 
     constexpr auto dax = ax - dx;
     constexpr auto day = ay - dy;
@@ -366,10 +222,11 @@ namespace powertest_n2_k3_D_alpha_impl {
     constexpr auto dcy = cy - dy;
     constexpr auto dwc = wc - wd;
 
-    constexpr auto la = dax*dax + day*day - dwa + alpha;
-    constexpr auto lb = dbx*dbx + dby*dby - dwb + alpha;
-    constexpr auto lc = dcx*dcx + dcy*dcy - dwc + alpha;
+    constexpr auto la = dax*dax + day*day - dwa;
+    constexpr auto lb = dbx*dbx + dby*dby - dwb;
+    constexpr auto lc = dcx*dcx + dcy*dcy - dwc;
 
+    // Use built-in det<> to avoid writing expansion manually
     using expr_t = grp::det <
         decltype(dax), decltype(day), decltype(la),
         decltype(dbx), decltype(dby), decltype(lb),
@@ -382,24 +239,153 @@ namespace powertest_n2_k3_D_alpha_impl {
     using pred        = grp::staged_predicate<semi_static, exact>;
 }
 
-extern "C" int powertest_n2_k3_alpha(double ax, double ay, double wa,
-                                     double bx, double by, double wb,
-                                     double cx, double cy, double wc,
-                                     double dx, double dy, double wd,
-                                     double alpha)
+extern "C" int powertest_n2_k3(double ax, double ay, double wa,
+                               double bx, double by, double wb,
+                               double cx, double cy, double wc,
+                               double dx, double dy, double wd)
 {
     int orient_sign = orient2d_impl::pred{}.apply(ax, ay, bx, by, cx, cy);
     if (orient_sign == 0) return 0;
 
-    int D_sign = powertest_n2_k3_D_alpha_impl::pred{}.apply(ax, ay, wa,
-                                                            bx, by, wb,
-                                                            cx, cy, wc,
-                                                            dx, dy, wd,
-                                                            alpha);
-    int out = -orient_sign * D_sign;
+    int D_sign      = powertest_n2_k3_D_impl::pred{}.apply(ax, ay, wa,
+                                                           bx, by, wb,
+                                                           cx, cy, wc,
+                                                           dx, dy, wd);
+    int out = - orient_sign * D_sign;
     if (out > 0) return 1;
     else if (out < 0) return -1;
     else return 0;
 }
+
+
+
+// ---------------------------------------------------------------------------
+// ---------------------------- RADIUS VARIANTS ------------------------------
+// ---------------------------------------------------------------------------
+
+namespace orthow_n2_k1_impl {
+    constexpr auto wa    = grp::_1;
+    constexpr auto alpha = grp::_2;
+
+    constexpr auto expr = alpha + wa;
+
+    using filter = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
+    using exact  = grp::stage_d<expr, double>;
+    using pred   = grp::staged_predicate<filter, exact>;
+}
+
+extern "C" int orthow_n2_k1(double ax, double ay, double wa,
+                            double alpha)
+{
+    (void)ax;  (void)ay; 
+    return - orthow_n2_k1_impl::pred{}.apply(wa, alpha);
+}
+
+
+// ---------------------------------------------------------------------------
+// orthow_n2_k2
+// ---------------------------------------------------------------------------
+namespace orthow_n2_k2_impl {
+    constexpr auto ax    = grp::_1;
+    constexpr auto ay    = grp::_2;
+    constexpr auto wa    = grp::_3;
+    constexpr auto bx    = grp::_4;
+    constexpr auto by    = grp::_5;
+    constexpr auto wb    = grp::_6;
+    constexpr auto alpha = grp::_7;
+
+    constexpr auto dx  = bx - ax;
+    constexpr auto dx2 = dx * dx;
+    constexpr auto dy  = by - ay;
+    constexpr auto dy2 = dy * dy;
+    constexpr auto dw  = wb - wa;
+
+    constexpr auto G = dx2 + dy2;
+    constexpr auto b = dx2 + dy2 - dw;
+    constexpr auto a1  = wa + alpha;
+    constexpr auto a1_4 = a1 + a1 + a1 + a1;
+
+    constexpr auto expr = a1_4 * G - b * b;
+
+    using filter = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
+    using exact  = grp::stage_d<expr, double>;
+    using pred   = grp::staged_predicate<filter, exact>;
+}
+
+extern "C" int orthow_n2_k2(double ax, double ay, double wa,
+                            double bx, double by, double wb,
+                            double alpha)
+{
+    int orient_sign = ((ax == bx) && (ay == by)) ? 0 : 1;
+    if (orient_sign == 0) return 0;
+
+    return - orthow_n2_k2_impl::pred{}.apply(ax, ay, wa,
+                                             bx, by, wb,
+                                             alpha);
+}
+
+
+// ---------------------------------------------------------------------------
+// orthow_n2_k3
+// ---------------------------------------------------------------------------
+namespace orthow_n2_k3_impl {
+    constexpr auto ax    = grp::_1;
+    constexpr auto ay    = grp::_2;
+    constexpr auto wa    = grp::_3;
+    constexpr auto bx    = grp::_4;
+    constexpr auto by    = grp::_5;
+    constexpr auto wb    = grp::_6;
+    constexpr auto cx    = grp::_7;
+    constexpr auto cy    = grp::_8;
+    constexpr auto wc    = grp::_9;
+    constexpr auto alpha = grp::_10;
+
+    constexpr auto dbx  = bx - ax;
+    constexpr auto dbx2 = dbx * dbx;
+    constexpr auto dby  = by - ay;
+    constexpr auto dby2 = dby * dby;
+    constexpr auto dwb  = wb - wa;
+
+    constexpr auto dcx  = cx - ax;
+    constexpr auto dcx2 = dcx * dcx;
+    constexpr auto dcy  = cy - ay;
+    constexpr auto dcy2 = dcy * dcy;
+    constexpr auto dwc  = wc - wa;
+
+    constexpr auto a1  = wa + alpha;
+    constexpr auto a1_4 = a1 + a1 + a1 + a1;
+
+    constexpr auto b1 = dbx2 + dby2 - dwb;
+    constexpr auto b2 = dcx2 + dcy2 - dwc;
+    constexpr auto G11 = dbx2 + dby2;
+    constexpr auto G12 = dbx * dcx + dby * dcy;
+    constexpr auto G22 = dcx2 + dcy2;
+
+    using expr_t = grp::det <
+        decltype(a1_4), decltype(b1),  decltype(b2),
+        decltype(b1),   decltype(G11), decltype(G12),
+        decltype(b2),   decltype(G12), decltype(G22)
+    >;
+    constexpr auto expr = expr_t{};
+
+    using filter = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
+    using exact  = grp::stage_d<expr, double>;
+    using pred   = grp::staged_predicate<filter, exact>;
+}
+
+extern "C" int orthow_n2_k3(double ax, double ay, double wa,
+                            double bx, double by, double wb,
+                            double cx, double cy, double wc,
+                            double alpha)
+{
+    int orient_sign = orient2d_impl::pred{}.apply(ax, ay, bx, by, cx, cy);
+    if (orient_sign == 0) return 0;
+
+    return - orthow_n2_k3_impl::pred{}.apply(ax, ay, wa,
+                                             bx, by, wb,
+                                             cx, cy, wc,
+                                             alpha);
+}
+
 
 

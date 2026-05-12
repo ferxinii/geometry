@@ -2,11 +2,9 @@ cmake_minimum_required(VERSION 3.13)
 project(robust_predicates LANGUAGES CXX)
 
 add_library(robust_predicates STATIC
-    robust_predicates_orient.cpp
     robust_predicates_n1.cpp
     robust_predicates_n2.cpp
-    robust_predicates_n3_k12.cpp
-    robust_predicates_n3_k34.cpp
+    robust_predicates_n3.cpp
 )
 
 target_include_directories(robust_predicates PRIVATE
