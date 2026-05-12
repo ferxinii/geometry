@@ -18,11 +18,23 @@ target_include_directories(robust_predicates PUBLIC
 
 target_compile_features(robust_predicates PRIVATE cxx_std_20)
 
-# Always compile at -O3 regardless of CMAKE_BUILD_TYPE.
-# -g0 explicitly disables debug info even when Debug flags are injected.
-target_compile_options(robust_predicates PRIVATE
-    -O3 -march=native -DNDEBUG -g0
-)
+
+# Define a flag: pass -DROBUST_PREDICATES_DEBUG=ON to cmake to opt into debug mode.
+option(ROBUST_PREDICATES_DEBUG "Build robust_predicates with debug info instead of -O3" OFF)
+
+if (NOT ROBUST_PREDICATES_DEBUG)
+    # Always compile at -O3 regardless of CMAKE_BUILD_TYPE.
+    # -g0 explicitly disables debug info even when Debug flags are injected.
+    target_compile_options(robust_predicates PRIVATE
+        -O3 -march=native -DNDEBUG -g0
+    )
+else()
+    # Debug mode: strip optimizations, enable debug symbols, keep assertions.
+    target_compile_options(robust_predicates PRIVATE
+        -O0 -g
+    )
+    message(STATUS "robust_predicates: DEBUG mode enabled (-O0 -g)")
+endif()
 
 
 # Force any target linking against this to use the C++ linker
