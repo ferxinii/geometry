@@ -1385,7 +1385,8 @@ constexpr OutIter expansion_plus(
         *h_begin = x;
         return h_begin + 1;
     }
-    Real y = two_sum_tail(e, f, *(h_begin + 1));
+    // Real y = two_sum_tail(e, f, *(h_begin + 1));
+    Real y = two_sum_tail(e, f, x);  // FERNANDO Modified this!
     OutIter h_it = h_begin;
     h_it = insert_ze<ze<result>::value>(h_it, y);
     h_it = insert_ze_final<ze<result>::value>(h_it, h_begin, x);

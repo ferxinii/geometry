@@ -35,6 +35,8 @@ See `includes/LICENSE.txt` for details.
     when `b == 0`, since the result is trivially all-zeros regardless of
     the input expansion's internal structure. The assert is a false precondition
     for this degenerate case.
+    `expansion_plus` had a bug causing reading uninitialized memory by passing a 
+    wrong argument. 
 
 ### Bugs found
 
