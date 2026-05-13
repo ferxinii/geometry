@@ -1,10 +1,17 @@
 #include "boost/geometry/extensions/generic_robust_predicates/strategies/cartesian/detail/expression_tree.hpp"
 #include "boost/geometry/extensions/generic_robust_predicates/strategies/cartesian/detail/forward_error_bound.hpp"
 #include "boost/geometry/extensions/generic_robust_predicates/strategies/cartesian/detail/stage_d.hpp"
+#include "boost/geometry/extensions/generic_robust_predicates/strategies/cartesian/detail/stage_b.hpp"
 #include "boost/geometry/extensions/generic_robust_predicates/strategies/cartesian/detail/staged_predicate.hpp"
 #include "boost/geometry/extensions/generic_robust_predicates/strategies/cartesian/detail/expressions.hpp"
 
 namespace grp = boost::geometry::detail::generic_robust_predicates;
+
+template <int N>
+struct int_const : grp::static_constant_interface<double> {
+    static constexpr double value  = static_cast<double>(N);
+    static constexpr bool non_negative = (N >= 0);
+};
 
 
 // ---------------------------------------------------------------------------
@@ -48,6 +55,7 @@ namespace orient3d_impl {
 
     using semi_static = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
     using exact       = grp::stage_d<expr, double>;
+    // using stage_b     = grp::stage_b<expr, double>;
     using pred        = grp::staged_predicate<semi_static, exact>;
 }
 
@@ -115,6 +123,7 @@ namespace powertest_n3_k4_unweighted_impl {
 
     using semi_static = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
     using exact       = grp::stage_d<expr, double>;
+    // using stage_b     = grp::stage_b<expr, double>;
     using pred        = grp::staged_predicate<semi_static, exact>;
 }
 
@@ -164,6 +173,7 @@ namespace powertest_n3_k1_impl {
 
     using filter = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
     using exact  = grp::stage_d<expr, double>;
+    // using stage_b     = grp::stage_b<expr, double>;
     using pred   = grp::staged_predicate<filter, exact>;
 }
 
@@ -224,10 +234,10 @@ namespace powertest_n3_k2_D_xy_impl {
 
     // mu1 = 2*det(da, db, ey) = 2*(daz*dbx - dax*dbz)
     constexpr auto mu1_h = daz*dbx - dax*dbz;
-    constexpr auto mu1 = mu1_h + mu1_h;
+    constexpr auto mu1 = mu1_h * int_const<2>{};
     // mu2 = 2*det(da, db, ex) = 2*(day*dbz - daz*dby)
     constexpr auto mu2_h = day*dbz - daz*dby;
-    constexpr auto mu2 = mu2_h + mu2_h;
+    constexpr auto mu2 = mu2_h * int_const<2>{};
 
     constexpr auto det2_ab_xy  = dax*dby - dbx*day;
     constexpr auto det2_v1z_v2z = v1z*mu2 - v2z*mu1;
@@ -247,6 +257,7 @@ namespace powertest_n3_k2_D_xy_impl {
 
     using semi_static = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
     using exact       = grp::stage_d<expr, double>;
+    // using stage_b     = grp::stage_b<expr, double>;
     using pred        = grp::staged_predicate<semi_static, exact>;
 }
 
@@ -269,6 +280,7 @@ namespace powertest_n3_k2_orient_xy_impl {
 
     using semi_static = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
     using exact       = grp::stage_d<expr, double>;
+    // using stage_b     = grp::stage_b<expr, double>;
     using pred        = grp::staged_predicate<semi_static, exact>;
 }
 
@@ -310,10 +322,10 @@ namespace powertest_n3_k2_D_yz_impl {
 
     // mu1 = 2*det(da, db, ez) = 2*(dax*dby - day*dbx)
     constexpr auto mu1_h = dax*dby - day*dbx;
-    constexpr auto mu1 = mu1_h + mu1_h;
+    constexpr auto mu1 = mu1_h * int_const<2>{};
     // mu2 = 2*det(da, db, ey) = 2*(daz*dbx - dax*dbz)
     constexpr auto mu2_h = daz*dbx - dax*dbz;
-    constexpr auto mu2 = mu2_h + mu2_h;
+    constexpr auto mu2 = mu2_h * int_const<2>{};
 
     constexpr auto det2_ab_yz  = day*dbz - dby*daz;
     constexpr auto det2_v1x_v2x = v1x*mu2 - v2x*mu1;
@@ -333,6 +345,7 @@ namespace powertest_n3_k2_D_yz_impl {
 
     using semi_static = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
     using exact       = grp::stage_d<expr, double>;
+    // using stage_b     = grp::stage_b<expr, double>;
     using pred        = grp::staged_predicate<semi_static, exact>;
 }
 
@@ -355,6 +368,7 @@ namespace powertest_n3_k2_orient_yz_impl {
 
     using semi_static = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
     using exact       = grp::stage_d<expr, double>;
+    // using stage_b     = grp::stage_b<expr, double>;
     using pred        = grp::staged_predicate<semi_static, exact>;
 }
 
@@ -396,10 +410,10 @@ namespace powertest_n3_k2_D_zx_impl {
 
     // mu1 = 2*det(da, db, ex) = 2*(day*dbz - daz*dby)
     constexpr auto mu1_h = day*dbz - daz*dby;
-    constexpr auto mu1 = mu1_h + mu1_h;
+    constexpr auto mu1 = mu1_h * int_const<2>{};
     // mu2 = 2*det(da, db, ez) = 2*(dax*dby - day*dbx)
     constexpr auto mu2_h = dax*dby - day*dbx;
-    constexpr auto mu2 = mu2_h + mu2_h;
+    constexpr auto mu2 = mu2_h * int_const<2>{};
 
     constexpr auto det2_ab_zx  = daz*dbx - dbz*dax;
     constexpr auto det2_v1y_v2y = v1y*mu2 - v2y*mu1;
@@ -419,6 +433,7 @@ namespace powertest_n3_k2_D_zx_impl {
 
     using semi_static = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
     using exact       = grp::stage_d<expr, double>;
+    // using stage_b     = grp::stage_b<expr, double>;
     using pred        = grp::staged_predicate<semi_static, exact>;
 }
 
@@ -441,6 +456,7 @@ namespace powertest_n3_k2_orient_zx_impl {
 
     using semi_static = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
     using exact       = grp::stage_d<expr, double>;
+    // using stage_b     = grp::stage_b<expr, double>;
     using pred        = grp::staged_predicate<semi_static, exact>;
 }
 
@@ -536,7 +552,7 @@ namespace powertest_n3_k3_impl {
     constexpr auto mu1_half = dax*(dby*dcz - dbz*dcy)
                             - day*(dbx*dcz - dbz*dcx)
                             + daz*(dbx*dcy - dby*dcx);
-    constexpr auto mu1 = mu1_half + mu1_half;
+    constexpr auto mu1 = mu1_half * int_const<2>{};
 
     using expr_t = grp::det <
         decltype(dax), decltype(day), decltype(daz), decltype(la),
@@ -548,6 +564,7 @@ namespace powertest_n3_k3_impl {
 
     using semi_static = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
     using exact       = grp::stage_d<expr, double>;
+    // using stage_b     = grp::stage_b<expr, double>;
     using pred        = grp::staged_predicate<semi_static, exact>;
 }
 
@@ -626,6 +643,7 @@ namespace powertest_n3_k4_D_impl {
 
     using semi_static = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
     using exact       = grp::stage_d<expr, double>;
+    // using stage_b     = grp::stage_b<expr, double>;
     using pred        = grp::staged_predicate<semi_static, exact>;
 }
 
@@ -663,10 +681,11 @@ namespace orthow_n3_k1_impl {
     constexpr auto wa    = grp::_1;
     constexpr auto alpha = grp::_2;
 
-    constexpr auto expr = alpha + wa;
+    constexpr auto expr = wa - alpha;
 
     using filter = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
     using exact  = grp::stage_d<expr, double>;
+    // using stage_b     = grp::stage_b<expr, double>;
     using pred   = grp::staged_predicate<filter, exact>;
 }
 
@@ -674,7 +693,7 @@ extern "C" int orthow_n3_k1(double ax, double ay, double az, double wa,
                             double alpha)
 {
     (void)ax;  (void)ay; 
-    return - orthow_n3_k1_impl::pred{}.apply(wa, alpha);
+    return orthow_n3_k1_impl::pred{}.apply(wa, alpha);
 }
 
 
@@ -704,12 +723,13 @@ namespace orthow_n3_k2_impl {
     constexpr auto G = dx2 + dy2 + dz2;
     constexpr auto b = dx2 + dy2 + dz2 - dw;
     constexpr auto a1  = wa + alpha;
-    constexpr auto a1_4 = a1 + a1 + a1 + a1;
+    constexpr auto a1_4 = a1 * int_const<4>{};
 
     constexpr auto expr = a1_4 * G - b * b;
 
     using filter = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
     using exact  = grp::stage_d<expr, double>;
+    // using stage_b     = grp::stage_b<expr, double>;
     using pred   = grp::staged_predicate<filter, exact>;
 }
 
@@ -762,7 +782,7 @@ namespace orthow_n3_k3_impl {
     constexpr auto dwc  = wc - wa;
 
     constexpr auto a1  = wa + alpha;
-    constexpr auto a1_4 = a1 + a1 + a1 + a1;
+    constexpr auto a1_4 = a1 * int_const<4>{};
 
     constexpr auto b1 = dbx2 + dby2 + dbz2 - dwb;
     constexpr auto b2 = dcx2 + dcy2 + dcz2 - dwc;
@@ -779,6 +799,7 @@ namespace orthow_n3_k3_impl {
 
     using filter = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
     using exact  = grp::stage_d<expr, double>;
+    // using stage_b     = grp::stage_b<expr, double>;
     using pred   = grp::staged_predicate<filter, exact>;
 }
 
@@ -857,7 +878,7 @@ namespace orthow_n3_k4_impl {
     constexpr auto dwd  = wd - wa;
 
     constexpr auto a1  = wa + alpha;
-    constexpr auto a1_4 = a1 + a1 + a1 + a1;
+    constexpr auto a1_4 = a1 * int_const<4>{};
 
     constexpr auto b1 = dbx2 + dby2 + dbz2 - dwb;
     constexpr auto b2 = dcx2 + dcy2 + dcz2 - dwc;
@@ -877,9 +898,10 @@ namespace orthow_n3_k4_impl {
     >;
     constexpr auto expr = expr_t{};
 
-    using filter = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
-    using exact  = grp::stage_d<expr, double>;
-    using pred   = grp::staged_predicate<filter, exact>;
+    using filter  = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
+    using exact   = grp::stage_d<expr, double>;
+    using stage_b = grp::stage_b<expr, double>;
+    using pred    = grp::staged_predicate<filter, stage_b, exact>;
 }
 
 
@@ -899,4 +921,28 @@ extern "C" int orthow_n3_k4(double ax, double ay, double az, double wa,
                                              dx, dy, dz, wd,
                                              alpha);
 }
+
+
+template <std::size_t N>
+struct [[deprecated("results_size — see template argument")]] show_stage_d_size {};
+using _size_powertest_n3_k1 = show_stage_d_size<powertest_n3_k1_impl::exact::results_size>*;
+using _size_powertest_n3_k2 = show_stage_d_size<powertest_n3_k2_D_xy_impl::exact::results_size>*;
+using _size_powertest_n3_k3 = show_stage_d_size<powertest_n3_k3_impl::exact::results_size>*;
+using _size_powertest_n3_k4 = show_stage_d_size<powertest_n3_k4_D_impl::exact::results_size>*;
+using _size_orthow_n3_k1 = show_stage_d_size<orthow_n3_k1_impl::exact::results_size>*;
+using _size_orthow_n3_k2 = show_stage_d_size<orthow_n3_k2_impl::exact::results_size>*;
+using _size_orthow_n3_k3 = show_stage_d_size<orthow_n3_k3_impl::exact::results_size>*;
+using _size_orthow_n3_k4 = show_stage_d_size<orthow_n3_k4_impl::exact::results_size>*;
+
+
+// template <std::size_t N>
+// struct [[deprecated("results_size — see template argument")]] show_stage_b_size {};
+// using _size_powertest_n3_k1_b = show_stage_b_size<powertest_n3_k1_impl::stage_b::results_size>*;
+// using _size_powertest_n3_k2_b = show_stage_b_size<powertest_n3_k2_D_xy_impl::stage_b::results_size>*;
+// using _size_powertest_n3_k3_b = show_stage_b_size<powertest_n3_k3_impl::stage_b::results_size>*;
+// using _size_powertest_n3_k4_b = show_stage_b_size<powertest_n3_k4_D_impl::stage_b::results_size>*;
+// using _size_orthow_n3_k1_b = show_stage_b_size<orthow_n3_k1_impl::stage_b::results_size>*;
+// using _size_orthow_n3_k2_b = show_stage_b_size<orthow_n3_k2_impl::stage_b::results_size>*;
+// using _size_orthow_n3_k3_b = show_stage_b_size<orthow_n3_k3_impl::stage_b::results_size>*;
+// using _size_orthow_n3_k4_b = show_stage_b_size<orthow_n3_k4_impl::stage_b::results_size>*;
 

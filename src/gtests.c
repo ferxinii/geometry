@@ -140,13 +140,13 @@ int test_orthocircle_w(int k, const s_point2d c[k], const double wc[k],
                                   alpha);
         case 2:
             return orthow_n2_k2(c[0].x, c[0].y, wc[0],
-                                  c[1].x, c[1].y, wc[1],
-                                  alpha);
+                                c[1].x, c[1].y, wc[1],
+                                alpha);
         case 3:
             return orthow_n2_k3(c[0].x, c[0].y, wc[0],
-                                  c[1].x, c[1].y, wc[1],
-                                  c[2].x, c[2].y, wc[2],
-                                  alpha);
+                                c[1].x, c[1].y, wc[1],
+                                c[2].x, c[2].y, wc[2],
+                                alpha);
         default:
             printf("Unsupported case in test_orthocircle_w (%d not in {1,2,3})\n", k);
             exit(1);
@@ -161,22 +161,22 @@ int test_orthosphere_w(int k, const s_point c[k], const double wc[k],
     switch (k) {
         case 1:
             return orthow_n3_k1(c[0].x, c[0].y, c[0].z, wc[0],
-                                  alpha);
+                                alpha);
         case 2:
             return orthow_n3_k2(c[0].x, c[0].y, c[0].z, wc[0],
-                                  c[1].x, c[1].y, c[1].z, wc[1],
-                                  alpha);
+                                c[1].x, c[1].y, c[1].z, wc[1],
+                                alpha);
         case 3:
             return orthow_n3_k3(c[0].x, c[0].y, c[0].z, wc[0],
-                                  c[1].x, c[1].y, c[1].z, wc[1],
-                                  c[2].x, c[2].y, c[2].z, wc[2],
-                                  alpha);
+                                c[1].x, c[1].y, c[1].z, wc[1],
+                                c[2].x, c[2].y, c[2].z, wc[2],
+                                alpha);
         case 4:
             return orthow_n3_k4(c[0].x, c[0].y, c[0].z, wc[0],
-                                  c[1].x, c[1].y, c[1].z, wc[1],
-                                  c[2].x, c[2].y, c[2].z, wc[2],
-                                  c[3].x, c[3].y, c[3].z, wc[3],
-                                  alpha);
+                                c[1].x, c[1].y, c[1].z, wc[1],
+                                c[2].x, c[2].y, c[2].z, wc[2],
+                                c[3].x, c[3].y, c[3].z, wc[3],
+                                alpha);
         default:
             printf("Unsupported case in test_orthosphere_w (%d not in {1,2,3,4})\n", k);
             exit(1);

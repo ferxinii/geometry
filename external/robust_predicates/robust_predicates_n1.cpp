@@ -1,10 +1,17 @@
 #include "boost/geometry/extensions/generic_robust_predicates/strategies/cartesian/detail/expression_tree.hpp"
 #include "boost/geometry/extensions/generic_robust_predicates/strategies/cartesian/detail/forward_error_bound.hpp"
 #include "boost/geometry/extensions/generic_robust_predicates/strategies/cartesian/detail/stage_d.hpp"
+#include "boost/geometry/extensions/generic_robust_predicates/strategies/cartesian/detail/stage_b.hpp"
 #include "boost/geometry/extensions/generic_robust_predicates/strategies/cartesian/detail/staged_predicate.hpp"
 #include "boost/geometry/extensions/generic_robust_predicates/strategies/cartesian/detail/expressions.hpp"
 
 namespace grp = boost::geometry::detail::generic_robust_predicates;
+
+template <int N>
+struct int_const : grp::static_constant_interface<double> {
+    static constexpr double value  = static_cast<double>(N);
+    static constexpr bool non_negative = (N >= 0);
+};
 
 
 // ---------------------------------------------------------------------------
@@ -32,6 +39,7 @@ namespace powertest_n1_k2_D_impl {
 
     using filter   = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
     using exact    = grp::stage_d<expr, double>;
+    // using stage_b  = grp::stage_b<expr, double>;
     using pred     = grp::staged_predicate<filter, exact>;
 }
 
@@ -70,6 +78,7 @@ namespace powertest_n1_k1_impl {
 
     using filter = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
     using exact  = grp::stage_d<expr, double>;
+    // using stage_b  = grp::stage_b<expr, double>;
     using pred   = grp::staged_predicate<filter, exact>;
 }
 
@@ -91,10 +100,11 @@ namespace orthow_n1_k1_impl {
     constexpr auto wa    = grp::_1;
     constexpr auto alpha = grp::_2;
 
-    constexpr auto expr = alpha + wa;
+    constexpr auto expr = wa - alpha;
 
     using filter = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
     using exact  = grp::stage_d<expr, double>;
+    // using stage_b  = grp::stage_b<expr, double>;
     using pred   = grp::staged_predicate<filter, exact>;
 }
 
@@ -102,7 +112,7 @@ extern "C" int orthow_n1_k1(double xa, double wa,
                             double alpha)
 {
     (void)xa;
-    return - orthow_n1_k1_impl::pred{}.apply(wa, alpha);
+    return orthow_n1_k1_impl::pred{}.apply(wa, alpha);
 }
 
 // ---------------------------------------------------------------------------
@@ -121,12 +131,13 @@ namespace orthow_n1_k2_impl {
     constexpr auto b   = dx2 - dw;
 
     constexpr auto a1  = wa + alpha;
-    constexpr auto a1_4 = a1 + a1 + a1 + a1;
+    constexpr auto a1_4 = a1 * int_const<4>{};
 
     constexpr auto expr = a1_4 * dx2 - b * b;
 
     using filter = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
     using exact  = grp::stage_d<expr, double>;
+    // using stage_b= grp::stage_b<expr, double>;
     using pred   = grp::staged_predicate<filter, exact>;
 }
 
@@ -142,3 +153,18 @@ extern "C" int orthow_n1_k2(double xa, double wa,
                                              alpha);
 }
 
+
+
+template <std::size_t N>
+struct [[deprecated("results_size — see template argument")]] show_stage_d_size {};
+using _size_powertest_n1_k1 = show_stage_d_size<powertest_n1_k1_impl::exact::results_size>*;
+using _size_powertest_n1_k2 = show_stage_d_size<powertest_n1_k2_D_impl::exact::results_size>*;
+using _size_orthow_n1_k1 = show_stage_d_size<orthow_n1_k1_impl::exact::results_size>*;
+using _size_orthow_n1_k2 = show_stage_d_size<orthow_n1_k2_impl::exact::results_size>*;
+
+// template <std::size_t N>
+// struct [[deprecated("results_size — see template argument")]] show_stage_b_size {};
+// using _size_powertest_n1_k1_b = show_stage_b_size<powertest_n1_k1_impl::stage_b::results_size>*;
+// using _size_powertest_n1_k2_b = show_stage_b_size<powertest_n1_k2_D_impl::stage_b::results_size>*;
+// using _size_orthow_n1_k1_b = show_stage_b_size<orthow_n1_k1_impl::stage_b::results_size>*;
+// using _size_orthow_n1_k2_b = show_stage_b_size<orthow_n1_k2_impl::stage_b::results_size>*;

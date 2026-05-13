@@ -131,98 +131,185 @@ struct stage_b
     static constexpr bool updates = false;
     using expression_t = decltype(Expression);
 
+    // FERNANDO: Modified this
+    // Promote to class scope so results_size is publicly inspectable
+    using stack             = typename boost::mp11::mp_unique<post_order<expression_t>>;
+    using evals             = typename boost::mp11::mp_remove_if<stack, is_leaf>;
+    using sizes_pre         = boost::mp11::mp_transform <
+                                  expansion_size_stage_b,
+                                  boost::mp11::mp_pop_back<evals>>;
+    using sizes             = boost::mp11::mp_push_back <
+                                  sizes_pre,
+                                  boost::mp11::mp_size_t <
+                                      final_expansion_size <
+                                          expression_t,
+                                          expansion_size_stage_b<typename expression_t::left>::value,
+                                          expansion_size_stage_b<typename expression_t::right>::value
+                                      >()>>;
+    using accumulated_sizes = boost::mp11::mp_push_front <
+                                  boost::mp11::mp_partial_sum <
+                                      sizes,
+                                      boost::mp11::mp_size_t<0>,
+                                      boost::mp11::mp_plus>,
+                                  boost::mp11::mp_size_t<0>>;
+
+    static constexpr std::size_t results_size =
+        boost::mp11::mp_back<accumulated_sizes>::value;
+
+    // FERNANDO: MODIFIED THIS
     template <typename ...Reals>
     static inline int apply(const Reals&... args)
     {
-        using stack = typename boost::mp11::mp_unique<post_order<expression_t>>;
-        using evals = typename boost::mp11::mp_remove_if<stack, is_leaf>;
-        using sizes_pre = boost::mp11::mp_transform
-            <
-                expansion_size_stage_b,
-                boost::mp11::mp_pop_back<evals>
-            >;
-        using sizes = boost::mp11::mp_push_back
-            <
-                sizes_pre,
-                boost::mp11::mp_size_t
-                    <
-                        final_expansion_size
-                            <
-                                expression_t,
-                                expansion_size_stage_b<typename expression_t::left>::value,
-                                expansion_size_stage_b<typename expression_t::right>::value
-                            >()
-                    >
-            >;
+        // No more local using-declarations, they are now class members above.
+        // result_array is replaced by the stack/heap split:
 
-        using accumulated_sizes = boost::mp11::mp_push_front
-            <
-                boost::mp11::mp_partial_sum
-                    <
-                        sizes,
-                        boost::mp11::mp_size_t<0>,
-                        boost::mp11::mp_plus
-                    >,
-                boost::mp11::mp_size_t<0>
-            >;
+        using result_array = std::array<Real, results_size>;
 
-        using result_array =
-            std::array<Real, boost::mp11::mp_back<accumulated_sizes>::value>;
-        result_array results;
+        auto run = [&](Real* rbegin, Real* rend) -> int {
+            using leaf_differences =
+                boost::mp11::mp_copy_if<evals, is_leaf_difference>;
 
-        using leaf_differences =
-            boost::mp11::mp_copy_if<evals, is_leaf_difference>;
+            bool all_zero = all_differences_zero_tail <
+                evals,
+                leaf_differences,
+                accumulated_sizes,
+                Real*,
+                Real
+            >::apply(rbegin, rend, args...);
 
-        bool all_zero = all_differences_zero_tail
-                <
-                    evals,
-                    leaf_differences,
-                    accumulated_sizes,
-                    typename result_array::iterator,
-                    Real
-        >::apply(results.begin(), results.end(), args...);
+            if (!all_zero)
+                return sign_uncertain;
 
-        if( !all_zero )
-        {
-            return sign_uncertain;
-        }
+            using remainder = typename boost::mp11::mp_remove_if<evals, is_leaf_difference>;
+            using ze_evals  = boost::mp11::mp_copy_if_q <
+                remainder,
+                is_zero_elim_q<ZEPolicy, true>>;
 
-        using remainder = typename boost::mp11::mp_remove_if<evals, is_leaf_difference>;
+            std::array<Real*, boost::mp11::mp_size<ze_evals>::value> ze_ends;
 
-        using ze_evals = boost::mp11::mp_copy_if_q
-        <
-            remainder,
-            is_zero_elim_q<ZEPolicy, true>
-        >;
-        std::array<typename result_array::iterator, boost::mp11::mp_size<ze_evals>::value> ze_ends;
-
-        auto most_significant = eval_expansions_impl
-            <
+            auto most_significant = eval_expansions_impl <
                 evals,
                 remainder,
                 sizes,
                 accumulated_sizes,
                 ze_evals,
-                decltype(results.begin()),
+                Real*,
                 Real,
                 ZEPolicy,
                 FEPolicy,
                 true
-            >::apply(results.begin(), results.end(), ze_ends, args...) - 1;
+            >::apply(rbegin, rend, ze_ends, args...) - 1;
 
-        if( *most_significant == 0)
-        {
-            return 0;
-        }
-        else if( *most_significant > 0 )
-        {
-            return 1;
-        }
-        else
-        {
+            if (*most_significant == 0) return  0;
+            if (*most_significant  > 0) return  1;
             return -1;
+        };
+
+        // Threshold above which we use heap storage. Sized conservatively to
+        // stay well within typical 8 MB stack limits and avoid cache pressure.
+        // 4096 doubles = 32 KB, comfortably on stack; anything larger goes heap.
+        static constexpr std::size_t stack_threshold = 4096;
+        if constexpr (results_size > stack_threshold) {
+            static thread_local std::vector<Real> buf;
+            if (buf.size() < results_size)
+                buf.resize(results_size);
+            return run(buf.data(), buf.data() + results_size);
+        } else {
+            std::array<Real, results_size> buf;
+            return run(buf.data(), buf.data() + results_size);
         }
     }
+    // static inline int apply(const Reals&... args)
+    // {
+    //     // using stack = typename boost::mp11::mp_unique<post_order<expression_t>>;
+    //     // using evals = typename boost::mp11::mp_remove_if<stack, is_leaf>;
+    //     // using sizes_pre = boost::mp11::mp_transform
+    //     //     <
+    //     //         expansion_size_stage_b,
+    //     //         boost::mp11::mp_pop_back<evals>
+    //     //     >;
+    //     // using sizes = boost::mp11::mp_push_back
+    //     //     <
+    //     //         sizes_pre,
+    //     //         boost::mp11::mp_size_t
+    //     //             <
+    //     //                 final_expansion_size
+    //     //                     <
+    //     //                         expression_t,
+    //     //                         expansion_size_stage_b<typename expression_t::left>::value,
+    //     //                         expansion_size_stage_b<typename expression_t::right>::value
+    //     //                     >()
+    //     //             >
+    //     //     >;
+    //     //
+    //     // using accumulated_sizes = boost::mp11::mp_push_front
+    //     //     <
+    //     //         boost::mp11::mp_partial_sum
+    //     //             <
+    //     //                 sizes,
+    //     //                 boost::mp11::mp_size_t<0>,
+    //     //                 boost::mp11::mp_plus
+    //     //             >,
+    //     //         boost::mp11::mp_size_t<0>
+    //     //     >;
+    //     // using result_array =
+    //     //     std::array<Real, boost::mp11::mp_back<accumulated_sizes>::value>;
+    //     using result_array = std::array<Real, results_size>;
+    //     result_array results;
+    //
+    //     using leaf_differences =
+    //         boost::mp11::mp_copy_if<evals, is_leaf_difference>;
+    //
+    //     bool all_zero = all_differences_zero_tail
+    //             <
+    //                 evals,
+    //                 leaf_differences,
+    //                 accumulated_sizes,
+    //                 typename result_array::iterator,
+    //                 Real
+    //     >::apply(results.begin(), results.end(), args...);
+    //
+    //     if( !all_zero )
+    //     {
+    //         return sign_uncertain;
+    //     }
+    //
+    //     using remainder = typename boost::mp11::mp_remove_if<evals, is_leaf_difference>;
+    //
+    //     using ze_evals = boost::mp11::mp_copy_if_q
+    //     <
+    //         remainder,
+    //         is_zero_elim_q<ZEPolicy, true>
+    //     >;
+    //     std::array<typename result_array::iterator, boost::mp11::mp_size<ze_evals>::value> ze_ends;
+    //
+    //     auto most_significant = eval_expansions_impl
+    //         <
+    //             evals,
+    //             remainder,
+    //             sizes,
+    //             accumulated_sizes,
+    //             ze_evals,
+    //             decltype(results.begin()),
+    //             Real,
+    //             ZEPolicy,
+    //             FEPolicy,
+    //             true
+    //         >::apply(results.begin(), results.end(), ze_ends, args...) - 1;
+    //
+    //     if( *most_significant == 0)
+    //     {
+    //         return 0;
+    //     }
+    //     else if( *most_significant > 0 )
+    //     {
+    //         return 1;
+    //     }
+    //     else
+    //     {
+    //         return -1;
+    //     }
+    // }
 };
 
 template

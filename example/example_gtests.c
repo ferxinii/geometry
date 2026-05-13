@@ -165,28 +165,21 @@ static void test_orthosegment_fn(void)
         double wc[1] = {4};
         printf("-- k=1, c={1}, wc={4}: pi(xp,wp) = (xp-1)^2 + 4 - wp --\n");
         // wp=0: pi = (xp-1)^2 + 4 > 0 always => outside (-1)
-        printf("xp=1, wp=0:   %d (want -1)\n", test_orthosegment(1, c, wc,  1,  0, 0));
-        printf("xp=0, wp=0:   %d (want -1)\n", test_orthosegment(1, c, wc,  0,  0, 0));
-        printf("xp=5, wp=0:   %d (want -1)\n", test_orthosegment(1, c, wc,  5,  0, 0));
+        printf("xp=1, wp=0:   %d (want -1)\n", test_orthosegment(1, c, wc,  1,  0));
+        printf("xp=0, wp=0:   %d (want -1)\n", test_orthosegment(1, c, wc,  0,  0));
+        printf("xp=5, wp=0:   %d (want -1)\n", test_orthosegment(1, c, wc,  5,  0));
         // wp = (xp-1)^2 + 4 => pi=0 => on boundary
         // xp=1: pi = 0 + 4 - wp = 0 => wp=4
-        printf("xp=1, wp=4:   %d (want  0)\n", test_orthosegment(1, c, wc,  1,  4, 0));
+        printf("xp=1, wp=4:   %d (want  0)\n", test_orthosegment(1, c, wc,  1,  4));
         // xp=3: pi = 4 + 4 - wp = 0 => wp=8
-        printf("xp=3, wp=8:   %d (want  0)\n", test_orthosegment(1, c, wc,  3,  8, 0));
+        printf("xp=3, wp=8:   %d (want  0)\n", test_orthosegment(1, c, wc,  3,  8));
         // xp=1, wp=5: pi = 0 + 4 - 5 = -1 < 0 => inside
-        printf("xp=1, wp=5:   %d (want  1)\n", test_orthosegment(1, c, wc,  1,  5, 0));
+        printf("xp=1, wp=5:   %d (want  1)\n", test_orthosegment(1, c, wc,  1,  5));
         // xp=3, wp=9: pi = 4 + 4 - 9 = -1 < 0 => inside
-        printf("xp=3, wp=9:   %d (want  1)\n", test_orthosegment(1, c, wc,  3,  9, 0));
+        printf("xp=3, wp=9:   %d (want  1)\n", test_orthosegment(1, c, wc,  3,  9));
         // xp=3, wp=7: pi = 4 + 4 - 7 = 1 > 0 => outside
-        printf("xp=3, wp=7:   %d (want -1)\n", test_orthosegment(1, c, wc,  3,  7, 0));
+        printf("xp=3, wp=7:   %d (want -1)\n", test_orthosegment(1, c, wc,  3,  7));
 
-        // alpha variant: test pi < alpha, i.e. (xp-1)^2 + 4 - wp < alpha
-        // xp=1, wp=0: pi=4. Test pi < alpha.
-        printf("-- k=1, alpha variant (pi=4 at xp=1,wp=0) --\n");
-        printf("pi=4 < alpha=5: %d (want  1)\n", test_orthosegment(1, c, wc, 1, 0, 5));
-        printf("Now calling problematic...\n");
-        printf("pi=4 < alpha=4: %d (want  0)\n", test_orthosegment(1, c, wc, 1, 0, 4));
-        printf("pi=4 < alpha=3: %d (want -1)\n", test_orthosegment(1, c, wc, 1, 0, 3));
     }
 
     // --- k=2, zero weights ---
@@ -195,14 +188,14 @@ static void test_orthosegment_fn(void)
         double c[2]  = {0, 2};
         double wc[2] = {0, 0};
         printf("-- k=2, zero weights: center=1, r=1 --\n");
-        printf("inside  (xp=0.5):   %d (want  1)\n", test_orthosegment(2, c, wc, 0.5, 0,   0));
-        printf("outside (xp=3):     %d (want -1)\n", test_orthosegment(2, c, wc, 3,   0,   0));
-        printf("on bdry (xp=0):     %d (want  0)\n", test_orthosegment(2, c, wc, 0,   0,   0));
-        printf("on bdry (xp=2):     %d (want  0)\n", test_orthosegment(2, c, wc, 2,   0,   0));
+        printf("inside  (xp=0.5):   %d (want  1)\n", test_orthosegment(2, c, wc, 0.5, 0));
+        printf("outside (xp=3):     %d (want -1)\n", test_orthosegment(2, c, wc, 3,   0));
+        printf("on bdry (xp=0):     %d (want  0)\n", test_orthosegment(2, c, wc, 0,   0));
+        printf("on bdry (xp=2):     %d (want  0)\n", test_orthosegment(2, c, wc, 2,   0));
         // wp=10: pi(xp=3) = 4-1-10 = -7 < 0 => inside
-        printf("out+wp=10 -> in:    %d (want  1)\n", test_orthosegment(2, c, wc, 3,   10,  0));
+        printf("out+wp=10 -> in:    %d (want  1)\n", test_orthosegment(2, c, wc, 3,   10));
         // wp=-10: pi(xp=0.5) = 0.25-1+10 = 9.25 > 0 => outside
-        printf("in+wp=-10 -> out:   %d (want -1)\n", test_orthosegment(2, c, wc, 0.5,-10,  0));
+        printf("in+wp=-10 -> out:   %d (want -1)\n", test_orthosegment(2, c, wc, 0.5,-10));
     }
 
     // --- k=2, reversed endpoints: same result ---
@@ -210,9 +203,9 @@ static void test_orthosegment_fn(void)
         double c[2]  = {2, 0};
         double wc[2] = {0, 0};
         printf("-- k=2 reversed --\n");
-        printf("inside  (xp=0.5):   %d (want  1)\n", test_orthosegment(2, c, wc, 0.5, 0, 0));
-        printf("outside (xp=3):     %d (want -1)\n", test_orthosegment(2, c, wc, 3,   0, 0));
-        printf("on bdry (xp=0):     %d (want  0)\n", test_orthosegment(2, c, wc, 0,   0, 0));
+        printf("inside  (xp=0.5):   %d (want  1)\n", test_orthosegment(2, c, wc, 0.5, 0));
+        printf("outside (xp=3):     %d (want -1)\n", test_orthosegment(2, c, wc, 3,   0));
+        printf("on bdry (xp=0):     %d (want  0)\n", test_orthosegment(2, c, wc, 0,   0));
     }
 
     // --- k=2, wider segment: c={0,4}, center=2, r=2 ---
@@ -220,22 +213,12 @@ static void test_orthosegment_fn(void)
         double c[2]  = {0, 4};
         double wc[2] = {0, 0};
         printf("-- k=2, c={0,4}, center=2, r=2 --\n");
-        printf("inside  (xp=2): %d (want  1)\n", test_orthosegment(2, c, wc, 2, 0, 0));
-        printf("on bdry (xp=0): %d (want  0)\n", test_orthosegment(2, c, wc, 0, 0, 0));
-        printf("on bdry (xp=4): %d (want  0)\n", test_orthosegment(2, c, wc, 4, 0, 0));
-        printf("outside (xp=5): %d (want -1)\n", test_orthosegment(2, c, wc, 5, 0, 0));
+        printf("inside  (xp=2): %d (want  1)\n", test_orthosegment(2, c, wc, 2, 0));
+        printf("on bdry (xp=0): %d (want  0)\n", test_orthosegment(2, c, wc, 0, 0));
+        printf("on bdry (xp=4): %d (want  0)\n", test_orthosegment(2, c, wc, 4, 0));
+        printf("outside (xp=5): %d (want -1)\n", test_orthosegment(2, c, wc, 5, 0));
     }
 
-    // --- alpha variant ---
-    // pi at xp=3 (c={0,2}, w=0) = (3-1)^2 - 1 = 3. Test pi < alpha.
-    {
-        double c[2]  = {0, 2};
-        double wc[2] = {0, 0};
-        printf("-- k=2, alpha variant (pi=3 at xp=3) --\n");
-        printf("pi=3 < alpha=4: %d (want  1)\n", test_orthosegment(2, c, wc, 3, 0, 4));
-        printf("pi=3 < alpha=3: %d (want  0)\n", test_orthosegment(2, c, wc, 3, 0, 3));
-        printf("pi=3 < alpha=2: %d (want -1)\n", test_orthosegment(2, c, wc, 3, 0, 2));
-    }
 }
 
 // ==========================================================================
@@ -261,31 +244,26 @@ static void test_orthocircle_fn(void)
         s_point2d out = {{ 2,  0}};
 
         printf("-- k=3, unit circle, zero weights --\n");
-        printf("on:        %d (want  0)\n", test_orthocircle(3,(s_point2d[]){a,b,c},wc, on,  0, 0));
-        printf("inside:    %d (want  1)\n", test_orthocircle(3,(s_point2d[]){a,b,c},wc, in,  0, 0));
-        printf("outside:   %d (want -1)\n", test_orthocircle(3,(s_point2d[]){a,b,c},wc, out, 0, 0));
+        printf("on:        %d (want  0)\n", test_orthocircle(3,(s_point2d[]){a,b,c},wc, on,  0));
+        printf("inside:    %d (want  1)\n", test_orthocircle(3,(s_point2d[]){a,b,c},wc, in,  0));
+        printf("outside:   %d (want -1)\n", test_orthocircle(3,(s_point2d[]){a,b,c},wc, out, 0));
         // wp shifts pi: pi(on)=0; +wp => pi=-wp<0 => inside; -wp => pi=+>0 => outside
-        printf("on+wp=+1:  %d (want  1)\n", test_orthocircle(3,(s_point2d[]){a,b,c},wc, on,  1, 0));
-        printf("on+wp=-1:  %d (want -1)\n", test_orthocircle(3,(s_point2d[]){a,b,c},wc, on, -1, 0));
+        printf("on+wp=+1:  %d (want  1)\n", test_orthocircle(3,(s_point2d[]){a,b,c},wc, on,  1));
+        printf("on+wp=-1:  %d (want -1)\n", test_orthocircle(3,(s_point2d[]){a,b,c},wc, on, -1));
 
         // Agree with test_incircle at zero weights
         int ic_on  = test_incircle((s_point2d[]){a,b,c}, on);
         int ic_in  = test_incircle((s_point2d[]){a,b,c}, in);
         int ic_out = test_incircle((s_point2d[]){a,b,c}, out);
         printf("agree incircle on:      ortho=%d incircle=%d %s\n",
-            test_orthocircle(3,(s_point2d[]){a,b,c},wc, on,  0, 0), ic_on,
-            (test_orthocircle(3,(s_point2d[]){a,b,c},wc, on,  0, 0)==ic_on) ? "(match)" : "*** MISMATCH ***");
+            test_orthocircle(3,(s_point2d[]){a,b,c},wc, on,  0), ic_on,
+            (test_orthocircle(3,(s_point2d[]){a,b,c},wc, on,  0)==ic_on) ? "(match)" : "*** MISMATCH ***");
         printf("agree incircle inside:  ortho=%d incircle=%d %s\n",
-            test_orthocircle(3,(s_point2d[]){a,b,c},wc, in,  0, 0), ic_in,
-            (test_orthocircle(3,(s_point2d[]){a,b,c},wc, in,  0, 0)==ic_in) ? "(match)" : "*** MISMATCH ***");
+            test_orthocircle(3,(s_point2d[]){a,b,c},wc, in,  0), ic_in,
+            (test_orthocircle(3,(s_point2d[]){a,b,c},wc, in,  0)==ic_in) ? "(match)" : "*** MISMATCH ***");
         printf("agree incircle outside: ortho=%d incircle=%d %s\n",
-            test_orthocircle(3,(s_point2d[]){a,b,c},wc, out, 0, 0), ic_out,
-            (test_orthocircle(3,(s_point2d[]){a,b,c},wc, out, 0, 0)==ic_out) ? "(match)" : "*** MISMATCH ***");
-
-        // Alpha: pi at out=(2,0) = 4-1 = 3
-        printf("pi<4:      %d (want  1)\n", test_orthocircle(3,(s_point2d[]){a,b,c},wc, out, 0, 4));
-        printf("pi<3:      %d (want  0)\n", test_orthocircle(3,(s_point2d[]){a,b,c},wc, out, 0, 3));
-        printf("pi<2:      %d (want -1)\n", test_orthocircle(3,(s_point2d[]){a,b,c},wc, out, 0, 2));
+            test_orthocircle(3,(s_point2d[]){a,b,c},wc, out, 0), ic_out,
+            (test_orthocircle(3,(s_point2d[]){a,b,c},wc, out, 0)==ic_out) ? "(match)" : "*** MISMATCH ***");
     }
 
     // --- k=3, nonzero equal weights ---
@@ -298,9 +276,9 @@ static void test_orthocircle_fn(void)
         double wc[3] = {1, 1, 1};
         s_point2d out = {{ 2,  0}};
         printf("-- k=3, w=1 on all inputs --\n");
-        printf("out:           %d (want -1)\n", test_orthocircle(3,(s_point2d[]){a,b,c},wc, out, 0, 0));
-        printf("out+wp=4:      %d (want  0)\n", test_orthocircle(3,(s_point2d[]){a,b,c},wc, out, 4, 0));
-        printf("out+wp=5:      %d (want  1)\n", test_orthocircle(3,(s_point2d[]){a,b,c},wc, out, 5, 0));
+        printf("out:           %d (want -1)\n", test_orthocircle(3,(s_point2d[]){a,b,c},wc, out, 0));
+        printf("out+wp=4:      %d (want  0)\n", test_orthocircle(3,(s_point2d[]){a,b,c},wc, out, 4));
+        printf("out+wp=5:      %d (want  1)\n", test_orthocircle(3,(s_point2d[]){a,b,c},wc, out, 5));
     }
 
     // --- k=2 ---
@@ -319,21 +297,17 @@ static void test_orthocircle_fn(void)
         s_point2d out    = {{3,  0}};  // pi=3
 
         printf("-- k=2, c={(0,0),(2,0)}, center=(1,0), r=1 --\n");
-        printf("inside (center):  %d (want  1)\n", test_orthocircle(2,(s_point2d[]){a,b},wc, in,     0, 0));
-        printf("on (=a):          %d (want  0)\n", test_orthocircle(2,(s_point2d[]){a,b},wc, on_a,   0, 0));
-        printf("on (=b):          %d (want  0)\n", test_orthocircle(2,(s_point2d[]){a,b},wc, on_b,   0, 0));
-        printf("on (top):         %d (want  0)\n", test_orthocircle(2,(s_point2d[]){a,b},wc, on_top, 0, 0));
-        printf("on (bot):         %d (want  0)\n", test_orthocircle(2,(s_point2d[]){a,b},wc, on_bot, 0, 0));
-        printf("outside:          %d (want -1)\n", test_orthocircle(2,(s_point2d[]){a,b},wc, out,    0, 0));
-        printf("on+wp=+1:         %d (want  1)\n", test_orthocircle(2,(s_point2d[]){a,b},wc, on_a,   1, 0));
-        printf("on+wp=-1:         %d (want -1)\n", test_orthocircle(2,(s_point2d[]){a,b},wc, on_a,  -1, 0));
+        printf("inside (center):  %d (want  1)\n", test_orthocircle(2,(s_point2d[]){a,b},wc, in,     0));
+        printf("on (=a):          %d (want  0)\n", test_orthocircle(2,(s_point2d[]){a,b},wc, on_a,   0));
+        printf("on (=b):          %d (want  0)\n", test_orthocircle(2,(s_point2d[]){a,b},wc, on_b,   0));
+        printf("on (top):         %d (want  0)\n", test_orthocircle(2,(s_point2d[]){a,b},wc, on_top, 0));
+        printf("on (bot):         %d (want  0)\n", test_orthocircle(2,(s_point2d[]){a,b},wc, on_bot, 0));
+        printf("outside:          %d (want -1)\n", test_orthocircle(2,(s_point2d[]){a,b},wc, out,    0));
+        printf("on+wp=+1:         %d (want  1)\n", test_orthocircle(2,(s_point2d[]){a,b},wc, on_a,   1));
+        printf("on+wp=-1:         %d (want -1)\n", test_orthocircle(2,(s_point2d[]){a,b},wc, on_a,  -1));
         // Reversed input: same result
-        printf("inside (rev):     %d (want  1)\n", test_orthocircle(2,(s_point2d[]){b,a},wc, in,     0, 0));
-        printf("outside (rev):    %d (want -1)\n", test_orthocircle(2,(s_point2d[]){b,a},wc, out,    0, 0));
-        // Alpha: pi at out = 3
-        printf("pi<4:             %d (want  1)\n", test_orthocircle(2,(s_point2d[]){a,b},wc, out, 0, 4));
-        printf("pi<3:             %d (want  0)\n", test_orthocircle(2,(s_point2d[]){a,b},wc, out, 0, 3));
-        printf("pi<2:             %d (want -1)\n", test_orthocircle(2,(s_point2d[]){a,b},wc, out, 0, 2));
+        printf("inside (rev):     %d (want  1)\n", test_orthocircle(2,(s_point2d[]){b,a},wc, in,     0));
+        printf("outside (rev):    %d (want -1)\n", test_orthocircle(2,(s_point2d[]){b,a},wc, out,    0));
     }
 
     // --- k=1 ---
@@ -345,9 +319,9 @@ static void test_orthocircle_fn(void)
         s_point2d on  = {{2, 0}};  double won = 8;   // pi = 4+4-8 = 0
         s_point2d out = {{3, 0}};  double wout = 0;  // pi = 9+4 = 13
         printf("-- k=1, center=(0,0), w=4 (sign(pi) directly: -1=in, +1=out) --\n");
-        printf("inside  (pi=-1): %d (want  1)\n", test_orthocircle(1,(s_point2d[]){a},wc, in,  win, 0));
-        printf("on bdry (pi=0):  %d (want  0)\n", test_orthocircle(1,(s_point2d[]){a},wc, on,  won, 0));
-        printf("outside (pi=13):  %d (want -1)\n", test_orthocircle(1,(s_point2d[]){a},wc, out, wout, 0));
+        printf("inside  (pi=-1): %d (want  1)\n", test_orthocircle(1,(s_point2d[]){a},wc, in,  win));
+        printf("on bdry (pi=0):  %d (want  0)\n", test_orthocircle(1,(s_point2d[]){a},wc, on,  won));
+        printf("outside (pi=13):  %d (want -1)\n", test_orthocircle(1,(s_point2d[]){a},wc, out, wout));
     }
 }
 
@@ -376,35 +350,30 @@ static void test_orthosphere_fn(void)
         s_point out = {{{ 2,  0,  0}}};
 
         printf("-- k=4, unit sphere, zero weights --\n");
-        printf("on:             %d (want  0)\n", test_orthosphere(4,(s_point[]){a,b,c,d},wc, on,  0, 0));
-        printf("inside:         %d (want  1)\n", test_orthosphere(4,(s_point[]){a,b,c,d},wc, in,  0, 0));
-        printf("outside:        %d (want -1)\n", test_orthosphere(4,(s_point[]){a,b,c,d},wc, out, 0, 0));
-        printf("on+wp=+1:       %d (want  1)\n", test_orthosphere(4,(s_point[]){a,b,c,d},wc, on,  1, 0));
-        printf("on+wp=-1:       %d (want -1)\n", test_orthosphere(4,(s_point[]){a,b,c,d},wc, on, -1, 0));
+        printf("on:             %d (want  0)\n", test_orthosphere(4,(s_point[]){a,b,c,d},wc, on,  0));
+        printf("inside:         %d (want  1)\n", test_orthosphere(4,(s_point[]){a,b,c,d},wc, in,  0));
+        printf("outside:        %d (want -1)\n", test_orthosphere(4,(s_point[]){a,b,c,d},wc, out, 0));
+        printf("on+wp=+1:       %d (want  1)\n", test_orthosphere(4,(s_point[]){a,b,c,d},wc, on,  1));
+        printf("on+wp=-1:       %d (want -1)\n", test_orthosphere(4,(s_point[]){a,b,c,d},wc, on, -1));
 
         // Agree with test_insphere
         int is_on  = test_insphere((s_point[]){a,b,c,d}, on);
         int is_in  = test_insphere((s_point[]){a,b,c,d}, in);
         int is_out = test_insphere((s_point[]){a,b,c,d}, out);
         printf("agree insphere on:      ortho=%d insphere=%d %s\n",
-            test_orthosphere(4,(s_point[]){a,b,c,d},wc, on,  0, 0), is_on,
-            (test_orthosphere(4,(s_point[]){a,b,c,d},wc, on,  0, 0)==is_on) ? "(match)" : "*** MISMATCH ***");
+            test_orthosphere(4,(s_point[]){a,b,c,d},wc, on,  0), is_on,
+            (test_orthosphere(4,(s_point[]){a,b,c,d},wc, on,  0)==is_on) ? "(match)" : "*** MISMATCH ***");
         printf("agree insphere inside:  ortho=%d insphere=%d %s\n",
-            test_orthosphere(4,(s_point[]){a,b,c,d},wc, in,  0, 0), is_in,
-            (test_orthosphere(4,(s_point[]){a,b,c,d},wc, in,  0, 0)==is_in) ? "(match)" : "*** MISMATCH ***");
+            test_orthosphere(4,(s_point[]){a,b,c,d},wc, in,  0), is_in,
+            (test_orthosphere(4,(s_point[]){a,b,c,d},wc, in,  0)==is_in) ? "(match)" : "*** MISMATCH ***");
         printf("agree insphere outside: ortho=%d insphere=%d %s\n",
-            test_orthosphere(4,(s_point[]){a,b,c,d},wc, out, 0, 0), is_out,
-            (test_orthosphere(4,(s_point[]){a,b,c,d},wc, out, 0, 0)==is_out) ? "(match)" : "*** MISMATCH ***");
-
-        // Alpha: pi at out=(2,0,0) = 4-1 = 3
-        printf("pi<4:           %d (want  1)\n", test_orthosphere(4,(s_point[]){a,b,c,d},wc, out, 0, 4));
-        printf("pi<3:           %d (want  0)\n", test_orthosphere(4,(s_point[]){a,b,c,d},wc, out, 0, 3));
-        printf("pi<2:           %d (want -1)\n", test_orthosphere(4,(s_point[]){a,b,c,d},wc, out, 0, 2));
+            test_orthosphere(4,(s_point[]){a,b,c,d},wc, out, 0), is_out,
+            (test_orthosphere(4,(s_point[]){a,b,c,d},wc, out, 0)==is_out) ? "(match)" : "*** MISMATCH ***");
 
         s_point barely_in  = {{{ 0.999,  0,  0}}};
         s_point barely_out = {{{ 1.001,  0,  0}}};
-        printf("barely inside:  %d (want  1)\n", test_orthosphere(4,(s_point[]){a,b,c,d},wc, barely_in,  0, 0));
-        printf("barely outside: %d (want -1)\n", test_orthosphere(4,(s_point[]){a,b,c,d},wc, barely_out, 0, 0));
+        printf("barely inside:  %d (want  1)\n", test_orthosphere(4,(s_point[]){a,b,c,d},wc, barely_in,  0));
+        printf("barely outside: %d (want -1)\n", test_orthosphere(4,(s_point[]){a,b,c,d},wc, barely_out, 0));
     }
 
     // --- k=3 ---
@@ -424,14 +393,14 @@ static void test_orthosphere_fn(void)
         s_point outside = {{{ 0,  0,  2}}};   // |p|^2=4 > 1 => outside
 
         printf("-- k=3, circumsphere center=origin, r=1 --\n");
-        printf("on (=a):           %d (want  0)\n", test_orthosphere(3,(s_point[]){a,b,c},wc, on_a,   0, 0));
-        printf("on (0,0,1):        %d (want  0)\n", test_orthosphere(3,(s_point[]){a,b,c},wc, on_z,   0, 0));
-        printf("on (0,0,-1):       %d (want  0)\n", test_orthosphere(3,(s_point[]){a,b,c},wc, on_neg, 0, 0));
-        printf("inside (0.5,0,0):  %d (want  1)\n", test_orthosphere(3,(s_point[]){a,b,c},wc, inside, 0, 0));
-        printf("inside (origin):   %d (want  1)\n", test_orthosphere(3,(s_point[]){a,b,c},wc, origin, 0, 0));
-        printf("outside (0,0,2):   %d (want -1)\n", test_orthosphere(3,(s_point[]){a,b,c},wc, outside,0, 0));
-        printf("on+wp=+1:          %d (want  1)\n", test_orthosphere(3,(s_point[]){a,b,c},wc, on_a,   1, 0));
-        printf("on+wp=-1:          %d (want -1)\n", test_orthosphere(3,(s_point[]){a,b,c},wc, on_a,  -1, 0));
+        printf("on (=a):           %d (want  0)\n", test_orthosphere(3,(s_point[]){a,b,c},wc, on_a,   0));
+        printf("on (0,0,1):        %d (want  0)\n", test_orthosphere(3,(s_point[]){a,b,c},wc, on_z,   0));
+        printf("on (0,0,-1):       %d (want  0)\n", test_orthosphere(3,(s_point[]){a,b,c},wc, on_neg, 0));
+        printf("inside (0.5,0,0):  %d (want  1)\n", test_orthosphere(3,(s_point[]){a,b,c},wc, inside, 0));
+        printf("inside (origin):   %d (want  1)\n", test_orthosphere(3,(s_point[]){a,b,c},wc, origin, 0));
+        printf("outside (0,0,2):   %d (want -1)\n", test_orthosphere(3,(s_point[]){a,b,c},wc, outside,0));
+        printf("on+wp=+1:          %d (want  1)\n", test_orthosphere(3,(s_point[]){a,b,c},wc, on_a,   1));
+        printf("on+wp=-1:          %d (want -1)\n", test_orthosphere(3,(s_point[]){a,b,c},wc, on_a,  -1));
     }
 
     // --- k=2 along X: |bx-ax| largest => ej1=ey, ej2=ez branch ---
@@ -450,18 +419,14 @@ static void test_orthosphere_fn(void)
         s_point out   = {{{3, 0, 0}}};  // pi=4-1=3
 
         printf("-- k=2, along X (ej1=ey,ej2=ez branch) --\n");
-        printf("inside (center): %d (want  1)\n", test_orthosphere(2,(s_point[]){a,b},wc, in,   0, 0));
-        printf("on (=a):         %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_a, 0, 0));
-        printf("on (=b):         %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_b, 0, 0));
-        printf("on (y-side):     %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_y, 0, 0));
-        printf("on (z-side):     %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_z, 0, 0));
-        printf("outside:         %d (want -1)\n", test_orthosphere(2,(s_point[]){a,b},wc, out,  0, 0));
-        printf("on+wp=+1:        %d (want  1)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_a, 1, 0));
-        printf("on+wp=-1:        %d (want -1)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_a,-1, 0));
-        // Alpha: pi at out = 3
-        printf("pi<4:            %d (want  1)\n", test_orthosphere(2,(s_point[]){a,b},wc, out, 0, 4));
-        printf("pi<3:            %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, out, 0, 3));
-        printf("pi<2:            %d (want -1)\n", test_orthosphere(2,(s_point[]){a,b},wc, out, 0, 2));
+        printf("inside (center): %d (want  1)\n", test_orthosphere(2,(s_point[]){a,b},wc, in,   0));
+        printf("on (=a):         %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_a, 0));
+        printf("on (=b):         %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_b, 0));
+        printf("on (y-side):     %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_y, 0));
+        printf("on (z-side):     %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_z, 0));
+        printf("outside:         %d (want -1)\n", test_orthosphere(2,(s_point[]){a,b},wc, out,  0));
+        printf("on+wp=+1:        %d (want  1)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_a, 1));
+        printf("on+wp=-1:        %d (want -1)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_a,-1));
     }
 
     // --- k=2 along Y: |by-ay| largest => ej1=ez, ej2=ex branch ---
@@ -477,11 +442,11 @@ static void test_orthosphere_fn(void)
         s_point out  = {{{0, 3, 0}}};
 
         printf("-- k=2, along Y (ej1=ez,ej2=ex branch) --\n");
-        printf("inside:  %d (want  1)\n", test_orthosphere(2,(s_point[]){a,b},wc, in,   0, 0));
-        printf("on (=a): %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_a, 0, 0));
-        printf("on (x):  %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_x, 0, 0));
-        printf("on (z):  %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_z, 0, 0));
-        printf("outside: %d (want -1)\n", test_orthosphere(2,(s_point[]){a,b},wc, out,  0, 0));
+        printf("inside:  %d (want  1)\n", test_orthosphere(2,(s_point[]){a,b},wc, in,   0));
+        printf("on (=a): %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_a, 0));
+        printf("on (x):  %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_x, 0));
+        printf("on (z):  %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_z, 0));
+        printf("outside: %d (want -1)\n", test_orthosphere(2,(s_point[]){a,b},wc, out,  0));
     }
 
     // --- k=2 along Z: |bz-az| largest => ej1=ex, ej2=ey branch ---
@@ -497,11 +462,11 @@ static void test_orthosphere_fn(void)
         s_point out  = {{{0, 0, 3}}};
 
         printf("-- k=2, along Z (ej1=ex,ej2=ey branch) --\n");
-        printf("inside:  %d (want  1)\n", test_orthosphere(2,(s_point[]){a,b},wc, in,   0, 0));
-        printf("on (=a): %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_a, 0, 0));
-        printf("on (x):  %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_x, 0, 0));
-        printf("on (y):  %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_y, 0, 0));
-        printf("outside: %d (want -1)\n", test_orthosphere(2,(s_point[]){a,b},wc, out,  0, 0));
+        printf("inside:  %d (want  1)\n", test_orthosphere(2,(s_point[]){a,b},wc, in,   0));
+        printf("on (=a): %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_a, 0));
+        printf("on (x):  %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_x, 0));
+        printf("on (y):  %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_y, 0));
+        printf("outside: %d (want -1)\n", test_orthosphere(2,(s_point[]){a,b},wc, out,  0));
     }
 
     // --- k=2, diagonal b-a=(1,1,0): |bz-az|=0 smallest => ej1=ex, ej2=ey branch ---
@@ -517,10 +482,10 @@ static void test_orthosphere_fn(void)
         s_point out  = {{{2,   2,   0  }}};               // pi=1.5^2+1.5^2-0.5=4
 
         printf("-- k=2, diagonal (1,1,0), z-smallest branch --\n");
-        printf("inside (center):  %d (want  1)\n", test_orthosphere(2,(s_point[]){a,b},wc, in,   0, 0));
-        printf("on (=a):          %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_a, 0, 0));
-        printf("on (z-offset):    %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_z, 0, 0));
-        printf("outside:          %d (want -1)\n", test_orthosphere(2,(s_point[]){a,b},wc, out,  0, 0));
+        printf("inside (center):  %d (want  1)\n", test_orthosphere(2,(s_point[]){a,b},wc, in,   0));
+        printf("on (=a):          %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_a, 0));
+        printf("on (z-offset):    %d (want  0)\n", test_orthosphere(2,(s_point[]){a,b},wc, on_z, 0));
+        printf("outside:          %d (want -1)\n", test_orthosphere(2,(s_point[]){a,b},wc, out,  0));
     }
 
     // --- k=1 ---
@@ -534,9 +499,9 @@ static void test_orthosphere_fn(void)
         s_point out = {{{3, 0, 0}}};  double wout = 0;  // pi=9+4=113
 
         printf("-- k=1, center=(0,0,0), w=4 (sign(pi) directly: -1=in, +1=out) --\n");
-        printf("inside  (pi=-1): %d (want 1)\n", test_orthosphere(1,(s_point[]){a},wc, in,  win, 0));
-        printf("on bdry (pi=0):  %d (want  0)\n", test_orthosphere(1,(s_point[]){a},wc, on,  won, 0));
-        printf("outside (pi=13):  %d (want  -1)\n", test_orthosphere(1,(s_point[]){a},wc, out, wout, 0));
+        printf("inside  (pi=-1): %d (want 1)\n", test_orthosphere(1,(s_point[]){a},wc, in,  win));
+        printf("on bdry (pi=0):  %d (want  0)\n", test_orthosphere(1,(s_point[]){a},wc, on,  won));
+        printf("outside (pi=13):  %d (want  -1)\n", test_orthosphere(1,(s_point[]){a},wc, out, wout));
     }
 }
 
@@ -556,7 +521,7 @@ static void test_cross_consistency(void)
         s_point2d pts[5] = {{{ 0,-1}}, {{ 0, 0}}, {{ 2, 0}}, {{ 0.5, 0.3}}, {{-0.5, 0.5}}};
         const char *names[5] = {"on", "in", "out", "diag1", "diag2"};
         for (int i = 0; i < 5; i++) {
-            int oc = test_orthocircle(3,(s_point2d[]){a,b,c},wc, pts[i], 0, 0);
+            int oc = test_orthocircle(3,(s_point2d[]){a,b,c},wc, pts[i], 0);
             int ic = test_incircle((s_point2d[]){a,b,c}, pts[i]);
             printf("orthocircle vs incircle [%s]: %d vs %d %s\n",
                 names[i], oc, ic, (oc==ic) ? "(match)" : "*** MISMATCH ***");
@@ -576,11 +541,221 @@ static void test_cross_consistency(void)
         };
         const char *names[5] = {"on", "in", "out", "diag1", "diag2"};
         for (int i = 0; i < 5; i++) {
-            int os = test_orthosphere(4,(s_point[]){a,b,c,d},wc, pts[i], 0, 0);
+            int os = test_orthosphere(4,(s_point[]){a,b,c,d},wc, pts[i], 0);
             int is = test_insphere((s_point[]){a,b,c,d}, pts[i]);
             printf("orthosphere vs insphere [%s]: %d vs %d %s\n",
                 names[i], os, is, (os==is) ? "(match)" : "*** MISMATCH ***");
         }
+    }
+}
+
+// ==========================================================================
+// TEST_ORTHOSEGMENT_W / TEST_ORTHOCIRCLE_W / TEST_ORTHOSPHERE_W
+//
+// Return sign(wS - alpha), where wS is the weight of the orthogonal
+// hypersphere (= squared circumradius for zero-weight inputs).
+// ==========================================================================
+static void test_orthoweight_fn(void)
+{
+    printf("\n=== test_orthoweight (orthosegment_w / orthocircle_w / orthosphere_w) ===\n");
+
+    // ------------------------------------------------------------------
+    // test_orthosegment_w
+    // k=2, c={0,2}, wc={0,0}: center=1, r^2=1 => wS=1.
+    // sign(wS - alpha): alpha<1 => +1, alpha=1 => 0, alpha>1 => -1.
+    // ------------------------------------------------------------------
+    {
+        double c[2]  = {0, 2};
+        double wc[2] = {0, 0};
+        printf("-- orthosegment_w, c={0,2}, zero weights: wS=1 --\n");
+        printf("alpha=0:   %d (want  1)\n", test_orthosegment_w(2, c, wc, 0));
+        printf("alpha=0.5: %d (want  1)\n", test_orthosegment_w(2, c, wc, 0.5));
+        printf("alpha=1:   %d (want  0)\n", test_orthosegment_w(2, c, wc, 1));
+        printf("alpha=2:   %d (want -1)\n", test_orthosegment_w(2, c, wc, 2));
+    }
+
+    // k=2, c={0,4}, wc={0,0}: center=2, r^2=4 => wS=4.
+    {
+        double c[2]  = {0, 4};
+        double wc[2] = {0, 0};
+        printf("-- orthosegment_w, c={0,4}, zero weights: wS=4 --\n");
+        printf("alpha=3:   %d (want  1)\n", test_orthosegment_w(2, c, wc, 3));
+        printf("alpha=4:   %d (want  0)\n", test_orthosegment_w(2, c, wc, 4));
+        printf("alpha=5:   %d (want -1)\n", test_orthosegment_w(2, c, wc, 5));
+    }
+
+    // k=1, c={1}, wc={4}: orthosphere is the sphere itself, wS=4.
+    {
+        double c[1]  = {1};
+        double wc[1] = {4};
+        printf("-- orthosegment_w, k=1, c={1}, wc={4}: wS=4 --\n");
+        printf("alpha=3:   %d (want  1)\n", test_orthosegment_w(1, c, wc, 3));
+        printf("alpha=4:   %d (want  0)\n", test_orthosegment_w(1, c, wc, 4));
+        printf("alpha=5:   %d (want -1)\n", test_orthosegment_w(1, c, wc, 5));
+    }
+
+    // k=2, nonzero weights: wS = r^2 - wc (power distance formula).
+    // c={0,2}, wc={1,1}: midpoint=1, r^2=1, wS = 1 - 1 = 0.
+    {
+        double c[2]  = {0, 2};
+        double wc[2] = {1, 1};
+        printf("-- orthosegment_w, c={0,2}, wc={1,1}: wS=0 --\n");
+        printf("alpha=-1:  %d (want  1)\n", test_orthosegment_w(2, c, wc, -1));
+        printf("alpha=0:   %d (want  0)\n", test_orthosegment_w(2, c, wc,  0));
+        printf("alpha=1:   %d (want -1)\n", test_orthosegment_w(2, c, wc,  1));
+    }
+
+    // ------------------------------------------------------------------
+    // test_orthocircle_w
+    // k=3, unit circle (1,0),(0,1),(-1,0), zero weights: circumradius=1,
+    // wS=1.
+    // ------------------------------------------------------------------
+    {
+        s_point2d a = {{ 1,  0}};
+        s_point2d b = {{ 0,  1}};
+        s_point2d c = {{-1,  0}};
+        double wc[3] = {0, 0, 0};
+        printf("-- orthocircle_w, k=3, unit circle, zero weights: wS=1 --\n");
+        printf("alpha=0:   %d (want  1)\n", test_orthocircle_w(3, (s_point2d[]){a,b,c}, wc, 0));
+        printf("alpha=0.5: %d (want  1)\n", test_orthocircle_w(3, (s_point2d[]){a,b,c}, wc, 0.5));
+        printf("alpha=1:   %d (want  0)\n", test_orthocircle_w(3, (s_point2d[]){a,b,c}, wc, 1));
+        printf("alpha=2:   %d (want -1)\n", test_orthocircle_w(3, (s_point2d[]){a,b,c}, wc, 2));
+    }
+
+    // k=2, c={(0,0),(2,0)}, zero weights: center=(1,0), r^2=1, wS=1.
+    {
+        s_point2d a = {{0, 0}};
+        s_point2d b = {{2, 0}};
+        double wc[2] = {0, 0};
+        printf("-- orthocircle_w, k=2, c={(0,0),(2,0)}, zero weights: wS=1 --\n");
+        printf("alpha=0.5: %d (want  1)\n", test_orthocircle_w(2, (s_point2d[]){a,b}, wc, 0.5));
+        printf("alpha=1:   %d (want  0)\n", test_orthocircle_w(2, (s_point2d[]){a,b}, wc, 1));
+        printf("alpha=2:   %d (want -1)\n", test_orthocircle_w(2, (s_point2d[]){a,b}, wc, 2));
+    }
+
+    // k=1, a=(0,0), wc={4}: wS=4.
+    {
+        s_point2d a  = {{0, 0}};
+        double wc[1] = {4};
+        printf("-- orthocircle_w, k=1, wc={4}: wS=4 --\n");
+        printf("alpha=3:   %d (want  1)\n", test_orthocircle_w(1, (s_point2d[]){a}, wc, 3));
+        printf("alpha=4:   %d (want  0)\n", test_orthocircle_w(1, (s_point2d[]){a}, wc, 4));
+        printf("alpha=5:   %d (want -1)\n", test_orthocircle_w(1, (s_point2d[]){a}, wc, 5));
+    }
+
+    // k=3, nonzero equal weights: wS = r^2 - w = 1 - 1 = 0.
+    {
+        s_point2d a = {{ 1,  0}};
+        s_point2d b = {{ 0,  1}};
+        s_point2d c = {{-1,  0}};
+        double wc[3] = {1, 1, 1};
+        printf("-- orthocircle_w, k=3, unit circle, wc={1,1,1}: wS=0 --\n");
+        printf("alpha=-1:  %d (want  1)\n", test_orthocircle_w(3, (s_point2d[]){a,b,c}, wc, -1));
+        printf("alpha=0:   %d (want  0)\n", test_orthocircle_w(3, (s_point2d[]){a,b,c}, wc,  0));
+        printf("alpha=1:   %d (want -1)\n", test_orthocircle_w(3, (s_point2d[]){a,b,c}, wc,  1));
+    }
+
+    // ------------------------------------------------------------------
+    // test_orthosphere_w
+    // k=4, unit sphere (1,0,0),(-1,0,0),(0,1,0),(0,0,1), zero weights:
+    // circumradius=1, wS=1.
+    // ------------------------------------------------------------------
+    {
+        s_point a = {{{ 1,  0,  0}}};
+        s_point b = {{{-1,  0,  0}}};
+        s_point c = {{{ 0,  1,  0}}};
+        s_point d = {{{ 0,  0,  1}}};
+        double wc[4] = {0, 0, 0, 0};
+        printf("-- orthosphere_w, k=4, unit sphere, zero weights: wS=1 --\n");
+        printf("alpha=0:   %d (want  1)\n", test_orthosphere_w(4, (s_point[]){a,b,c,d}, wc, 0));
+        printf("alpha=0.5: %d (want  1)\n", test_orthosphere_w(4, (s_point[]){a,b,c,d}, wc, 0.5));
+        printf("alpha=1:   %d (want  0)\n", test_orthosphere_w(4, (s_point[]){a,b,c,d}, wc, 1));
+        printf("alpha=2:   %d (want -1)\n", test_orthosphere_w(4, (s_point[]){a,b,c,d}, wc, 2));
+    }
+
+    // k=4, nonzero equal weights: wS = r^2 - w = 1 - 1 = 0.
+    {
+        s_point a = {{{ 1,  0,  0}}};
+        s_point b = {{{-1,  0,  0}}};
+        s_point c = {{{ 0,  1,  0}}};
+        s_point d = {{{ 0,  0,  1}}};
+        double wc[4] = {1, 1, 1, 1};
+        printf("-- orthosphere_w, k=4, unit sphere, wc={1,1,1,1}: wS=0 --\n");
+        printf("alpha=-1:  %d (want  1)\n", test_orthosphere_w(4, (s_point[]){a,b,c,d}, wc, -1));
+        printf("alpha=0:   %d (want  0)\n", test_orthosphere_w(4, (s_point[]){a,b,c,d}, wc,  0));
+        printf("alpha=1:   %d (want -1)\n", test_orthosphere_w(4, (s_point[]){a,b,c,d}, wc,  1));
+    }
+
+    // k=3, triangle in 3D: (1,0,0),(0,1,0),(-1,0,0), zero weights.
+    // Circumcenter=(0,0,0), r^2=1 => wS=1.
+    {
+        s_point a = {{{ 1,  0,  0}}};
+        s_point b = {{{ 0,  1,  0}}};
+        s_point c = {{{-1,  0,  0}}};
+        double wc[3] = {0, 0, 0};
+        printf("-- orthosphere_w, k=3, triangle in 3D, zero weights: wS=1 --\n");
+        printf("alpha=0:   %d (want  1)\n", test_orthosphere_w(3, (s_point[]){a,b,c}, wc, 0));
+        printf("alpha=1:   %d (want  0)\n", test_orthosphere_w(3, (s_point[]){a,b,c}, wc, 1));
+        printf("alpha=2:   %d (want -1)\n", test_orthosphere_w(3, (s_point[]){a,b,c}, wc, 2));
+    }
+
+    // k=2, edge along X: (0,0,0),(2,0,0), zero weights.
+    // center=(1,0,0), r^2=1 => wS=1.
+    {
+        s_point a = {{{0, 0, 0}}};
+        s_point b = {{{2, 0, 0}}};
+        double wc[2] = {0, 0};
+        printf("-- orthosphere_w, k=2, edge along X, zero weights: wS=1 --\n");
+        printf("alpha=0.5: %d (want  1)\n", test_orthosphere_w(2, (s_point[]){a,b}, wc, 0.5));
+        printf("alpha=1:   %d (want  0)\n", test_orthosphere_w(2, (s_point[]){a,b}, wc, 1));
+        printf("alpha=2:   %d (want -1)\n", test_orthosphere_w(2, (s_point[]){a,b}, wc, 2));
+    }
+
+    // k=2, longer edge: (0,0,0),(4,0,0), zero weights.
+    // center=(2,0,0), r^2=4 => wS=4.
+    {
+        s_point a = {{{0, 0, 0}}};
+        s_point b = {{{4, 0, 0}}};
+        double wc[2] = {0, 0};
+        printf("-- orthosphere_w, k=2, edge (0,0,0)-(4,0,0), zero weights: wS=4 --\n");
+        printf("alpha=3:   %d (want  1)\n", test_orthosphere_w(2, (s_point[]){a,b}, wc, 3));
+        printf("alpha=4:   %d (want  0)\n", test_orthosphere_w(2, (s_point[]){a,b}, wc, 4));
+        printf("alpha=5:   %d (want -1)\n", test_orthosphere_w(2, (s_point[]){a,b}, wc, 5));
+    }
+
+    // k=1, single point a=(0,0,0), wc={9}: wS=9.
+    {
+        s_point a  = {{{0, 0, 0}}};
+        double wc[1] = {9};
+        printf("-- orthosphere_w, k=1, wc={9}: wS=9 --\n");
+        printf("alpha=8:   %d (want  1)\n", test_orthosphere_w(1, (s_point[]){a}, wc, 8));
+        printf("alpha=9:   %d (want  0)\n", test_orthosphere_w(1, (s_point[]){a}, wc, 9));
+        printf("alpha=10:  %d (want -1)\n", test_orthosphere_w(1, (s_point[]){a}, wc, 10));
+    }
+
+    // k=2, nonzero weights: wS = r^2 - w.
+    // c={(0,0,0),(2,0,0)}, wc={1,1}: r^2=1, wS=1-1=0.
+    {
+        s_point a = {{{0, 0, 0}}};
+        s_point b = {{{2, 0, 0}}};
+        double wc[2] = {1, 1};
+        printf("-- orthosphere_w, k=2, edge (0,0,0)-(2,0,0), wc={1,1}: wS=0 --\n");
+        printf("alpha=-1:  %d (want  1)\n", test_orthosphere_w(2, (s_point[]){a,b}, wc, -1));
+        printf("alpha=0:   %d (want  0)\n", test_orthosphere_w(2, (s_point[]){a,b}, wc,  0));
+        printf("alpha=1:   %d (want -1)\n", test_orthosphere_w(2, (s_point[]){a,b}, wc,  1));
+    }
+
+    // k=3, right triangle: (0,0,0),(2,0,0),(0,2,0), zero weights.
+    // Circumcenter=(1,1,0), r^2=2 => wS=2.
+    {
+        s_point a = {{{0, 0, 0}}};
+        s_point b = {{{2, 0, 0}}};
+        s_point c = {{{0, 2, 0}}};
+        double wc[3] = {0, 0, 0};
+        printf("-- orthosphere_w, k=3, right triangle in 3D, zero weights: wS=2 --\n");
+        printf("alpha=1:   %d (want  1)\n", test_orthosphere_w(3, (s_point[]){a,b,c}, wc, 1));
+        printf("alpha=2:   %d (want  0)\n", test_orthosphere_w(3, (s_point[]){a,b,c}, wc, 2));
+        printf("alpha=3:   %d (want -1)\n", test_orthosphere_w(3, (s_point[]){a,b,c}, wc, 3));
     }
 }
 
@@ -597,6 +772,7 @@ int main(void)
     test_orthocircle_fn();
     test_orthosphere_fn();
     test_cross_consistency();
+    test_orthoweight_fn();
     printf("\nDone.\n");
     return 0;
 }

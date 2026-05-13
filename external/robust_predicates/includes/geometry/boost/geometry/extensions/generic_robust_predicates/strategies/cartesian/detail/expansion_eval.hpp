@@ -21,6 +21,8 @@
 
 #include <boost/geometry/extensions/generic_robust_predicates/strategies/cartesian/detail/expression_tree.hpp>
 #include <boost/geometry/extensions/generic_robust_predicates/strategies/cartesian/detail/expansion_arithmetic.hpp>
+#include <boost/geometry/extensions/generic_robust_predicates/strategies/cartesian/detail/expression_eval.hpp>
+
 
 namespace boost { namespace geometry
 {
@@ -69,24 +71,65 @@ public:
             : left_size + right_size;
 };
 
+// FERNANDO: Modified this
+// Helper: is this leaf expression a non-negative power of 2?
+template <typename T, typename = void>
+struct has_zero_argn : std::false_type {};
+
+template <typename T>
+struct has_zero_argn<T, std::void_t<decltype(T::argn)>>
+    : std::bool_constant<T::argn == 0> {};
+
+template <typename Expr>
+constexpr bool is_pow2_const_v()
+{
+    if constexpr (has_zero_argn<Expr>::value) {
+        constexpr auto v = Expr::value;
+        if constexpr (v > 0.0) {
+            auto x = v;
+            while (x > 1.0) {
+                if ((x / 2.0) * 2.0 != x) return false;
+                x /= 2.0;
+            }
+            return x == 1.0;
+        }
+    }
+    return false;
+}
+
 template <typename Expression, bool StageB>
 struct expansion_size_impl<Expression, StageB, operator_types::product>
 {
 private:
-    static constexpr std::size_t left_size =
-        expansion_size_impl<typename Expression::left, StageB>::value;
-    static constexpr std::size_t right_size =
-        expansion_size_impl<typename Expression::right, StageB>::value;
+    using L = typename Expression::left;
+    using R = typename Expression::right;
+    static constexpr std::size_t left_size  = expansion_size_impl<L, StageB>::value;
+    static constexpr std::size_t right_size = expansion_size_impl<R, StageB>::value;
 public:
     static constexpr std::size_t value =
-        std::is_same
-            <
-                typename Expression::left,
-                typename Expression::right
-            >::value && left_size == 2 && right_size == 2 ?
-              6
-            : 2 * left_size * right_size;
+        is_pow2_const_v<R>() ? left_size  :  // e * 2^k: exact, same size as e
+        is_pow2_const_v<L>() ? right_size :  // 2^k * e: exact, same size as e
+        (std::is_same<L, R>::value && left_size == 2 && right_size == 2) ? 6 :
+        2 * left_size * right_size;
 };
+// template <typename Expression, bool StageB>
+// struct expansion_size_impl<Expression, StageB, operator_types::product>
+// {
+// private:
+//     static constexpr std::size_t left_size =
+//         expansion_size_impl<typename Expression::left, StageB>::value;
+//     static constexpr std::size_t right_size =
+//         expansion_size_impl<typename Expression::right, StageB>::value;
+// public:
+//     static constexpr std::size_t value =
+//         std::is_same
+//             <
+//                 typename Expression::left,
+//                 typename Expression::right
+//             >::value && left_size == 2 && right_size == 2 ?
+//               6
+//             : 2 * left_size * right_size;
+// };
 
 template <typename Expression> using expansion_size =
     boost::mp11::mp_size_t< expansion_size_impl<Expression, false>::value >;
@@ -337,10 +380,25 @@ public:
     {
         std::array<Real, sizeof...(Reals)> input
             {{ static_cast<Real>(args)... }};
-        Real left_val = input[left::argn - 1];
-        Real right_val = input[right::argn - 1];
-        auto end = perform_op_impl<Op, 1, 1, false, Iter, ZEPolicy, FEPolicy, StageB, LeftEqualsRight, MostSigOnly>
-            ::apply(left_val, right_val, begin + start, begin + start + size);
+        // FERNANDO: Modified this!
+        // Real left_val = input[left::argn - 1];
+        // Real right_val = input[right::argn - 1];
+        Real left_val  = get_arg_or_const<left>::apply(input);
+        Real right_val = get_arg_or_const<right>::apply(input);
+        // FERNANDO: Added this
+        Iter end;
+        if constexpr (Op == operator_types::product &&
+                      (is_pow2_const_v<right>() || is_pow2_const_v<left>())) {
+            // Exact: single component result
+            end = insert_ze_final<ZEPolicy<size>::value>(
+                begin + start, begin + start, left_val * right_val);
+        } else {
+            end = perform_op_impl<Op, 1, 1, false, Iter, ZEPolicy, FEPolicy, StageB, LeftEqualsRight>
+                ::apply(left_val, right_val,
+                        begin + start, begin + start + size);
+        }
+        // auto end = perform_op_impl<Op, 1, 1, false, Iter, ZEPolicy, FEPolicy, StageB, LeftEqualsRight, MostSigOnly>
+        //     ::apply(left_val, right_val, begin + start, begin + start + size);
         set_exp_end
             <
                 (  boost::mp11::mp_find<ZEEvals, Eval>::value
@@ -424,30 +482,44 @@ public:
     {
         std::array<Real, sizeof...(Reals)> input
             {{ static_cast<Real>(args)... }};
-        Real left_val = input[left::argn - 1];
+        // FERNANDO: Modified this
+        // Real left_val = input[left::argn - 1];
+        Real left_val = get_arg_or_const<left>::apply(input);
         Iter right_end =
             get_exp_end
                 <
                     ZEPolicy<right_size>::value,
                     boost::mp11::mp_find<ZEEvals, right>::value
                 >::apply(begin + right_start + right_size, ze_ends);
-        Iter end = perform_op_impl
-            <
-                Op,
-                1,
-                right_size,
-                false,
-                Iter,
-                ZEPolicy,
-                FEPolicy,
-                StageB,
-                LeftEqualsRight
-            >::apply(
-            left_val,
-            begin + right_start,
-            right_end,
-            begin + start,
-            begin + start + size);
+        // FERNANDO: Added this
+        Iter end;
+        if constexpr (Op == operator_types::product && is_pow2_const_v<left>()) {
+            end = scale_expansion_pow2<ZEPolicy<size>::value>(
+                begin + right_start, right_end, left_val,
+                begin + start, begin + start + size);
+        } else {
+            end = perform_op_impl<Op, 1, right_size, false, Iter, ZEPolicy, FEPolicy, StageB, LeftEqualsRight>
+                ::apply(left_val,
+                        begin + right_start, right_end,
+                        begin + start, begin + start + size);
+        }
+        // Iter end = perform_op_impl
+        //     <
+        //         Op,
+        //         1,
+        //         right_size,
+        //         false,
+        //         Iter,
+        //         ZEPolicy,
+        //         FEPolicy,
+        //         StageB,
+        //         LeftEqualsRight
+        //     >::apply(
+        //     left_val,
+        //     begin + right_start,
+        //     right_end,
+        //     begin + start,
+        //     begin + start + size);
         set_exp_end
             <
                 (  boost::mp11::mp_find<ZEEvals, Eval>::value
@@ -512,30 +584,43 @@ public:
     {
         std::array<Real, sizeof...(Reals)> input
             {{ static_cast<Real>(args)... }};
-        Real right_val = input[right::argn - 1];
+        // FERNANDO: Modified this
+        // Real right_val = input[right::argn - 1];
+        Real right_val = get_arg_or_const<right>::apply(input);
         Iter left_end =
             get_exp_end
                 <
                     ZEPolicy<left_size>::value,
                     boost::mp11::mp_find<ZEEvals, left>::value
                 >::apply(begin + left_start + left_size, ze_ends);
-        auto end = perform_op_impl
-            <
-                Op,
-                left_size,
-                1,
-                false,
-                Iter,
-                ZEPolicy,
-                FEPolicy,
-                StageB,
-                LeftEqualsRight
-            >::apply(
-            begin + left_start,
-            left_end,
-            right_val,
-            begin + start,
-            begin + start + size);
+        // FERNANDO: Added this
+        Iter end;
+        if constexpr (Op == operator_types::product && is_pow2_const_v<right>()) {
+            end = scale_expansion_pow2<ZEPolicy<size>::value>(
+                begin + left_start, left_end, right_val,
+                begin + start, begin + start + size);
+        } else {
+            end = perform_op_impl<Op, left_size, 1, false, Iter, ZEPolicy, FEPolicy, StageB, LeftEqualsRight>
+                ::apply(begin + left_start, left_end, right_val,
+                        begin + start, begin + start + size);
+        }
+        // auto end = perform_op_impl
+        //     <
+        //         Op,
+        //         left_size,
+        //         1,
+        //         false,
+        //         Iter,
+        //         ZEPolicy,
+        //         FEPolicy,
+        //         StageB,
+        //         LeftEqualsRight
+        //     >::apply(
+        //     begin + left_start,
+        //     left_end,
+        //     right_val,
+        //     begin + start,
+        //     begin + start + size);
         set_exp_end
             <
                 (  boost::mp11::mp_find<ZEEvals, Eval>::value

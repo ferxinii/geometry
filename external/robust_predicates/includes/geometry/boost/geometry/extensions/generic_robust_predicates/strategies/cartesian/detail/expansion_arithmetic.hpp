@@ -1020,6 +1020,26 @@ constexpr OutIter scale_expansion(InIter e_begin,
     return h_it;
 }
 
+//FERNANDO: Added this
+template <bool zero_elimination, typename InIter, typename Real, typename OutIter>
+constexpr OutIter scale_expansion_pow2(InIter e_begin, InIter e_end, Real b,
+                                       OutIter h_begin, OutIter)
+{
+    // b is a power of 2: e[i]*b is exact, two_product_tail == 0 for all i
+    // Result has the same number of components as the input
+    assert(debug_expansion::expansion_nonoverlapping(e_begin, e_end));
+    auto h_it = h_begin;
+    for (auto e_it = e_begin; e_it != e_end; ++e_it) {
+        Real scaled = (*e_it) * b;
+        if (std::next(e_it) != e_end)
+            h_it = insert_ze<zero_elimination>(h_it, scaled);
+        else
+            h_it = insert_ze_final<zero_elimination>(h_it, h_begin, scaled);
+    }
+    assert(debug_expansion::expansion_nonoverlapping(h_begin, h_it));
+    return h_it;
+}
+
 template <typename Rhs>
 struct greater_than_or_equal
 {
