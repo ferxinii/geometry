@@ -155,6 +155,7 @@ extern "C" int orthow_n1_k2(double xa, double wa,
 
 
 
+#ifdef ROBUST_PREDICATES_PRINT_SIZE
 template <std::size_t N>
 struct [[deprecated("results_size — see template argument")]] show_stage_d_size {};
 using _size_powertest_n1_k1 = show_stage_d_size<powertest_n1_k1_impl::exact::results_size>*;
@@ -162,9 +163,10 @@ using _size_powertest_n1_k2 = show_stage_d_size<powertest_n1_k2_D_impl::exact::r
 using _size_orthow_n1_k1 = show_stage_d_size<orthow_n1_k1_impl::exact::results_size>*;
 using _size_orthow_n1_k2 = show_stage_d_size<orthow_n1_k2_impl::exact::results_size>*;
 
-// template <std::size_t N>
-// struct [[deprecated("results_size — see template argument")]] show_stage_b_size {};
-// using _size_powertest_n1_k1_b = show_stage_b_size<powertest_n1_k1_impl::stage_b::results_size>*;
-// using _size_powertest_n1_k2_b = show_stage_b_size<powertest_n1_k2_D_impl::stage_b::results_size>*;
-// using _size_orthow_n1_k1_b = show_stage_b_size<orthow_n1_k1_impl::stage_b::results_size>*;
-// using _size_orthow_n1_k2_b = show_stage_b_size<orthow_n1_k2_impl::stage_b::results_size>*;
+template <std::size_t N>
+struct [[deprecated("results_size — see template argument")]] show_stage_b_size {};
+using _size_powertest_n1_k1_b = show_stage_b_size<powertest_n1_k1_impl::stage_b::results_size>*;
+using _size_powertest_n1_k2_b = show_stage_b_size<powertest_n1_k2_D_impl::stage_b::results_size>*;
+using _size_orthow_n1_k1_b = show_stage_b_size<orthow_n1_k1_impl::stage_b::results_size>*;
+using _size_orthow_n1_k2_b = show_stage_b_size<orthow_n1_k2_impl::stage_b::results_size>*;
+#endif
