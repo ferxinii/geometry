@@ -1,1 +1,0 @@
-[ ] Smarter convhull algorithm?? Implement and exploit face connectivity?

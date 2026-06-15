@@ -1,5 +1,4 @@
 #include "convh.h"
-#include "ch_quickhull3D.h"
 #include "points.h"
 #include "gtests.h"
 #include "dynarray.h"
@@ -153,20 +152,19 @@ static int initialize_normals_convhull(s_convh *convh, double EPS_degenerate)
 }
 
 
-int convhull_from_points(const s_points *points, double EPS_degenerate, double TOL_duplicate, s_convh *out)
+int convhull_from_points(const s_points *points, double EPS_degenerate, s_convh *out)
 {   /* TOL both for deduping points and to establish min_face_area */
     /* Returns  1 if OK,
                 0 if degeneracy ERROR.
                 -1 if other ERROR.
     */
     int *pmap = NULL; bool *isused = NULL; *out = (s_convh){0};
-    (void)TOL_duplicate;
     if (points->N == 0) { *out = convhull_NAN; return 0; }
 
     isused = malloc(points->N * sizeof(bool));
     if (!isused) goto error;
 
-    int i = quickhull_3d(points, EPS_degenerate, TOL_duplicate, isused, &out->faces, &out->Nf);
+    int i = quickhull_3d(points, EPS_degenerate, isused, &out->faces, &out->Nf);
     if (i == -1) goto error;
     if (i == 0) goto degenerate;
 
@@ -225,12 +223,12 @@ int convhull_from_points(const s_points *points, double EPS_degenerate, double T
 }
 
 
-int convhull_from_csv(const char *filename, double EPS_degenerate, double TOL, s_convh *out)
+int convhull_from_csv(const char *filename, double EPS_degenerate, s_convh *out)
 {
     s_points p = read_points_from_csv(filename);
     if (!points_is_valid(&p)) { *out = convhull_NAN; return -1; }
     
-    int i = convhull_from_points(&p, EPS_degenerate, TOL, out);
+    int i = convhull_from_points(&p, EPS_degenerate, out);
     free_points(&p);
     return i;
 }

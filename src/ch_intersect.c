@@ -1,7 +1,6 @@
 #include "points.h"
 #include "gtests.h"
 #include "convh.h"
-#include "ch_intersect.h"
 #include "dynarray.h"
 #include <stdlib.h>
 #include <string.h>
@@ -194,7 +193,7 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
         }
     }
 
-    int i = convhull_from_points(&(s_points){NpI, pI.list}, EPS_degenerate, TOL, out);
+    int i = convhull_from_points(&(s_points){NpI, pI.list}, EPS_degenerate, out);
     if (i == 0) goto degenerate;
     if (i == -1) goto error;
         
@@ -294,7 +293,7 @@ int clip_convhull_halfspace(const s_convh *C, s_point plane[3], double EPS_degen
         }
     }
     
-    int i = convhull_from_points(&(s_points){Np, p.list}, EPS_degenerate, TOL, out);
+    int i = convhull_from_points(&(s_points){Np, p.list}, EPS_degenerate, out);
     if (i == 0) goto degenerate;
     if (i == -1) goto error;
 
@@ -375,8 +374,8 @@ int remove_intersection_convhulls(s_convh *A, s_convh *B, double EPS_degenerate,
 
     /* Construct new hulls and clean-up */
     s_convh newA, newB;
-    if (convhull_from_points(&p_newA, EPS_degenerate, TOL, &newA) != 1) goto error;
-    if (convhull_from_points(&p_newB, EPS_degenerate, TOL, &newB) != 1) goto error;
+    if (convhull_from_points(&p_newA, EPS_degenerate, &newA) != 1) goto error;
+    if (convhull_from_points(&p_newB, EPS_degenerate, &newB) != 1) goto error;
 
     free_convhull(A);
     free_convhull(B);

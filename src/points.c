@@ -670,6 +670,16 @@ s_point closest_point_on_segment(const s_point segment[2], double EPS_degenerate
 }
 
 
+double distance_sq_point_line(const s_point line[2], double EPS_degenerate, s_point p)
+{
+    s_point ab = subtract_points(line[1], line[0]);
+    double denom = norm_squared(ab);
+    if (denom < EPS_degenerate) return NAN;
+    s_point ap = subtract_points(p, line[0]);
+    return norm_squared(cross_prod(ap, ab)) / denom;
+}
+
+
 
 int circumcentre_tetrahedron(const s_point p[4], double EPS_degenerate, s_point *out)
 {

@@ -72,12 +72,13 @@ int plane_from_point_normal(const s_point p0, const s_point n, double EPS_degene
 int plane_equation_from_points(const s_point plane[3], double EPS_degenerate, s_point *abc_out, double *d_out);
 int circumcentre_tetrahedron(const s_point p[4], double EPS_degenerate, s_point *out);
 
-/* The following return point_NAN if object is EPS-degenerate */
+/* The following return point_NAN / NAN if object is EPS-degenerate */
 s_point project_point_to_plane(s_point p, const s_point plane[3], double EPS_degenerate);  
 void project_point_to_plane_2D(s_point p, s_point p0, s_point t1, s_point t2, double out[2]);
 double signed_distance_point_to_plane(s_point p, const s_point plane[3], double EPS_degenerate);
 double signed_distance_point_to_plane_v2(s_point p, s_point plane_n, double plane_d);
 s_point closest_point_on_segment(const s_point segment[2], double EPS_degenerate, s_point p); 
+double distance_sq_point_line(const s_point line[2], double EPS_degenerate, s_point p);
 s_point closest_point_on_triangle(const s_point triangle[3], double EPS_degenerate, s_point p);  
 
 
