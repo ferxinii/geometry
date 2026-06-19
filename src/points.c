@@ -680,6 +680,57 @@ double distance_sq_point_line(const s_point line[2], double EPS_degenerate, s_po
 }
 
 
+/* From Ericson, "Real-Time Collision Detection", section 5.1.9. */
+double distance_segment_segment(const s_point seg_a[2], const s_point seg_b[2],
+                                double EPS_degenerate,
+                                s_point *out_pa, s_point *out_pb)
+{
+    s_point d1 = subtract_points(seg_a[1], seg_a[0]);
+    s_point d2 = subtract_points(seg_b[1], seg_b[0]);
+    s_point r  = subtract_points(seg_a[0], seg_b[0]);
+
+    double a = dot_prod(d1, d1);
+    double e = dot_prod(d2, d2);
+
+    if (a < EPS_degenerate || e < EPS_degenerate) {
+        if (out_pa) *out_pa = point_NAN;
+        if (out_pb) *out_pb = point_NAN;
+        return NAN;
+    }
+
+    double b = dot_prod(d1, d2);
+    double c = dot_prod(d1, r);
+    double f = dot_prod(d2, r);
+
+    double s, t;
+    double denom = a * e - b * b;
+
+    if (denom > EPS_degenerate) {
+        s = fmax(0.0, fmin(1.0, (b * f - c * e) / denom));
+    } else {
+        s = 0.0;  /* parallel: arbitrary, corrected by the t-clamp below */
+    }
+
+    t = (b * s + f) / e;
+
+    if (t < 0.0) {
+        t = 0.0;
+        s = fmax(0.0, fmin(1.0, -c / a));
+    } else if (t > 1.0) {
+        t = 1.0;
+        s = fmax(0.0, fmin(1.0, (b - c) / a));
+    }
+
+    s_point pa = sum_points(seg_a[0], scale_point(d1, s));
+    s_point pb = sum_points(seg_b[0], scale_point(d2, t));
+
+    if (out_pa) *out_pa = pa;
+    if (out_pb) *out_pb = pb;
+
+    return distance(pa, pb);
+}
+
+
 
 int circumcentre_tetrahedron(const s_point p[4], double EPS_degenerate, s_point *out)
 {

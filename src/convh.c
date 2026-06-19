@@ -484,8 +484,10 @@ s_point random_point_inside_convhull(double (*randd01)(void*), void *rctx,
     s_point out = random_point_uniform_3D(randd01, rctx, min, max);
     while (test_point_in_convhull(convh, out, EPS_degenerate, 0) != TEST_IN) {
         out = random_point_uniform_3D(randd01, rctx, min, max);
-        assert(it < MAX_IT && "Reached maximum iters looking for point inside convhull.");
-        it++;
+        if (it++ < MAX_IT) {
+            fprintf(stderr, "Reached maximum iters looking for point inside convhull. Returning point_NAN\n");
+            return point_NAN;
+        }
     }
     return out;
 }

@@ -386,8 +386,12 @@ static int add_faces_from_horizon(const s_points *points, bool *isused,
 
     /* Phase B: orient new faces */
     for (int k = start; k < Nfaces; k++) {
+#ifndef NDEBUG
         int o = orient_face_if_needed(points, isused, Nfaces, f, k);
         assert(o != -1 && "ch_quickhull3D: face orientation failed in add_faces_from_horizon.");
+#else
+        orient_face_if_needed(points, isused, Nfaces, f, k);
+#endif
     }
 
     /* Phase C: wire each new face to its old non-visible neighbour. */
