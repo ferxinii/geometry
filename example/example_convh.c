@@ -21,7 +21,7 @@ int main(void) {
     s_points p_cube = {8, cube};
 
     s_convh ch_cube;
-    if (convhull_from_points(&p_cube, EPS_degenerate, 0, &ch_cube) != 1) {
+    if (convhull_from_points(&p_cube, EPS_degenerate, &ch_cube) != 1) {
         printf("Error making convhull of degenerate cube.\n");
         return 0;
     }
@@ -51,7 +51,7 @@ int main(void) {
     s_points p_cube_duplicates = {12, cube_duplicates};
 
     s_convh ch_cube_duplicates;
-    if (convhull_from_points(&p_cube_duplicates, EPS_degenerate, 0, &ch_cube_duplicates) != 1) {
+    if (convhull_from_points(&p_cube_duplicates, EPS_degenerate, &ch_cube_duplicates) != 1) {
         printf("Error making convhull of degenerate cube.\n");
         return 0;
     }
@@ -96,7 +96,7 @@ int main(void) {
     s_points p_cube_degenerate = {23, cube_degenerate};
 
     s_convh ch_cube_degenerate;
-    if (convhull_from_points(&p_cube_degenerate, EPS_degenerate, 0, &ch_cube_degenerate) != 1) {
+    if (convhull_from_points(&p_cube_degenerate, EPS_degenerate, &ch_cube_degenerate) != 1) {
         printf("Error making convhull of degenerate cube.\n");
         return 0;
     }
@@ -126,7 +126,7 @@ int main(void) {
     s_points p_cube_noise = {12, cube_noise};
 
     s_convh ch_cube_noise;
-    if (convhull_from_points(&p_cube_noise, EPS_degenerate, 0, &ch_cube_noise) != 1) {
+    if (convhull_from_points(&p_cube_noise, EPS_degenerate, &ch_cube_noise) != 1) {
         printf("Error making convhull of noisy cube.\n");
         return 0;
     }
@@ -139,7 +139,7 @@ int main(void) {
     /* Segment */
     puts("");
     s_convh S1; 
-    if (convhull_from_csv("lobes/S1.csv", EPS_degenerate, 0, &S1) != 1) {
+    if (convhull_from_csv("lobes/S1.csv", EPS_degenerate, &S1) != 1) {
         printf("Error making convhull of lung segment.\n");
         return 0;
     }
@@ -162,7 +162,7 @@ int main(void) {
     /* Non-manifold */
     puts("");
     s_convh nm; 
-    if (convhull_from_csv("../problematic.csv", EPS_degenerate, 0, &nm) != 1) {
+    if (convhull_from_csv("../problematic.csv", EPS_degenerate, &nm) != 1) {
         printf("Error making convhull of nonmanifold.\n");
         return 0;
     }
@@ -174,7 +174,7 @@ int main(void) {
     /* Problematic 2: adding collinear faces */
     puts("");
     s_convh nm2; 
-    if (convhull_from_csv("../problematic_2.csv", 1e-14, 1e-14, &nm2) != 1) {
+    if (convhull_from_csv("../problematic_2.csv", 1e-14, &nm2) != 1) {
         printf("Error making convhull of nonmanifold.\n");
         return 0;
     }
@@ -185,7 +185,7 @@ int main(void) {
     /* Problematic 3: adding collinear faces */
     puts("");
     s_convh nm3; 
-    if (convhull_from_csv("../problematic_3.csv", 1e-14, 1e-14, &nm3) != 1) {
+    if (convhull_from_csv("../problematic_3.csv", 1e-14, &nm3) != 1) {
         printf("Error making convhull of nonmanifold.\n");
         return 0;
     }
@@ -196,7 +196,7 @@ int main(void) {
     /* Problematic 4: adding collinear faces */
     puts("");
     s_convh nm4; 
-    if (convhull_from_csv("../problematic_4.csv", 1e-14, 1e-14, &nm4) != 1) {
+    if (convhull_from_csv("../problematic_4.csv", 1e-14, &nm4) != 1) {
         printf("Error making convhull of nonmanifold.\n");
         return 0;
     }
@@ -207,7 +207,7 @@ int main(void) {
     /* Problematic 5: adding collinear faces */
     puts("");
     s_convh nm5; 
-    if (convhull_from_csv("../problematic_5.csv", 1e-14, 1e-14, &nm5) != 1) {
+    if (convhull_from_csv("../problematic_5.csv", 1e-14, &nm5) != 1) {
         printf("Error making convhull of nonmanifold.\n");
         return 0;
     }
@@ -218,7 +218,7 @@ int main(void) {
     /* Problematic 6: adding collinear faces */
     puts("");
     s_convh nm6; 
-    if (convhull_from_csv("../problematic_6.csv", 1e-14, 1e-14, &nm6) != 1) {
+    if (convhull_from_csv("../problematic_6.csv", 1e-14, &nm6) != 1) {
         printf("Error making convhull of nonmanifold.\n");
         return 0;
     }
@@ -229,7 +229,7 @@ int main(void) {
     /* Problematic 7*/
     puts("");
     s_convh nm7; 
-    if (convhull_from_csv("../problematic_7.csv", 1e-14, 1e-14, &nm7) != 1) {
+    if (convhull_from_csv("../problematic_7.csv", 1e-14, &nm7) != 1) {
         printf("Error making convhull of nonmanifold.\n");
         return 0;
     }
@@ -240,7 +240,7 @@ int main(void) {
     /* Overlapping faces */
     puts("");
     s_convh of; 
-    if (convhull_from_csv("../overlapping_faces.csv", 1e-14, 1e-14, &of) != 1) {
+    if (convhull_from_csv("../overlapping_faces.csv", 1e-14, &of) != 1) {
         printf("Error making convhull of overlapping_faces.\n");
         return 0;
     }
@@ -251,7 +251,7 @@ int main(void) {
     /* Problematic 8 */
     puts("");
     s_convh nm8; 
-    if (convhull_from_csv("../problematic_8.csv", 1e-14, 1e-14, &nm8) != 1) {
+    if (convhull_from_csv("../problematic_8.csv", 1e-14, &nm8) != 1) {
         printf("Error making convhull of nm8.\n");
         return 0;
     }
@@ -262,7 +262,7 @@ int main(void) {
     /* Problematic 9 */
     puts("");
     s_convh nm9; 
-    if (convhull_from_csv("../problematic_9.csv", 1e-14, 1e-14, &nm9) != 1) {
+    if (convhull_from_csv("../problematic_9.csv", 1e-14, &nm9) != 1) {
         printf("Error making convhull of nm9.\n");
         return 0;
     }
@@ -273,7 +273,7 @@ int main(void) {
     /* Overlapping faces 2*/
     puts("");
     s_convh of2; 
-    if (convhull_from_csv("../of_2.csv", 1e-14, 1e-14, &of2) != 1) {
+    if (convhull_from_csv("../of_2.csv", 1e-14, &of2) != 1) {
         printf("Error making convhull of overlapping_faces_2.\n");
         return 0;
     }

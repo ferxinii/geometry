@@ -8,6 +8,7 @@ add_library(geometry STATIC
     src/convh.c
     src/ch_quickhull3D.c
     src/ch_intersect.c
+    src/trimesh.c
 )
 
 target_include_directories(geometry

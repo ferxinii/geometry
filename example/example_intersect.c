@@ -20,7 +20,7 @@ int main()
                          {{{0, 1, 1}}},
                          {{{1, 1, 1}}} };
     s_points p_cube1 = {8, cube1};
-    s_convh ch1; convhull_from_points(&p_cube1, EPS_degenerate, TOL, &ch1);
+    s_convh ch1; convhull_from_points(&p_cube1, EPS_degenerate, &ch1);
     
     s_point translate = {{{0.5, 0.5, 0.5}}};
     s_point cube2[8] = { sum_points(cube1[0], translate),
@@ -32,7 +32,7 @@ int main()
                          sum_points(cube1[6], translate),
                          sum_points(cube1[7], translate) };
     s_points p_cube2 = {8, cube2};
-    s_convh ch2; convhull_from_points(&p_cube2, EPS_degenerate, TOL, &ch2);
+    s_convh ch2; convhull_from_points(&p_cube2, EPS_degenerate, &ch2);
 
     s_convh I;
     intersection_convhulls(&ch1, &ch2, EPS_degenerate, TOL, &I);
@@ -54,7 +54,7 @@ int main()
                          {{{0, 0.3, 0.3}}},
                          {{{0.3, 0.3, 0.3}}} };
     s_points p_cube3 = {8, cube3};
-    s_convh ch3; convhull_from_points(&p_cube3, EPS_degenerate, TOL, &ch3);
+    s_convh ch3; convhull_from_points(&p_cube3, EPS_degenerate, &ch3);
 
     intersection_convhulls(&ch1, &ch3, EPS_degenerate, TOL, &I);
     write_convhull_to_m(&ch3, "cube3.m");
@@ -67,8 +67,8 @@ int main()
     /* LUNG LOBES */
     s_points pL2 = read_points_from_csv("lobes/L2.txt");
     s_points pL3 = read_points_from_csv("lobes/L3.txt");
-    s_convh L2; convhull_from_points(&pL2, EPS_degenerate, TOL, &L2);
-    s_convh L3; convhull_from_points(&pL3, EPS_degenerate, TOL, &L3);
+    s_convh L2; convhull_from_points(&pL2, EPS_degenerate, &L2);
+    s_convh L3; convhull_from_points(&pL3, EPS_degenerate, &L3);
     
     intersection_convhulls(&L2, &L3, EPS_degenerate, TOL, &I);
 
@@ -91,10 +91,10 @@ int main()
     s_points p1 = read_points_from_csv("../prob_intersect_1.csv");
     s_points p2 = read_points_from_csv("../prob_intersect_2.csv");
 
-    s_convh ch_p1; if (convhull_from_points(&p1, 1e-14, 1e-14, &ch_p1) != 1) {
+    s_convh ch_p1; if (convhull_from_points(&p1, 1e-14, &ch_p1) != 1) {
         printf("Error generating convhull of p1.\n");
     }
-    s_convh ch_p2; if (convhull_from_points(&p2, 1e-14, 1e-14, &ch_p2) != 1) {
+    s_convh ch_p2; if (convhull_from_points(&p2, 1e-14, &ch_p2) != 1) {
         printf("Error generating convhull of p2.\n");
     }
 
