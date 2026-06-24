@@ -25,6 +25,7 @@ typedef struct trimesh {
 int       trimesh_is_valid(const s_trimesh *m);
 void      free_trimesh(s_trimesh *m);
 s_trimesh copy_trimesh(const s_trimesh *m);
+double    volume_trimesh(const s_trimesh *m);
 
 /*
  * Build from raw arrays. Computes normals and adjacency.
@@ -36,6 +37,15 @@ s_trimesh copy_trimesh(const s_trimesh *m);
 s_trimesh trimesh_from_arrays(const s_point *points, int N_points,
                               const int *faces, int N_faces,
                               double EPS_DEG);
+
+/*
+ * Load a closed triangle mesh from a Wavefront OBJ file.
+ * Handles v/vt, v/vt/vn, and v//vn face formats; polygonal faces are
+ * fan-triangulated.  Normals/adjacency are computed; winding and outward
+ * orientation are fixed automatically (same as trimesh_from_arrays).
+ * Returns trimesh_NAN on error.
+ */
+s_trimesh trimesh_from_obj(const char *fname, double EPS_DEG);
 
 /*
  * Returns 1 if p is strictly inside the closed trimesh, 0 if outside,

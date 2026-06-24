@@ -1,6 +1,7 @@
 #include "trimesh.h"
 #include "gtests.h"
 #include "hash.h"
+#include "dynarray.h"
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -87,6 +88,24 @@ s_trimesh copy_trimesh(const s_trimesh *m)
 fail:
     free_trimesh(&out);
     return trimesh_NAN;
+}
+
+
+/* -----------------------------------------------------------------------
+ * trimesh_volume
+ * ----------------------------------------------------------------------- */
+
+double volume_trimesh(const s_trimesh *m)
+{
+    s_point c = point_average(&m->points);
+    double V = 0.0;
+    for (int i = 0; i < m->Nf; i++) {
+        s_point v0 = subtract_points(m->points.p[m->faces[i*3+0]], c);
+        s_point v1 = subtract_points(m->points.p[m->faces[i*3+1]], c);
+        s_point v2 = subtract_points(m->points.p[m->faces[i*3+2]], c);
+        V += dot_prod(v0, cross_prod(v1, v2));
+    }
+    return V / 6.0;
 }
 
 
@@ -184,8 +203,8 @@ s_trimesh trimesh_from_arrays(const s_point *points, int N_points,
      * For a consistently oriented mesh adjacent faces always traverse their
      * shared edge in OPPOSITE directions.  If we find a neighbour that
      * traverses the shared edge in the SAME direction as the current face,
-     * we flip it (swap vertex positions 1↔2, negate normal, swap adjacency
-     * entries 1↔2 to keep the adjacency table correct after the flip).
+     * we flip it (swap vertex positions 1<->2, negate normal, swap adjacency
+     * entries 1<->2 to keep the adjacency table correct after the flip).
      */
     {
         bool *visited = calloc((size_t)N_faces, sizeof(bool));
@@ -206,7 +225,7 @@ s_trimesh trimesh_from_arrays(const s_point *points, int N_points,
                     if (visited[nbr]) continue;
                     visited[nbr] = true;
 
-                    /* Directed edge of fi at local j: va → vb */
+                    /* Directed edge of fi at local j: va -> vb */
                     int va = m.faces[fi*3 + (j+1)%3];
                     int vb = m.faces[fi*3 + (j+2)%3];
 
@@ -224,7 +243,7 @@ s_trimesh trimesh_from_arrays(const s_point *points, int N_points,
                     int eb = m.faces[nbr*3 + (k+2)%3];
 
                     if (ea == va && eb == vb) {
-                        /* Same direction → flip neighbour */
+                        /* Same direction -> flip neighbour */
                         int tmp;
                         tmp = m.faces[nbr*3+1];
                         m.faces[nbr*3+1] = m.faces[nbr*3+2];
@@ -232,7 +251,7 @@ s_trimesh trimesh_from_arrays(const s_point *points, int N_points,
 
                         m.fnormals[nbr] = scale_point(m.fnormals[nbr], -1.0);
 
-                        /* Swapping vertex positions 1↔2 also swaps local edges 1↔2
+                        /* Swapping vertex positions 1<->2 also swaps local edges 1<->2
                          * (local edge k is opposite vertex at position k), so the
                          * adjacency entries for positions 1 and 2 must be swapped. */
                         tmp = m.adjacency[nbr*3+1];
@@ -291,7 +310,7 @@ fail:
 
 
 /* -----------------------------------------------------------------------
- * point_in_trimesh  (Phase 2 — ray casting)
+ * point_in_trimesh  (Phase 2 - ray casting)
  * ----------------------------------------------------------------------- */
 
 int point_in_trimesh(const s_trimesh *m, s_point p, double EPS_DEG, int max_retries)
@@ -345,4 +364,81 @@ int point_in_trimesh(const s_trimesh *m, s_point p, double EPS_DEG, int max_retr
     fprintf(stderr, "point_in_trimesh: degenerate intersection persists after %d retries.\n",
             max_retries);
     return -1;
+}
+
+
+/* -----------------------------------------------------------------------
+ * trimesh_from_obj
+ * ----------------------------------------------------------------------- */
+
+s_trimesh trimesh_from_obj(const char *fname, double EPS_DEG)
+{
+    FILE *f = fopen(fname, "r");
+    if (!f) {
+        fprintf(stderr, "trimesh_from_obj: cannot open '%s'\n", fname);
+        return trimesh_NAN;
+    }
+
+    s_dynarray dverts = dynarray_initialize(sizeof(s_point),    256);
+    s_dynarray dfaces = dynarray_initialize(3 * sizeof(int),    512);
+    if (!dverts.items || !dfaces.items) goto fail;
+
+    char line[1024];
+    int lineno = 0;
+    while (fgets(line, sizeof(line), f)) {
+        lineno++;
+
+        if (line[0] == 'v' && (line[1] == ' ' || line[1] == '\t')) {
+            /* Vertex position */
+            double x, y, z;
+            if (sscanf(line + 1, "%lf %lf %lf", &x, &y, &z) != 3) {
+                fprintf(stderr, "trimesh_from_obj: bad vertex on line %d\n", lineno);
+                goto fail;
+            }
+            s_point v = {.x=x, .y=y, .z=z};
+            if (!dynarray_push(&dverts, &v)) goto fail;
+
+        } else if (line[0] == 'f' && (line[1] == ' ' || line[1] == '\t')) {
+            /* Face: parse vertex indices, handling v, v/vt, v/vt/vn, v//vn */
+            const char *p = line + 1;
+            int idx[4], n = 0;
+            while (n < 4) {
+                while (*p == ' ' || *p == '\t') p++;
+                if (*p == '\n' || *p == '\r' || *p == '\0') break;
+                int vi;
+                if (sscanf(p, "%d", &vi) != 1) break;
+                idx[n++] = vi > 0 ? vi - 1 : (int)dverts.N + vi;   /* 1-indexed, negative OK */
+                while (*p && *p != ' ' && *p != '\t' && *p != '\n' && *p != '\r') p++;
+            }
+            if (n < 3) {
+                fprintf(stderr, "trimesh_from_obj: degenerate face on line %d\n", lineno);
+                goto fail;
+            }
+            /* Fan triangulation: (0,1,2), (0,2,3), ... */
+            for (int t = 1; t < n - 1; t++) {
+                int tri[3] = {idx[0], idx[t], idx[t+1]};
+                if (!dynarray_push(&dfaces, tri)) goto fail;
+            }
+        }
+        /* All other lines (vn, vt, #, g, s, mtllib, usemtl, ...) are ignored */
+    }
+    fclose(f);
+    f = NULL;
+
+    if (dverts.N == 0 || dfaces.N == 0) {
+        fprintf(stderr, "trimesh_from_obj: no geometry found in '%s'\n", fname);
+        goto fail;
+    }
+
+    s_trimesh m = trimesh_from_arrays(dverts.items, (int)dverts.N,
+                                      dfaces.items,  (int)dfaces.N, EPS_DEG);
+    dynarray_free(&dverts);
+    dynarray_free(&dfaces);
+    return m;
+
+fail:
+    if (f) fclose(f);
+    dynarray_free(&dverts);
+    dynarray_free(&dfaces);
+    return trimesh_NAN;
 }
