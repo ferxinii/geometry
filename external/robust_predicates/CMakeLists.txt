@@ -11,6 +11,23 @@ add_library(voronoi_predicates EXCLUDE_FROM_ALL STATIC
     voronoi_predicates.cpp
 )
 
+find_library(MPFR_LIBRARY
+    NAMES mpfr
+    HINTS /opt/homebrew/lib /usr/local/lib
+)
+find_path(MPFR_INCLUDE_DIR
+    NAMES mpfr.h
+    HINTS /opt/homebrew/include /usr/local/include
+)
+if(NOT MPFR_LIBRARY)
+    message(FATAL_ERROR "MPFR library not found. Install with: brew install mpfr")
+endif()
+if(NOT MPFR_INCLUDE_DIR)
+    message(FATAL_ERROR "MPFR headers not found. Install with: brew install mpfr")
+endif()
+target_include_directories(voronoi_predicates PRIVATE ${MPFR_INCLUDE_DIR})
+target_link_libraries(voronoi_predicates PRIVATE ${MPFR_LIBRARY})
+
 foreach(_tgt robust_predicates voronoi_predicates)
     target_include_directories(${_tgt} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/includes/geometry

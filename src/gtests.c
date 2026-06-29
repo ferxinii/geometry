@@ -990,9 +990,64 @@ e_intersect_type test_segment_triangle_intersect_3D(const s_point segment[2], co
 s_segment_intersect segment_triangle_intersect_3D(const s_point segment[2], const s_point triangle[3],
                                                   double EPS_DEG, double TOL)
 {
-    s_segment_intersect out; 
+    s_segment_intersect out;
     out.type = core_segment_triangle_intersect_3D(segment, triangle, EPS_DEG, TOL, &out.N, out.coords);
     return out;
+}
+
+
+/* Triangle tetrahedron intersection */
+static e_intersect_type test_triangle_tetrahedron_intersect_robust(
+    const s_point tri[3], const s_point tet[4], double EPS_DEG)
+{
+    static const int tet_edges[6][2] = {{0,1},{0,2},{0,3},{1,2},{1,3},{2,3}};
+    static const int tet_faces[4][3] = {{1,2,3},{0,3,2},{0,1,3},{0,2,1}};
+
+    e_geom_test      vtx_tet[3];
+    e_intersect_type tet_edg[6];
+    e_intersect_type tri_fac[3][4];
+
+    /* Strict checks first: short-circuit to NONDEGENERATE on first hit */
+    for (int i = 0; i < 3; i++) {
+        vtx_tet[i] = test_point_in_tetrahedron_robust(tet, tri[i]);
+        if (vtx_tet[i] == TEST_IN) return INTERSECT_NONDEGENERATE;
+    }
+
+    for (int e = 0; e < 6; e++) {
+        s_point seg[2] = {tet[tet_edges[e][0]], tet[tet_edges[e][1]]};
+        tet_edg[e] = core_segment_triangle_intersect_3D_robust(seg, tri, EPS_DEG, NULL, NULL);
+        if (tet_edg[e] == INTERSECT_NONDEGENERATE) return INTERSECT_NONDEGENERATE;
+    }
+
+    for (int i = 0; i < 3; i++) {
+        s_point seg[2] = {tri[i], tri[(i+1)%3]};
+        for (int f = 0; f < 4; f++) {
+            s_point face[3] = {tet[tet_faces[f][0]], tet[tet_faces[f][1]], tet[tet_faces[f][2]]};
+            tri_fac[i][f] = core_segment_triangle_intersect_3D_robust(seg, face, EPS_DEG, NULL, NULL);
+            if (tri_fac[i][f] == INTERSECT_NONDEGENERATE) return INTERSECT_NONDEGENERATE;
+        }
+    }
+
+    /* Boundary checks: short-circuit to DEGENERATE on first hit */
+    for (int i = 0; i < 3; i++)
+        if (vtx_tet[i] == TEST_BOUNDARY) return INTERSECT_DEGENERATE;
+
+    for (int e = 0; e < 6; e++)
+        if (tet_edg[e] == INTERSECT_DEGENERATE) return INTERSECT_DEGENERATE;
+
+    for (int i = 0; i < 3; i++)
+        for (int f = 0; f < 4; f++)
+            if (tri_fac[i][f] == INTERSECT_DEGENERATE) return INTERSECT_DEGENERATE;
+
+    return INTERSECT_EMPTY;
+}
+
+e_intersect_type test_triangle_tetrahedron_intersect(const s_point tri[3], const s_point tet[4],
+                                                     double EPS_DEG)
+{
+    if (area_triangle(tri) < EPS_DEG)             return INTERSECT_ERROR;
+    if (fabs(signed_volume_tetra(tet)) < EPS_DEG) return INTERSECT_ERROR;
+    return test_triangle_tetrahedron_intersect_robust(tri, tet, EPS_DEG);
 }
 
 

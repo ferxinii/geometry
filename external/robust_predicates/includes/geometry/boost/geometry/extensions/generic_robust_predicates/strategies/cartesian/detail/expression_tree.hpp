@@ -270,6 +270,34 @@ constexpr argument<18> _18;
 constexpr argument<19> _19;
 constexpr argument<20> _20;
 constexpr argument<21> _21;  // FERNANDO: Added this
+constexpr argument<22> _22;  
+constexpr argument<23> _23;  
+constexpr argument<24> _24;  
+constexpr argument<25> _25;  
+constexpr argument<26> _26;  
+constexpr argument<27> _27;  
+constexpr argument<28> _28;  
+constexpr argument<29> _29;  
+constexpr argument<30> _30;  
+constexpr argument<31> _31;  
+constexpr argument<32> _32;  
+constexpr argument<33> _33;  
+constexpr argument<34> _34;  
+constexpr argument<35> _35;  
+constexpr argument<36> _36;  
+constexpr argument<37> _37;  
+constexpr argument<38> _38;  
+constexpr argument<39> _39;  
+constexpr argument<40> _40;  
+constexpr argument<41> _41;  
+constexpr argument<42> _42;  
+constexpr argument<43> _43;  
+constexpr argument<44> _44;  
+constexpr argument<45> _45;  
+constexpr argument<46> _46;  
+constexpr argument<47> _47;  
+constexpr argument<48> _48;  
+constexpr argument<49> _49;  
 
 template <typename Expression>
 concept expression_tree = requires {

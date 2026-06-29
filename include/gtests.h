@@ -66,6 +66,7 @@ e_intersect_type test_segment_segment_intersect_2D(const s_point2d s1[2], const 
 e_intersect_type test_segment_plane_intersect(const s_point seg[2], const s_point plane[3], double EPS_degenerate, double TOL_boundary);
 e_intersect_type test_segment_triangle_intersect_2D(const s_point2d s[2], const s_point2d tri[3], double EPS_degenerate, double TOL_boundary);
 e_intersect_type test_segment_triangle_intersect_3D(const s_point segment[2], const s_point triangle[3], double EPS_degenerate, double TOL_boundary);
+e_intersect_type test_triangle_tetrahedron_intersect(const s_point tri[3], const s_point tet[4], double EPS_degenerate);
 s_segment_intersect segment_segment_intersect_2D(const s_point2d s1[2], const s_point2d s2[2], double EPS_degenerate, double TOL_boundary);
 s_segment_intersect segment_plane_intersect(const s_point seg[2], const s_point plane[3], double EPS_degenerate, double TOL_boundary);
 s_segment_intersect segment_triangle_intersect_2D(const s_point2d s[2], const s_point2d tri[3], double EPS_degenerate, double TOL_boundary);

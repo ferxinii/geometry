@@ -1,0 +1,1 @@
+[ ] Use mpfr on predicates that are too big for exact stage_d. I should profile to see what is the threshold.
