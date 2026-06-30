@@ -107,56 +107,6 @@ int lp_feasible_S_S_T2(double Ax, double Ay, double Az,
                     double tjx, double tjy, double tjz,
                     double tkx, double tky, double tkz);
 
-// CDT certify predicate -- sign of D' (time-derivative of insphere det)
-// sign of det | a-Rv  dot(Rv-a, n) |  for rows {a,b,c,L}, n=(pb-pa)x(pc-pa)
-//             | b-Rv  dot(Rv-b, n) |
-//             | c-Rv  dot(Rv-c, n) |
-//             | L-Rv  dot(Rv-L, n) |
-int cdt_dprime(double ax,  double ay,  double az,
-               double bx,  double by,  double bz,
-               double cx,  double cy,  double cz,
-               double Lx,  double Ly,  double Lz,
-               double Rvx, double Rvy, double Rvz,
-               double pax, double pay, double paz,
-               double pbx, double pby, double pbz,
-               double pcx, double pcy, double pcz);
-
-// CDT heap ordering predicate -- sign of D0_B*D'_A - D0_A*D'_B
-// used to compare flip times τ_A < τ_B without floating-point τ values
-int cdt_sign_cross_dprime(double aAx,  double aAy,  double aAz,
-                      double bAx,  double bAy,  double bAz,
-                      double cAx,  double cAy,  double cAz,
-                      double LAx,  double LAy,  double LAz,
-                      double RvAx, double RvAy, double RvAz,
-                      double aBx,  double aBy,  double aBz,
-                      double bBx,  double bBy,  double bBz,
-                      double cBx,  double cBy,  double cBz,
-                      double LBx,  double LBy,  double LBz,
-                      double RvBx, double RvBy, double RvBz,
-                      double pax,  double pay,  double paz,
-                      double pbx,  double pby,  double pbz,
-                      double pcx,  double pcy,  double pcz);
-
-// Weight-perturbed variant for SoS cascade.
-// kA[5] = {k_aA, k_bA, k_cA, k_LA, k_RvA}, kB[5] = {k_aB, ...}.
-// Each k is added to the corresponding vertex's weight in the D0 insphere
-// determinant (kA[4]/kB[4] subtracts from all rows as the Rv reference).
-// D' is unaffected by weights. Normal call: pass {0,0,0,0,0} for both arrays.
-int cdt_sign_cross_dprime_weighted(double aAx,  double aAy,  double aAz,
-                      double bAx,  double bAy,  double bAz,
-                      double cAx,  double cAy,  double cAz,
-                      double LAx,  double LAy,  double LAz,
-                      double RvAx, double RvAy, double RvAz,
-                      double aBx,  double aBy,  double aBz,
-                      double bBx,  double bBy,  double bBz,
-                      double cBx,  double cBy,  double cBz,
-                      double LBx,  double LBy,  double LBz,
-                      double RvBx, double RvBy, double RvBz,
-                      double pax,  double pay,  double paz,
-                      double pbx,  double pby,  double pbz,
-                      double pcx,  double pcy,  double pcz,
-                      const double kA[5], const double kB[5]);
-
 #ifdef __cplusplus
 }
 #endif

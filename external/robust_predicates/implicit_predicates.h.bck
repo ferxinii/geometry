@@ -1,0 +1,100 @@
+#ifndef IMPLICIT_PREDICATES_H
+#define IMPLICIT_PREDICATES_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/*
+ * Implicit (LNC) point: p = t*v1 + (1-t)*v2, represented as 7 doubles:
+ *   v1x, v1y, v1z, v2x, v2y, v2z, t
+ * Explicit point: 3 doubles: x, y, z
+ *
+ * All functions return -1, 0, or +1.
+ * I = implicit argument, E = explicit argument (LNC args listed first).
+ */
+
+/* orient3d variants — 3x3 determinant of differences from last point */
+
+int orient3d_IEEE(double i1_v1x, double i1_v1y, double i1_v1z,
+                  double i1_v2x, double i1_v2y, double i1_v2z, double i1_t,
+                  double p2x, double p2y, double p2z,
+                  double p3x, double p3y, double p3z,
+                  double p4x, double p4y, double p4z);
+
+int orient3d_IIEE(double i1_v1x, double i1_v1y, double i1_v1z,
+                  double i1_v2x, double i1_v2y, double i1_v2z, double i1_t,
+                  double i2_v1x, double i2_v1y, double i2_v1z,
+                  double i2_v2x, double i2_v2y, double i2_v2z, double i2_t,
+                  double p3x, double p3y, double p3z,
+                  double p4x, double p4y, double p4z);
+
+int orient3d_IIIE(double i1_v1x, double i1_v1y, double i1_v1z,
+                  double i1_v2x, double i1_v2y, double i1_v2z, double i1_t,
+                  double i2_v1x, double i2_v1y, double i2_v1z,
+                  double i2_v2x, double i2_v2y, double i2_v2z, double i2_t,
+                  double i3_v1x, double i3_v1y, double i3_v1z,
+                  double i3_v2x, double i3_v2y, double i3_v2z, double i3_t,
+                  double p4x, double p4y, double p4z);
+
+int orient3d_IIII(double i1_v1x, double i1_v1y, double i1_v1z,
+                  double i1_v2x, double i1_v2y, double i1_v2z, double i1_t,
+                  double i2_v1x, double i2_v1y, double i2_v1z,
+                  double i2_v2x, double i2_v2y, double i2_v2z, double i2_t,
+                  double i3_v1x, double i3_v1y, double i3_v1z,
+                  double i3_v2x, double i3_v2y, double i3_v2z, double i3_t,
+                  double i4_v1x, double i4_v1y, double i4_v1z,
+                  double i4_v2x, double i4_v2y, double i4_v2z, double i4_t);
+
+/* inSphere variants — 4x4 determinant of lifted differences from last point */
+
+int inSphere_IEEEE(double i1_v1x, double i1_v1y, double i1_v1z,
+                   double i1_v2x, double i1_v2y, double i1_v2z, double i1_t,
+                   double p2x, double p2y, double p2z,
+                   double p3x, double p3y, double p3z,
+                   double p4x, double p4y, double p4z,
+                   double p5x, double p5y, double p5z);
+
+int inSphere_IIEEE(double i1_v1x, double i1_v1y, double i1_v1z,
+                   double i1_v2x, double i1_v2y, double i1_v2z, double i1_t,
+                   double i2_v1x, double i2_v1y, double i2_v1z,
+                   double i2_v2x, double i2_v2y, double i2_v2z, double i2_t,
+                   double p3x, double p3y, double p3z,
+                   double p4x, double p4y, double p4z,
+                   double p5x, double p5y, double p5z);
+
+int inSphere_IIIEE(double i1_v1x, double i1_v1y, double i1_v1z,
+                   double i1_v2x, double i1_v2y, double i1_v2z, double i1_t,
+                   double i2_v1x, double i2_v1y, double i2_v1z,
+                   double i2_v2x, double i2_v2y, double i2_v2z, double i2_t,
+                   double i3_v1x, double i3_v1y, double i3_v1z,
+                   double i3_v2x, double i3_v2y, double i3_v2z, double i3_t,
+                   double p4x, double p4y, double p4z,
+                   double p5x, double p5y, double p5z);
+
+int inSphere_IIIIE(double i1_v1x, double i1_v1y, double i1_v1z,
+                   double i1_v2x, double i1_v2y, double i1_v2z, double i1_t,
+                   double i2_v1x, double i2_v1y, double i2_v1z,
+                   double i2_v2x, double i2_v2y, double i2_v2z, double i2_t,
+                   double i3_v1x, double i3_v1y, double i3_v1z,
+                   double i3_v2x, double i3_v2y, double i3_v2z, double i3_t,
+                   double i4_v1x, double i4_v1y, double i4_v1z,
+                   double i4_v2x, double i4_v2y, double i4_v2z, double i4_t,
+                   double p5x, double p5y, double p5z);
+
+int inSphere_IIIII(double i1_v1x, double i1_v1y, double i1_v1z,
+                   double i1_v2x, double i1_v2y, double i1_v2z, double i1_t,
+                   double i2_v1x, double i2_v1y, double i2_v1z,
+                   double i2_v2x, double i2_v2y, double i2_v2z, double i2_t,
+                   double i3_v1x, double i3_v1y, double i3_v1z,
+                   double i3_v2x, double i3_v2y, double i3_v2z, double i3_t,
+                   double i4_v1x, double i4_v1y, double i4_v1z,
+                   double i4_v2x, double i4_v2y, double i4_v2z, double i4_t,
+                   double i5_v1x, double i5_v1y, double i5_v1z,
+                   double i5_v2x, double i5_v2y, double i5_v2z, double i5_t);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

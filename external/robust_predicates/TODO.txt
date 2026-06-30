@@ -1,1 +1,2 @@
-[ ] Use mpfr on predicates that are too big for exact stage_d. I should profile to see what is the threshold.
+[ ] Improve stage d for predicates with too large it (500 mb is too much...). Look at 
+    "Indirect predicates for geometric constructions" source for inspiration.

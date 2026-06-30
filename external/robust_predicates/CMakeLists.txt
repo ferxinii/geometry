@@ -11,23 +11,6 @@ add_library(voronoi_predicates EXCLUDE_FROM_ALL STATIC
     voronoi_predicates.cpp
 )
 
-find_library(MPFR_LIBRARY
-    NAMES mpfr
-    HINTS /opt/homebrew/lib /usr/local/lib
-)
-find_path(MPFR_INCLUDE_DIR
-    NAMES mpfr.h
-    HINTS /opt/homebrew/include /usr/local/include
-)
-if(NOT MPFR_LIBRARY)
-    message(FATAL_ERROR "MPFR library not found. Install with: brew install mpfr")
-endif()
-if(NOT MPFR_INCLUDE_DIR)
-    message(FATAL_ERROR "MPFR headers not found. Install with: brew install mpfr")
-endif()
-target_include_directories(voronoi_predicates PRIVATE ${MPFR_INCLUDE_DIR})
-target_link_libraries(voronoi_predicates PRIVATE ${MPFR_LIBRARY})
-
 foreach(_tgt robust_predicates voronoi_predicates)
     target_include_directories(${_tgt} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/includes/geometry
@@ -44,15 +27,12 @@ endforeach()
 option(ROBUST_PREDICATES_DEBUG "Build robust_predicates with debug info instead of -O3" OFF)
 
 if (NOT ROBUST_PREDICATES_DEBUG)
-    # Always compile at -O3 regardless of CMAKE_BUILD_TYPE.
-    # -g0 explicitly disables debug info even when Debug flags are injected.
     foreach(_tgt robust_predicates voronoi_predicates)
         target_compile_options(${_tgt} PRIVATE
             -O3 -march=native -DNDEBUG -g0
         )
     endforeach()
 else()
-    # Debug mode: strip optimizations, enable debug symbols, keep assertions.
     foreach(_tgt robust_predicates voronoi_predicates)
         target_compile_options(${_tgt} PRIVATE
             -O0 -g
@@ -69,7 +49,6 @@ if(ROBUST_PREDICATES_PRINT_SIZE)
     message(STATUS "robust_predicates: ROBUST_PREDICATES_PRINT_SIZE enabled — expect deprecation warnings during build")
 endif()
 
-# Optionally build the executable to print expressions
 option(BUILD_PRINT_EXPRESSIONS "Build the print_expressions utility" OFF)
 if(BUILD_PRINT_EXPRESSIONS)
     add_executable(print_expressions print_error_bounds.cpp)
@@ -80,4 +59,3 @@ if(BUILD_PRINT_EXPRESSIONS)
     target_compile_features(print_expressions PRIVATE cxx_std_20)
     target_compile_options(print_expressions PRIVATE -O3)
 endif()
-
