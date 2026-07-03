@@ -116,9 +116,15 @@ int convhull_is_valid(const s_convh *convh)
 
 
 static int initialize_normals_convhull(s_convh *convh, double EPS_degenerate)
-{   /* 0 if error, 1 if OK. UNNORMALIZED! */
-    s_point ch_CM = point_average(&convh->points);
-
+{   /* 0 if error, 1 if OK. UNNORMALIZED!
+     * The face winding is TRUSTED as produced by quickhull_3d: every face is
+     * oriented there with an exact predicate against a hull vertex strictly
+     * off the face's plane (orient_face_if_needed), which is robust.
+     * (This function used to re-orient each face against the float centroid
+     * of the hull; for near-degenerate hulls the centroid lies numerically
+     * ON every face plane, so its exact side test is effectively random and
+     * produced inconsistently-oriented normals -> garbage divergence-theorem
+     * volumes. See PROBLEM_CDT.md in vor3d.) */
     convh->fnormals = malloc(sizeof(s_point) * convh->Nf);
     if (!convh->fnormals) return 0;
 
@@ -128,25 +134,8 @@ static int initialize_normals_convhull(s_convh *convh, double EPS_degenerate)
         s_point v2 = convh->points.p[convh->faces[ii * 3 + 2]];
 
         s_point n = cross_prod(subtract_points(v1, v0), subtract_points(v2, v0));
-
-        s_point verts_face[3] = { v0, v1, v2 };
-        int o = test_orientation(verts_face, ch_CM);
-        if (o == 0 || norm(n) <= EPS_degenerate) {
-            // printf("%f, %f, %f\n", verts_face[0].x, verts_face[0].y, verts_face[0].z);
-            // printf("%f, %f, %f\n", verts_face[1].x, verts_face[1].y, verts_face[1].z);
-            // printf("%f, %f, %f\n", verts_face[2].x, verts_face[2].y, verts_face[2].z);
-            // printf("CM: %f, %f, %f\n", ch_CM.x, ch_CM.y, ch_CM.z);
-            // print_points(&convh->points);
-            n = point_NAN;
-        } else if (o < 0) {  // Correctly order face vertices (Right hand rule?)
-            n.x = -n.x;  n.y = -n.y;  n.z = -n.z;
-            int tmp = convh->faces[ii * 3 + 1];
-            convh->faces[ii * 3 + 1] = convh->faces[ii * 3 + 2];
-            convh->faces[ii * 3 + 2] = tmp;
-        }
+        if (norm(n) <= EPS_degenerate) n = point_NAN;
         convh->fnormals[ii] = n;
-
-        // if (norm(n) < EPS_degenerate) convh->fnormals[ii] = point_NAN;
     }
     return 1;
 }
@@ -346,19 +335,30 @@ static e_geom_test test_point_in_convhull_robust(const s_convh *convh, s_point q
 {   
     if (!convhull_is_valid(convh)) return TEST_ERROR;
 
+    (void)EPS_degenerate;
     int prev_sign = 0;
+    int on_boundary = 0;
     for (int f = 0; f < convh->Nf; ++f) {
         if (!point_is_valid(convh->fnormals[f])) continue;
         s_point pf[3] = { convh->points.p[convh->faces[3*f + 0]],
                           convh->points.p[convh->faces[3*f + 1]],
                           convh->points.p[convh->faces[3*f + 2]] };
-        
+
         int sign = test_orientation(pf, query);
 
-        if (sign == 0) {  // Point is coplanar, but inside face?
-            e_geom_test intri = test_point_in_triangle_3D(pf, query, EPS_degenerate, 0);
-            if (intri == TEST_IN || intri == TEST_BOUNDARY) return TEST_BOUNDARY;
-            else return TEST_OUT;
+        if (sign == 0) {
+            /* Query lies on this face's supporting plane, so it does NOT violate
+             * this half-space.  It is on the hull boundary iff it also lies inside
+             * every other half-space -- so keep checking; do not decide from this
+             * one triangle.  (A flat region of the hull is triangulated into
+             * several coplanar faces; a boundary point can be coplanar with face f
+             * yet fall inside a *neighbouring* coplanar triangle.  The old code
+             * tested "is query inside THIS triangle" and wrongly returned TEST_OUT
+             * for such points, dropping real boundary vertices.  A point that is on
+             * this plane but genuinely outside the hull will still be caught: it
+             * violates some other, non-coplanar face's half-space.) */
+            on_boundary = 1;
+            continue;
         }
 
         /* if we've already seen a non-zero sign, it must match */
@@ -367,7 +367,7 @@ static e_geom_test test_point_in_convhull_robust(const s_convh *convh, s_point q
     }
 
     if (prev_sign == 0) return TEST_ERROR;  /* Point is coplanar with all faces? Strange... */
-    return TEST_IN;
+    return on_boundary ? TEST_BOUNDARY : TEST_IN;
 }
 
 static int sign_double(double x)
