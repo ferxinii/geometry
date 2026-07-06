@@ -16,7 +16,13 @@ typedef struct convhull {
 #define convhull_NAN (s_convh){0}
 int convhull_is_valid(const s_convh *convh);
 
-int convhull_from_points(const s_points *points, double EPS_DEG, s_convh *out); 
+int convhull_from_points(const s_points *points, double EPS_DEG, s_convh *out);
+/* Same as convhull_from_points, but also fills out_pmap (length points->N):
+ * out_pmap[i] = output vertex index of input point i, or -1 if i was not used
+ * (dropped as interior or deduped away). Lets callers carry per-input-point
+ * labels onto hull vertices. out_pmap may be NULL (then identical to the above). */
+int convhull_from_points_mapped(const s_points *points, double EPS_DEG,
+                                s_convh *out, int *out_pmap);
 int convhull_from_csv(const char *filename, double EPS_DEG, s_convh *out);
 /* 1: OK, 0: Error related with nature of points, -1: Error of memory or other serious error. */
 void free_convhull(s_convh *convh);

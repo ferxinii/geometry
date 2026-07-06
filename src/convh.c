@@ -142,10 +142,19 @@ static int initialize_normals_convhull(s_convh *convh, double EPS_degenerate)
 
 
 int convhull_from_points(const s_points *points, double EPS_degenerate, s_convh *out)
+{
+    return convhull_from_points_mapped(points, EPS_degenerate, out, NULL);
+}
+
+int convhull_from_points_mapped(const s_points *points, double EPS_degenerate,
+                                s_convh *out, int *out_pmap)
 {   /* TOL both for deduping points and to establish min_face_area */
     /* Returns  1 if OK,
                 0 if degeneracy ERROR.
                 -1 if other ERROR.
+       If out_pmap != NULL it is filled (length points->N) with the input->output
+       vertex mapping (or -1 for unused inputs); its contents are unspecified
+       unless the call returns 1.
     */
     int *pmap = NULL; bool *isused = NULL; *out = (s_convh){0};
     if (points->N == 0) { *out = convhull_NAN; return 0; }
@@ -162,9 +171,11 @@ int convhull_from_points(const s_points *points, double EPS_degenerate, s_convh 
     for (int ii=0; ii<points->N; ii++) if (isused[ii]) Nused++;
 
     out->points = (s_points){ .N = Nused, .p = malloc(sizeof(s_point) * Nused) };
-    pmap = malloc(sizeof(int) * points->N);  /* map old -> new */
+    /* Use the caller's buffer as the old->new remap scratch when provided
+     * (avoids a malloc + a copy); otherwise allocate a private one. */
+    pmap = out_pmap ? out_pmap : malloc(sizeof(int) * points->N);
     if (!out->points.p || !pmap) goto error;
-    
+
     /* Update out.points so that only used points remain */
     for (int ii=0, jj=0; ii<points->N; ii++) {
         if (isused[ii]) {
@@ -191,13 +202,13 @@ int convhull_from_points(const s_points *points, double EPS_degenerate, s_convh 
     if (!initialize_normals_convhull(out, EPS_degenerate)) goto error;
 
     free(isused);
-    free(pmap);
+    if (pmap != out_pmap) free(pmap);        /* pmap already holds the caller's map */
     return 1;
 
     degenerate:
         // fprintf(stderr, "Error in 'convhull_from_points'. Degenerate points?\n");
         free(isused);
-        free(pmap);
+        if (pmap != out_pmap) free(pmap);
         free_points(&out->points);
         *out = convhull_NAN;
         return 0;
@@ -205,7 +216,7 @@ int convhull_from_points(const s_points *points, double EPS_degenerate, s_convh 
     error:
         fprintf(stderr, "Error in 'convhull_from_points'.\n");
         free(isused);
-        free(pmap);
+        if (pmap != out_pmap) free(pmap);
         free_points(&out->points);
         *out = convhull_NAN;
         return -1;
