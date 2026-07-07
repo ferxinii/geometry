@@ -140,6 +140,19 @@ int lp3_det_TTS(double Ax, double Ay, double Az,
                 double t1x, double t1y, double t1z,
                 double t2x, double t2y, double t2z);
 
+// lp3_feasible_TTS_T -- (T,T,S) vertex [bisector s->t cutting tet edge AB] tested
+// against a query tet face Tc=(Pc,Qc,Rc): -sign(gA*wB-gB*wA)*sign(gA-gB), with
+// gX=|X-s|^2-|X-t|^2 and wX=n_c.(X-Pc), n_c=(Qc-Pc)x(Rc-Pc).  Surface edge
+// ordering (lp3_predicates.tex Prop "TTS vs T, signed").  Caller applies the
+// face interior-orientation sign sigma_f.
+int lp3_feasible_TTS_T(double Ax, double Ay, double Az,
+                       double Bx, double By, double Bz,
+                       double sx, double sy, double sz,
+                       double tx, double ty, double tz,
+                       double Pcx, double Pcy, double Pcz,
+                       double Qcx, double Qcy, double Qcz,
+                       double Rcx, double Rcy, double Rcz);
+
 // lp3_feasible_TSS_S -- (T,S,S) vertex [Voronoi edge s->t1 ^ s->t2 meeting tet
 // face T1=(A,Q,R)] tested against bisector s->u.
 int lp3_feasible_TSS_S(double Ax, double Ay, double Az,
@@ -162,6 +175,20 @@ int lp3_feasible_TSS_T(double Ax, double Ay, double Az,
                        double t1x, double t1y, double t1z,
                        double t2x, double t2y, double t2z);
 
+// lp3_feasible_TSS_T_gen -- (T,S,S) vertex [Voronoi edge s->t1 ^ s->t2 meeting
+// definer face T1=(A,Q1,R1)] tested against an ARBITRARY query face T2=(P2,Q2,R2)
+// (no shared edge; surface edge ordering). sign(Delta_TSS)*sign(Gamma), Gamma =
+// -c1*det[t2-s;nT1;nT2] + c2*det[t1-s;nT1;nT2] + (nT2.(P2-A))*Delta_TSS.  Degree 7.
+int lp3_feasible_TSS_T_gen(double Ax, double Ay, double Az,
+                           double Q1x, double Q1y, double Q1z,
+                           double R1x, double R1y, double R1z,
+                           double P2x, double P2y, double P2z,
+                           double Q2x, double Q2y, double Q2z,
+                           double R2x, double R2y, double R2z,
+                           double sx, double sy, double sz,
+                           double t1x, double t1y, double t1z,
+                           double t2x, double t2y, double t2z);
+
 // lp3_feasible_SSS_T -- (S,S,S) vertex [circumcenter of Delaunay tet
 // (s,t1,t2,t3)] tested against tet face T=(A,Q,R). Returns
 // sign(Delta_SSS)*sign(Gamma) with n_T=(Q-A)x(R-A); caller multiplies by the
@@ -173,6 +200,26 @@ int lp3_feasible_SSS_T(double sx, double sy, double sz,
                        double Ax, double Ay, double Az,
                        double Qx, double Qy, double Qz,
                        double Rx, double Ry, double Rz);
+
+// incircle3d -- exact "is d on the circumcircle of triangle (a,b,c)", for four
+// points that the caller GUARANTEES are coplanar.  Returns 0 iff d lies on that
+// circumcircle, nonzero otherwise (only the zero/nonzero result is meaningful --
+// the sign of the nonzero case is unspecified).
+//
+// It is the 3D insphere determinant of (a,b,c, w, d) with w = a + (b-a)x(c-a)
+// formed EXACTLY, reduced under the coplanarity precondition: the full insphere
+// determinant equals  deg6expr + g*orient3d(a,b,c,d)  where the dropped term g
+// carries the expensive |n|^2 sub-expression; since orient3d(a,b,c,d)==0 by
+// precondition it vanishes, leaving a degree-6 expression (same shape/size as
+// lp3_feasible_SSS_T's factor2).  Because that term is dropped, the result is
+// ONLY valid for coplanar input -- always gate with orient3d(a,b,c,d)==0 first.
+//
+// PRECONDITIONS: (1) a,b,c,d coplanar; (2) a,b,c non-collinear.  If a,b,c are
+// collinear (no circumcircle) the predicate returns the sentinel 2.
+int incircle3d(double ax, double ay, double az,
+               double bx, double by, double bz,
+               double cx, double cy, double cz,
+               double dx, double dy, double dz);
 
 #ifdef __cplusplus
 }
