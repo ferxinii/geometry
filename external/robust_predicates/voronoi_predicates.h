@@ -221,6 +221,18 @@ int incircle3d(double ax, double ay, double az,
                double cx, double cy, double cz,
                double dx, double dy, double dz);
 
+// orient3d_dd -- sign of det3(a-b, c-d, e-f): robust orientation of three
+// explicit difference vectors.  Generalizes orient3d:
+// orient3d(a,b,c,d) == orient3d_dd(a,d, b,d, c,d).  Used by the weighted-DT
+// sentinel-case regularity reductions (rows mix finite-point differences with
+// sentinel coordinate differences).
+int orient3d_dd(double ax, double ay, double az,
+                double bx, double by, double bz,
+                double cx, double cy, double cz,
+                double dx, double dy, double dz,
+                double ex, double ey, double ez,
+                double fx, double fy, double fz);
+
 #ifdef __cplusplus
 }
 #endif

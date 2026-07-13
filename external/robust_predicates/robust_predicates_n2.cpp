@@ -279,7 +279,13 @@ namespace orthow_n2_k1_impl {
     constexpr auto wa    = grp::_1;
     constexpr auto alpha = grp::_2;
 
-    constexpr auto expr = wa - alpha;
+    /* Finding B: a single weighted point has orthoradius^2 rho^2 = -wa (1992
+     * weighted alpha shapes, p.5), so the radius test is sign(rho^2 - alpha) =
+     * sign(-wa - alpha) = -sign(wa + alpha).  Form expr = wa + alpha and negate
+     * in the wrapper (same convention as orthow_n3_k2).  The old code used
+     * expr = wa - alpha with a non-negated wrapper (== sign(wa - alpha)), which
+     * is wrong: isolated balls with wa>0 were rejected at alpha=0. */
+    constexpr auto expr = wa + alpha;
 
     using filter = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
     using exact  = grp::stage_d<expr, double>;
@@ -290,8 +296,8 @@ namespace orthow_n2_k1_impl {
 extern "C" int orthow_n2_k1(double ax, double ay, double wa,
                             double alpha)
 {
-    (void)ax;  (void)ay; 
-    return orthow_n2_k1_impl::pred{}.apply(wa, alpha);
+    (void)ax;  (void)ay;
+    return - orthow_n2_k1_impl::pred{}.apply(wa, alpha);
 }
 
 

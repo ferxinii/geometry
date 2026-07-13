@@ -1849,6 +1849,57 @@ extern "C" int incircle3d(double ax, double ay, double az,
 }
 
 
+// ---------------------------------------------------------------------------
+// orient3d_dd -- sign of det3(a-b, c-d, e-f): orientation of three explicit
+// DIFFERENCE vectors.  Generalizes orient3d (orient3d(a,b,c,d) ==
+// orient3d_dd(a,d, b,d, c,d)).  Needed by the weighted-DT sentinel reductions
+// (vor3d PLAN_DE_PREDICATES.md): rows mix finite-point differences (F-o) with
+// sentinel coordinate differences (s-t), which are not expressible as a plain
+// orient3d of four points.  Degree 3, same filter behavior as orient3d.
+// Inputs: a(_1-_3), b(_4-_6), c(_7-_9), d(_10-_12), e(_13-_15), f(_16-_18)
+// ---------------------------------------------------------------------------
+namespace orient3d_dd_impl {
+    constexpr auto ax = grp::_1;   constexpr auto ay = grp::_2;   constexpr auto az = grp::_3;
+    constexpr auto bx = grp::_4;   constexpr auto by = grp::_5;   constexpr auto bz = grp::_6;
+    constexpr auto cx = grp::_7;   constexpr auto cy = grp::_8;   constexpr auto cz = grp::_9;
+    constexpr auto dx = grp::_10;  constexpr auto dy = grp::_11;  constexpr auto dz = grp::_12;
+    constexpr auto ex = grp::_13;  constexpr auto ey = grp::_14;  constexpr auto ez = grp::_15;
+    constexpr auto fx = grp::_16;  constexpr auto fy = grp::_17;  constexpr auto fz = grp::_18;
+
+    constexpr auto r0x = ax - bx;
+    constexpr auto r0y = ay - by;
+    constexpr auto r0z = az - bz;
+    constexpr auto r1x = cx - dx;
+    constexpr auto r1y = cy - dy;
+    constexpr auto r1z = cz - dz;
+    constexpr auto r2x = ex - fx;
+    constexpr auto r2y = ey - fy;
+    constexpr auto r2z = ez - fz;
+
+    using expr_t = grp::det<
+        decltype(r0x), decltype(r0y), decltype(r0z),
+        decltype(r1x), decltype(r1y), decltype(r1z),
+        decltype(r2x), decltype(r2y), decltype(r2z)
+    >;
+    constexpr auto expr = expr_t{};
+
+    using semi_static = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
+    using exact       = grp::stage_d<expr, double>;
+    using pred        = grp::staged_predicate<semi_static, exact>;
+}
+
+extern "C" int orient3d_dd(double ax, double ay, double az,
+                           double bx, double by, double bz,
+                           double cx, double cy, double cz,
+                           double dx, double dy, double dz,
+                           double ex, double ey, double ez,
+                           double fx, double fy, double fz)
+{
+    return orient3d_dd_impl::pred{}.apply(ax,ay,az, bx,by,bz, cx,cy,cz,
+                                          dx,dy,dz, ex,ey,ez, fx,fy,fz);
+}
+
+
 #ifdef ROBUST_PREDICATES_PRINT_SIZE
 template <std::size_t N>
 struct [[deprecated("results_size -- see template argument")]] show_stage_d_size {};
@@ -1877,6 +1928,7 @@ using _size_lp3_feasible_TSS_T_f2 = show_stage_d_size<lp3_feasible_TSS_T_factor2
 using _size_lp3_feasible_SSS_T_f1 = show_stage_d_size<lp3_feasible_SSS_T_factor1_impl::exact::results_size>*;
 using _size_lp3_feasible_SSS_T_f2 = show_stage_d_size<lp3_feasible_SSS_T_factor2_impl::exact::results_size>*;
 using _size_incircle3d = show_stage_d_size<incircle3d_impl::exact::results_size>*;
+using _size_orient3d_dd = show_stage_d_size<orient3d_dd_impl::exact::results_size>*;
 // lp_feasible_T1_S_T2 reuses lp_D_T1_S_impl and lp_feasible_T1_T2_S_impl -- no new size entry
 // lp_feasible_T0_S_T2 reuses lp_D_T0_S_impl and lp_feasible_T0_T2_S_impl -- no new size entry
 #endif
