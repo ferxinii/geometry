@@ -442,3 +442,45 @@ fail:
     dynarray_free(&dfaces);
     return trimesh_NAN;
 }
+
+
+/* -----------------------------------------------------------------------
+ * generalized winding number
+ * ----------------------------------------------------------------------- */
+
+double trimesh_winding_number(const s_trimesh *m, s_point p)
+{
+    double w = 0.0;
+    for (int i = 0; i < m->Nf; i++) {
+        const int *f = &m->faces[i*3];
+        const double ax = m->points.p[f[0]].x - p.x;
+        const double ay = m->points.p[f[0]].y - p.y;
+        const double az = m->points.p[f[0]].z - p.z;
+        const double bx = m->points.p[f[1]].x - p.x;
+        const double by = m->points.p[f[1]].y - p.y;
+        const double bz = m->points.p[f[1]].z - p.z;
+        const double cx = m->points.p[f[2]].x - p.x;
+        const double cy = m->points.p[f[2]].y - p.y;
+        const double cz = m->points.p[f[2]].z - p.z;
+
+        const double la = sqrt(ax*ax + ay*ay + az*az);
+        const double lb = sqrt(bx*bx + by*by + bz*bz);
+        const double lc = sqrt(cx*cx + cy*cy + cz*cz);
+
+        const double det = ax*(by*cz - bz*cy)
+                         - ay*(bx*cz - bz*cx)
+                         + az*(bx*cy - by*cx);
+        const double den = la*lb*lc
+                         + (ax*bx + ay*by + az*bz) * lc
+                         + (bx*cx + by*cy + bz*cz) * la
+                         + (cx*ax + cy*ay + cz*az) * lb;
+
+        w += atan2(det, den);          /* Omega/2 for this face */
+    }
+    return w / (2.0 * M_PI);           /* sum(Omega) / 4pi */
+}
+
+int point_in_trimesh_winding(const s_trimesh *m, s_point p)
+{
+    return fabs(trimesh_winding_number(m, p)) > 0.5;
+}
