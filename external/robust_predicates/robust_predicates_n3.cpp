@@ -187,7 +187,18 @@ extern "C" int powertest_n3_k1(double ax, double ay, double az, double wa,
 // ---------------------------------------------------------------------------
 // powertest_n3_k2
 // Orthogonal sphere power predicate for 2 weighted points in R^3.
-// n-k = 1 (odd), (-1)^0 = +1, so sign(pi) = sign(orient(a,b,ej1,ej2)) * sign(D)
+// By the orthosphere power predicate theorem (assignment.tex appendix,
+// case n=3, k=2):
+//   sign(pi) = -sign(det(b-a | ej1 | ej2)) * sign(D) = -sign(d_m) * sign(D),
+// where d_m is the component of b-a left out of the basis pair (the largest
+// one, by the least-parallel choice below).  The orientation factor is a
+// plain comparison, exact by construction -- no staged predicate needed.
+// (Historical note: the factor used to be orient3d(a, b, ej1, ej2) with the
+// basis vectors read as affine POINTS, i.e. anchored at the origin instead
+// of at a.  That expression is position-dependent and was wrong for ~39% of
+// random inputs; it made the alpha-complex edge conflict test misfire,
+// admitting attached edges into K and producing negative per-ball volumes
+// in volsph -- see repro_volsph_negative/.)
 //
 // Basis pair chosen by smallest absolute component of b-a (least parallel).
 //
@@ -261,28 +272,6 @@ namespace powertest_n3_k2_D_xy_impl {
     using pred        = grp::staged_predicate<semi_static, exact>;
 }
 
-namespace powertest_n3_k2_orient_xy_impl {
-    constexpr auto ax = grp::_1;
-    constexpr auto ay = grp::_2;
-    constexpr auto az = grp::_3;
-    constexpr auto wa = grp::_4;  // unused but keeps interface uniform
-    constexpr auto bx = grp::_5;
-    constexpr auto by = grp::_6;
-    constexpr auto bz = grp::_7;
-    constexpr auto wb = grp::_8;  // unused but keeps interface uniform
-    constexpr auto cx = grp::_9;  // unused but keeps interface uniform
-    constexpr auto cy = grp::_10; // unused but keeps interface uniform
-    constexpr auto cz = grp::_11; // unused but keeps interface uniform
-    constexpr auto wc = grp::_12; // unused but keeps interface uniform
-
-    // orient3(a, b, ex, ey): (ax+ay-1)*bz - (bx+by-1)*az
-    constexpr auto expr = (ax + ay)*bz - (bx + by)*az + (az - bz);
-
-    using semi_static = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
-    using exact       = grp::stage_d<expr, double>;
-    // using stage_b     = grp::stage_b<expr, double>;
-    using pred        = grp::staged_predicate<semi_static, exact>;
-}
 
 // --- ej1=ey, ej2=ez ---
 namespace powertest_n3_k2_D_yz_impl {
@@ -349,28 +338,6 @@ namespace powertest_n3_k2_D_yz_impl {
     using pred        = grp::staged_predicate<semi_static, exact>;
 }
 
-namespace powertest_n3_k2_orient_yz_impl {
-    constexpr auto ax = grp::_1;
-    constexpr auto ay = grp::_2;
-    constexpr auto az = grp::_3;
-    constexpr auto wa = grp::_4;  // unused
-    constexpr auto bx = grp::_5;
-    constexpr auto by = grp::_6;
-    constexpr auto bz = grp::_7;
-    constexpr auto wb = grp::_8;  // unused
-    constexpr auto cx = grp::_9;  // unused
-    constexpr auto cy = grp::_10; // unused
-    constexpr auto cz = grp::_11; // unused
-    constexpr auto wc = grp::_12; // unused
-
-    // orient3(a, b, ey, ez): (ay+az-1)*bx - (by+bz-1)*ax
-    constexpr auto expr = (ay + az)*bx - (by + bz)*ax + (ax - bx);
-
-    using semi_static = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
-    using exact       = grp::stage_d<expr, double>;
-    // using stage_b     = grp::stage_b<expr, double>;
-    using pred        = grp::staged_predicate<semi_static, exact>;
-}
 
 // --- ej1=ez, ej2=ex ---
 namespace powertest_n3_k2_D_zx_impl {
@@ -437,28 +404,6 @@ namespace powertest_n3_k2_D_zx_impl {
     using pred        = grp::staged_predicate<semi_static, exact>;
 }
 
-namespace powertest_n3_k2_orient_zx_impl {
-    constexpr auto ax = grp::_1;
-    constexpr auto ay = grp::_2;
-    constexpr auto az = grp::_3;
-    constexpr auto wa = grp::_4;  // unused
-    constexpr auto bx = grp::_5;
-    constexpr auto by = grp::_6;
-    constexpr auto bz = grp::_7;
-    constexpr auto wb = grp::_8;  // unused
-    constexpr auto cx = grp::_9;  // unused
-    constexpr auto cy = grp::_10; // unused
-    constexpr auto cz = grp::_11; // unused
-    constexpr auto wc = grp::_12; // unused
-
-    // orient3(a, b, ez, ex) = (ax+az-1)*by - (bx+bz-1)*ay
-    constexpr auto expr = (ax + az)*by - (bx + bz)*ay + (ay - by);
-
-    using semi_static = grp::forward_error_semi_static<expr, double, grp::robust_rules<true>>;
-    using exact       = grp::stage_d<expr, double>;
-    // using stage_b     = grp::stage_b<expr, double>;
-    using pred        = grp::staged_predicate<semi_static, exact>;
-}
 
 extern "C" int powertest_n3_k2(double ax, double ay, double az, double wa,
                                double bx, double by, double bz, double wb,
@@ -472,17 +417,18 @@ extern "C" int powertest_n3_k2(double ax, double ay, double az, double wa,
 
     if (abz >= abx && abz >= aby) {
         // z is LARGEST -> ej1=ex, ej2=ey (exclude ez which would be parallel)
-        orient_sign = powertest_n3_k2_orient_xy_impl::pred{}.apply(ax, ay, az, wa, bx, by, bz, wb, cx, cy, cz, wc);
+        // orientation factor: -sign(bz - az), exact by comparison
+        orient_sign = (az > bz) ? 1 : (az < bz) ? -1 : 0;
         if (orient_sign == 0) return 0;
         D_sign      = powertest_n3_k2_D_xy_impl::pred{}.apply(ax, ay, az, wa, bx, by, bz, wb, cx, cy, cz, wc);
     } else if (abx >= aby && abx >= abz) {
         // x is LARGEST -> ej1=ey, ej2=ez (exclude ex which would be parallel)
-        orient_sign = powertest_n3_k2_orient_yz_impl::pred{}.apply(ax, ay, az, wa, bx, by, bz, wb, cx, cy, cz, wc);
+        orient_sign = (ax > bx) ? 1 : (ax < bx) ? -1 : 0;
         if (orient_sign == 0) return 0;
         D_sign      = powertest_n3_k2_D_yz_impl::pred{}.apply(ax, ay, az, wa, bx, by, bz, wb, cx, cy, cz, wc);
     } else {
-        // y is smallest -> ej1=ez, ej2=ex
-        orient_sign = powertest_n3_k2_orient_zx_impl::pred{}.apply(ax, ay, az, wa, bx, by, bz, wb, cx, cy, cz, wc);
+        // y is LARGEST -> ej1=ez, ej2=ex
+        orient_sign = (ay > by) ? 1 : (ay < by) ? -1 : 0;
         if (orient_sign == 0) return 0;
         D_sign      = powertest_n3_k2_D_zx_impl::pred{}.apply(ax, ay, az, wa, bx, by, bz, wb, cx, cy, cz, wc);
     }

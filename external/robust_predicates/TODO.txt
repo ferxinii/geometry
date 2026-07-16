@@ -1,2 +1,65 @@
-[ ] Improve stage d for predicates with too large it (500 mb is too much...). Look at 
-    "Indirect predicates for geometric constructions" source for inspiration.
+# TODO: two formulations per predicate -- pick the better one, per predicate
+
+There are two mathematically equivalent routes to each power-test predicate,
+with very different exact-stage footprints. We should systematically compare
+them for every predicate and adopt the better one in each case.
+(Derivations: BM-summary/assignment.tex, appendix on predicates -- the
+orthosphere power predicate theorem for route 1, the "Cleared form of the
+power predicate" proposition and the comparison remark for route 2.)
+
+## Route 1: lifted determinant D (the theorem)
+
+sign(pi) from the (n+1)x(n+1) determinant D of the lifted construction,
+completed with artificial basis directions; for n-k odd an orientation factor
+sign(det A) is required, where A = (delta_1 | ... | e_j1 | ...).
+
+- Entries stay low degree for every k (coordinates linear, lift column
+  quadratic): total degree ~5 at k = n+1.
+- Cost: artificial basis choice (3 branch instantiations in 3D) and an
+  orientation factor of INDEFINITE sign -- historically bug-prone (the
+  origin-anchoring bug fixed 2026-07-15 lived exactly there).
+- Preferred for k = n+1 (classical insphere/regularity form).
+
+## Route 2: cleared Gram form ("E-form")
+
+Solve the orthocenter system by Cramer and clear the positive denominator:
+with delta_i = p_{i+1}-p_1, t = q-p_1, G the Gram matrix of the deltas,
+u_i = t.delta_i, b_i = |delta_i|^2 - (w_{i+1}-w_1):
+
+    sign(pi) = sign( det(G) (|t|^2 + w_1 - w_q) - u^T adj(G) b )
+
+- Total degree 2k, but NO artificial basis, NO branches, and a POSITIVE
+  normalizer det(G) -- no orientation factor exists at all, so the whole
+  anchor-bug class is unrepresentable.
+- For k=2: E = |d|^2 (|t|^2 + w_a - w_q) - (t.d)(|d|^2 + w_a - w_b),
+  degree 4, three inner products.
+- The orthow_* (radius) predicates are ALREADY this route: the bordered Gram
+  determinant is det(G)-cleared w_S - alpha (Schur:
+  4(w_1+alpha)det(G) - b^T adj(G) b = -4 det(G)(w_S - alpha)).
+
+## Measured so far (stage_d bound in doubles; timings on M-series, -O3)
+
+| predicate        | route 1 (current)     | route 2 (prototype)  | verdict          |
+|------------------|-----------------------|----------------------|------------------|
+| powertest_n3_k2  | 33701 x3 branches     | 1897                 | route 2: 53x smaller, 4.5x faster filter (71->16 ns), 3.5x faster exact (1.7us->0.5us); validated 2e6 random + 1e5 exact-tie cases |
+| powertest_n3_k3  | 663875                | 405301               | route 2: only 1.6x -- measure timings before deciding |
+| powertest_n3_k4  | 84169                 | (degree 8 > 5)       | keep route 1     |
+| orthow_n3_k4     | 60589391 (462 MB!)    | is already route 2   | no algebraic rescue: det(G) is the exact denominator of w_S, so degree 2k is intrinsic. Fix the EVALUATION: dynamic-length expansions / lazy exact for the exact stage, and/or quarantine into its own TU (n3 TU currently costs 29.6 s / 3.28 GB compiler RSS; the 462 MB thread_local buffer is allocated on first exact-stage hit and kept). |
+| powertest_n2_k2  | 3221                  | degree 4 (untested)  | small either way; try route 2 for uniformity |
+
+## Action items
+
+- [ ] Decide + implement route 2 for powertest_n3_k2 (prototype validated:
+      agreement with shipped predicate 2000000/2000000; exact dyadic ties
+      100000/100000 return 0; +-1 ulp perturbations give correct signs).
+- [ ] Benchmark route 2 for powertest_n3_k3 (filter + exact path) and decide.
+- [ ] For orthow_n3_k4 (and other >1 MB stage_d predicates: lp_det3, lp3_*,
+      powertest_n3_k3, orthow_n3_k3, incircle3d): evaluate a dynamically-sized
+      exact stage (runtime expansion arithmetic with zero elimination over the
+      same expression tree, or a lazy exact number type, CGAL-style) instead
+      of the statically-bounded stage_d buffers.  Inspiration: Attene,
+      "Indirect predicates for geometric constructions".
+- [ ] Check whether orthow_n3_k4's exact stage actually fires on real
+      workloads (one-line counter): decides the urgency of the above.
+- [ ] Split robust_predicates_n3.cpp so the heavy instantiations do not
+      serialize the build.
