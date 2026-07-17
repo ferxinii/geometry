@@ -1,6 +1,7 @@
 #ifndef GEOMETRY_TRIMESH_H
 #define GEOMETRY_TRIMESH_H
 
+#include <stdint.h>
 #include "points.h"
 
 /*
@@ -69,6 +70,43 @@ double trimesh_winding_number(const s_trimesh *m, s_point p);
 /* Inside test via winding number (> 0.5).  Prefer this over the ray-casting
  * point_in_trimesh when the mesh may contain degenerate geometry. */
 int point_in_trimesh_winding(const s_trimesh *m, s_point p);
+
+/* ---- inside-classification grid -----------------------------------------
+ *
+ * O(1) cache over point_in_trimesh_winding for MANY queries against the SAME
+ * mesh.  The inside/outside answer is piecewise constant on the complement of
+ * a closed surface, so it is precomputed on a uniform voxel grid:
+ *   - every voxel the surface might touch (conservative triangle-box test) is
+ *     marked SURFACE; queries there fall back to the exact winding sum;
+ *   - the remaining voxels are partitioned into 6-connected components, and
+ *     each component is labeled by ONE exact winding query at a
+ *     representative voxel center (correct even for nested shells/voids).
+ * A query is then: locate voxel, return its label, or fall back if SURFACE.
+ * Never wrong, only sometimes slow: every ambiguous voxel defers to the exact
+ * oracle, so agreement with point_in_trimesh_winding is exact by
+ * construction.  Meshes with features thinner than a voxel (sub-ulp slits)
+ * simply see more fallbacks. */
+typedef struct trimesh_inside_grid {
+    s_point  origin;   /* min corner of the padded grid */
+    double   cell;     /* cubic voxel edge length */
+    int      nx, ny, nz;
+    uint8_t *label;    /* nx*ny*nz, x-fastest: 0 OUTSIDE, 1 INSIDE, 2 SURFACE */
+} s_trimesh_inside_grid;
+
+/* Build the grid at resolution res voxels along the longest bbox axis
+ * (res <= 0 -> 128).  Returns 1 on success, 0 on error (degenerate bbox or
+ * allocation failure); on error *g is zeroed and safe to _free. */
+int  trimesh_inside_grid_build(const s_trimesh *m, int res,
+                               s_trimesh_inside_grid *g);
+
+/* Inside test for p: one array lookup, falling back to the exact winding sum
+ * for queries in surface-adjacent voxels.  Exactly equal to
+ * point_in_trimesh_winding(m, p) for every p.  m must be the mesh the grid
+ * was built from. */
+int  point_in_trimesh_grid(const s_trimesh_inside_grid *g, const s_trimesh *m,
+                           s_point p);
+
+void trimesh_inside_grid_free(s_trimesh_inside_grid *g);
 
 /* ---- degenerate-face repair --------------------------------------------
  *

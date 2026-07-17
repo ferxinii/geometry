@@ -1,6 +1,7 @@
 #include "points.h"
 #include "hash.h"
 #include "linalg.h"
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -397,6 +398,62 @@ void bounding_box_points(const s_points *points, s_point *min_out, s_point *max_
     
     *min_out = min;
     *max_out = max;
+}
+
+
+/* ---- Morton (Z-order) spatial ordering ---------------------------------- */
+
+/* spread the low 21 bits of x so they occupy every 3rd bit position */
+static uint64_t morton_spread3(uint64_t x)
+{
+    x &= 0x1fffff;
+    x = (x | x << 32) & 0x001f00000000ffffULL;
+    x = (x | x << 16) & 0x001f0000ff0000ffULL;
+    x = (x | x << 8)  & 0x100f00f00f00f00fULL;
+    x = (x | x << 4)  & 0x10c30c30c30c30c3ULL;
+    x = (x | x << 2)  & 0x1249249249249249ULL;
+    return x;
+}
+
+typedef struct { uint64_t key; int idx; } s_morton_rec;
+
+static int morton_cmp(const void *A, const void *B)
+{
+    const s_morton_rec *a = A, *b = B;
+    if (a->key < b->key) return -1;
+    if (a->key > b->key) return  1;
+    return (a->idx < b->idx) ? -1 : (a->idx > b->idx);  /* stable tie-break */
+}
+
+int points_morton_permutation(const s_points *points, int *perm)
+{
+    int N = points->N;
+    s_morton_rec *rec = malloc((size_t)N * sizeof(s_morton_rec));
+    if (!rec) return 0;
+
+    s_point lo, hi;
+    bounding_box_points(points, &lo, &hi);
+    double ex = hi.x - lo.x, ey = hi.y - lo.y, ez = hi.z - lo.z;
+    double emax = ex > ey ? (ex > ez ? ex : ez) : (ey > ez ? ey : ez);
+    /* isotropic scale (same quantum on every axis) keeps the curve's locality
+     * meaningful for anisotropic bboxes; emax == 0 -> all keys 0 -> identity */
+    double scale = (emax > 0.0) ? 2097151.0 / emax : 0.0;
+
+    for (int i = 0; i < N; i++) {
+        uint64_t xi = (uint64_t)((points->p[i].x - lo.x) * scale);
+        uint64_t yi = (uint64_t)((points->p[i].y - lo.y) * scale);
+        uint64_t zi = (uint64_t)((points->p[i].z - lo.z) * scale);
+        if (xi > 0x1fffff) xi = 0x1fffff;
+        if (yi > 0x1fffff) yi = 0x1fffff;
+        if (zi > 0x1fffff) zi = 0x1fffff;
+        rec[i].key = (morton_spread3(zi) << 2) | (morton_spread3(yi) << 1)
+                   |  morton_spread3(xi);
+        rec[i].idx = i;
+    }
+    qsort(rec, (size_t)N, sizeof(s_morton_rec), morton_cmp);
+    for (int i = 0; i < N; i++) perm[i] = rec[i].idx;
+    free(rec);
+    return 1;
 }
 
 

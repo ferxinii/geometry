@@ -58,6 +58,15 @@ s_point scale_point(s_point a, double s);
 s_point normalize_vec(s_point v, double EPS);  /* Returns point_NAN if norm < EPS */
 s_point interpolate_points(s_point a, s_point b, double t);
 void bounding_box_points(const s_points *points, s_point *min_out, s_point *max_out);
+/* Fill perm[0..N-1] (caller-allocated) with a spatial Morton/Z-order ordering:
+ * points->p[perm[0]], p[perm[1]], ... visits the cloud along a Z-order curve,
+ * so consecutive entries are spatially close.  Intended as an insertion order
+ * for incremental algorithms with locality (walk-hinted Delaunay: near-O(1)
+ * point location per insert).  Deterministic: keys quantize to 21 bits/axis on
+ * a uniform (isotropic) scale over the bbox; exact key ties break by original
+ * index, so equal inputs always yield the same permutation.  Returns 1, or 0
+ * on allocation failure (perm untouched). */
+int points_morton_permutation(const s_points *points, int *perm);
 s_point span_points(const s_points *points);
 double absolute_tolerance_from_scale(const s_points *points, double rel_tol);
 s_point point_average(const s_points *points);

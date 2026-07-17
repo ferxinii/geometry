@@ -484,3 +484,208 @@ int point_in_trimesh_winding(const s_trimesh *m, s_point p)
 {
     return fabs(trimesh_winding_number(m, p)) > 0.5;
 }
+
+
+/* -----------------------------------------------------------------------
+ * inside-classification grid (see trimesh.h)
+ * ----------------------------------------------------------------------- */
+
+#define IG_OUT     0
+#define IG_IN      1
+#define IG_SURF    2
+#define IG_UNKNOWN 3
+
+/* Triangle-box overlap, Akenine-Moller SAT (13 axes).  Box is centered at c
+ * with half-size h (cubic), inflated by a relative epsilon so any triangle
+ * TOUCHING the closed box counts as overlapping despite FP roundoff --
+ * conservativeness is what makes the grid labels exact (a voxel whose closed
+ * cube meets the surface must never escape the SURFACE label). */
+static int ig_plane_box(const double n[3], const double v[3], double h)
+{
+    double vmin[3], vmax[3];
+    for (int q = 0; q < 3; q++) {
+        if (n[q] > 0.0) { vmin[q] = -h - v[q]; vmax[q] =  h - v[q]; }
+        else            { vmin[q] =  h - v[q]; vmax[q] = -h - v[q]; }
+    }
+    if (n[0]*vmin[0] + n[1]*vmin[1] + n[2]*vmin[2] > 0.0)  return 0;
+    if (n[0]*vmax[0] + n[1]*vmax[1] + n[2]*vmax[2] >= 0.0) return 1;
+    return 0;
+}
+
+static int ig_tri_box_overlap(s_point c, double h,
+                              s_point va, s_point vb, s_point vc)
+{
+    h *= 1.0 + 1e-9;   /* closed-box semantics under roundoff */
+
+    const double v0[3] = { va.x - c.x, va.y - c.y, va.z - c.z };
+    const double v1[3] = { vb.x - c.x, vb.y - c.y, vb.z - c.z };
+    const double v2[3] = { vc.x - c.x, vc.y - c.y, vc.z - c.z };
+    const double e0[3] = { v1[0]-v0[0], v1[1]-v0[1], v1[2]-v0[2] };
+    const double e1[3] = { v2[0]-v1[0], v2[1]-v1[1], v2[2]-v1[2] };
+    const double e2[3] = { v0[0]-v2[0], v0[1]-v2[1], v0[2]-v2[2] };
+
+    /* 9 cross-product axes a = e_i x unit_j; ties count as overlap (>) */
+#define IG_AXIS(a0, a1, a2, pA, pB) do { \
+        double _p0 = (a0)*pA[0] + (a1)*pA[1] + (a2)*pA[2]; \
+        double _p1 = (a0)*pB[0] + (a1)*pB[1] + (a2)*pB[2]; \
+        double _mn = _p0 < _p1 ? _p0 : _p1, _mx = _p0 < _p1 ? _p1 : _p0; \
+        double _r  = h * (fabs(a0) + fabs(a1) + fabs(a2)); \
+        if (_mn > _r || _mx < -_r) return 0; \
+    } while (0)
+
+    IG_AXIS(0.0, -e0[2],  e0[1], v0, v2);   /* e0 x X */
+    IG_AXIS( e0[2], 0.0, -e0[0], v0, v2);   /* e0 x Y */
+    IG_AXIS(-e0[1],  e0[0], 0.0, v1, v2);   /* e0 x Z */
+    IG_AXIS(0.0, -e1[2],  e1[1], v0, v1);   /* e1 x X */
+    IG_AXIS( e1[2], 0.0, -e1[0], v0, v1);   /* e1 x Y */
+    IG_AXIS(-e1[1],  e1[0], 0.0, v0, v1);   /* e1 x Z */
+    IG_AXIS(0.0, -e2[2],  e2[1], v0, v1);   /* e2 x X */
+    IG_AXIS( e2[2], 0.0, -e2[0], v0, v1);   /* e2 x Y */
+    IG_AXIS(-e2[1],  e2[0], 0.0, v1, v2);   /* e2 x Z */
+#undef IG_AXIS
+
+    /* 3 box axes */
+    for (int q = 0; q < 3; q++) {
+        double mn = v0[q], mx = v0[q];
+        if (v1[q] < mn) mn = v1[q];  if (v1[q] > mx) mx = v1[q];
+        if (v2[q] < mn) mn = v2[q];  if (v2[q] > mx) mx = v2[q];
+        if (mn > h || mx < -h) return 0;
+    }
+
+    /* triangle plane */
+    double n[3] = { e0[1]*e1[2] - e0[2]*e1[1],
+                    e0[2]*e1[0] - e0[0]*e1[2],
+                    e0[0]*e1[1] - e0[1]*e1[0] };
+    return ig_plane_box(n, v0, h);
+}
+
+static inline size_t ig_idx(const s_trimesh_inside_grid *g, int i, int j, int k)
+{ return (size_t)i + (size_t)g->nx * ((size_t)j + (size_t)g->ny * (size_t)k); }
+
+int trimesh_inside_grid_build(const s_trimesh *m, int res,
+                              s_trimesh_inside_grid *g)
+{
+    memset(g, 0, sizeof *g);
+    if (!trimesh_is_valid(m)) return 0;
+    if (res <= 0) res = 128;
+
+    s_point lo = m->points.p[0], hi = m->points.p[0];
+    for (int i = 1; i < m->points.N; i++) {
+        s_point p = m->points.p[i];
+        if (p.x < lo.x) lo.x = p.x;  if (p.x > hi.x) hi.x = p.x;
+        if (p.y < lo.y) lo.y = p.y;  if (p.y > hi.y) hi.y = p.y;
+        if (p.z < lo.z) lo.z = p.z;  if (p.z > hi.z) hi.z = p.z;
+    }
+    double ex = hi.x - lo.x, ey = hi.y - lo.y, ez = hi.z - lo.z;
+    double emax = ex > ey ? (ex > ez ? ex : ez) : (ey > ez ? ey : ez);
+    if (!(emax > 0.0)) return 0;
+
+    g->cell   = emax / res;
+    /* one guaranteed-empty voxel ring on every side: origin one voxel below
+     * lo, and ceil(extent/cell)+2 voxels per axis */
+    g->origin = (s_point){ .x = lo.x - g->cell, .y = lo.y - g->cell,
+                           .z = lo.z - g->cell };
+    g->nx = (int)ceil(ex / g->cell) + 3;
+    g->ny = (int)ceil(ey / g->cell) + 3;
+    g->nz = (int)ceil(ez / g->cell) + 3;
+
+    size_t total = (size_t)g->nx * (size_t)g->ny * (size_t)g->nz;
+    g->label = malloc(total);
+    if (!g->label) { memset(g, 0, sizeof *g); return 0; }
+    memset(g->label, IG_UNKNOWN, total);
+
+    /* 1. conservative rasterization: mark voxels the surface might touch */
+    for (int f = 0; f < m->Nf; f++) {
+        s_point a = m->points.p[m->faces[3*f]];
+        s_point b = m->points.p[m->faces[3*f+1]];
+        s_point c = m->points.p[m->faces[3*f+2]];
+
+        double fx0 = fmin(a.x, fmin(b.x, c.x)), fx1 = fmax(a.x, fmax(b.x, c.x));
+        double fy0 = fmin(a.y, fmin(b.y, c.y)), fy1 = fmax(a.y, fmax(b.y, c.y));
+        double fz0 = fmin(a.z, fmin(b.z, c.z)), fz1 = fmax(a.z, fmax(b.z, c.z));
+        int i0 = (int)floor((fx0 - g->origin.x) / g->cell) - 1;
+        int i1 = (int)floor((fx1 - g->origin.x) / g->cell) + 1;
+        int j0 = (int)floor((fy0 - g->origin.y) / g->cell) - 1;
+        int j1 = (int)floor((fy1 - g->origin.y) / g->cell) + 1;
+        int k0 = (int)floor((fz0 - g->origin.z) / g->cell) - 1;
+        int k1 = (int)floor((fz1 - g->origin.z) / g->cell) + 1;
+        if (i0 < 0) i0 = 0;  if (i1 >= g->nx) i1 = g->nx - 1;
+        if (j0 < 0) j0 = 0;  if (j1 >= g->ny) j1 = g->ny - 1;
+        if (k0 < 0) k0 = 0;  if (k1 >= g->nz) k1 = g->nz - 1;
+
+        double hh = 0.5 * g->cell;
+        for (int k = k0; k <= k1; k++)
+        for (int j = j0; j <= j1; j++)
+        for (int i = i0; i <= i1; i++) {
+            size_t id = ig_idx(g, i, j, k);
+            if (g->label[id] == IG_SURF) continue;
+            s_point cc = { .x = g->origin.x + (i + 0.5) * g->cell,
+                           .y = g->origin.y + (j + 0.5) * g->cell,
+                           .z = g->origin.z + (k + 0.5) * g->cell };
+            if (ig_tri_box_overlap(cc, hh, a, b, c))
+                g->label[id] = IG_SURF;
+        }
+    }
+
+    /* 2. partition non-surface voxels into 6-connected components; label each
+     * by one exact winding query at its seed voxel center.  6-connectivity is
+     * essential: conservative rasterization guarantees no face-adjacent step
+     * crosses the surface, but a 26-connected step could leak diagonally
+     * between two edge-touching SURFACE voxels. */
+    int *stack = malloc(total * sizeof(int));
+    if (!stack) { free(g->label); memset(g, 0, sizeof *g); return 0; }
+
+    for (size_t s = 0; s < total; s++) {
+        if (g->label[s] != IG_UNKNOWN) continue;
+        int si = (int)(s % (size_t)g->nx);
+        int sj = (int)((s / (size_t)g->nx) % (size_t)g->ny);
+        int sk = (int)(s / ((size_t)g->nx * (size_t)g->ny));
+        s_point cc = { .x = g->origin.x + (si + 0.5) * g->cell,
+                       .y = g->origin.y + (sj + 0.5) * g->cell,
+                       .z = g->origin.z + (sk + 0.5) * g->cell };
+        uint8_t lab = point_in_trimesh_winding(m, cc) ? IG_IN : IG_OUT;
+
+        long top = 0;
+        g->label[s] = lab;
+        stack[top++] = (int)s;
+        while (top > 0) {
+            int cur = stack[--top];
+            int ci = cur % g->nx;
+            int cj = (cur / g->nx) % g->ny;
+            int ck = cur / (g->nx * g->ny);
+            const int di[6] = { 1, -1, 0, 0, 0, 0 };
+            const int dj[6] = { 0, 0, 1, -1, 0, 0 };
+            const int dk[6] = { 0, 0, 0, 0, 1, -1 };
+            for (int d = 0; d < 6; d++) {
+                int ni = ci + di[d], nj = cj + dj[d], nk = ck + dk[d];
+                if (ni < 0 || ni >= g->nx || nj < 0 || nj >= g->ny ||
+                    nk < 0 || nk >= g->nz) continue;
+                size_t nid = ig_idx(g, ni, nj, nk);
+                if (g->label[nid] != IG_UNKNOWN) continue;
+                g->label[nid] = lab;
+                stack[top++] = (int)nid;
+            }
+        }
+    }
+    free(stack);
+    return 1;
+}
+
+int point_in_trimesh_grid(const s_trimesh_inside_grid *g, const s_trimesh *m,
+                          s_point p)
+{
+    int i = (int)floor((p.x - g->origin.x) / g->cell);
+    int j = (int)floor((p.y - g->origin.y) / g->cell);
+    int k = (int)floor((p.z - g->origin.z) / g->cell);
+    if (i < 0 || i >= g->nx || j < 0 || j >= g->ny || k < 0 || k >= g->nz)
+        return 0;   /* the padded grid covers the mesh bbox: beyond it = outside */
+    uint8_t l = g->label[ig_idx(g, i, j, k)];
+    if (l != IG_SURF) return l;
+    return point_in_trimesh_winding(m, p);
+}
+
+void trimesh_inside_grid_free(s_trimesh_inside_grid *g)
+{
+    free(g->label);
+    memset(g, 0, sizeof *g);
+}
