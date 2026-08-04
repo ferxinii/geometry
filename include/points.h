@@ -1,5 +1,5 @@
-#ifndef GEOMETRY_POINTS_H
-#define GEOMETRY_POINTS_H
+#ifndef _GEOMETRY_POINTS_H
+#define _GEOMETRY_POINTS_H
 
 #include <stdbool.h>
 #include <stddef.h>

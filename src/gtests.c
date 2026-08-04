@@ -3,7 +3,10 @@
 
 #include "points.h"
 #include "gtests.h"
-#include "robust_predicates.h"
+#include "predicates_basic.h"
+#ifdef GEOMETRY_COMPILE_TESTS_POWER
+#include "predicates_power.h"
+#endif
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -43,6 +46,24 @@ int test_insphere(const s_point sph[4], s_point p)
                                         p.x, p.y, p.z);
 }
 
+bool test_points_concyclic(s_point a, s_point b, s_point c, s_point d)
+{
+    if (test_orientation((s_point[]){ a, b, c }, d) != 0) return false;   /* not coplanar */
+    return incircle3d(a.x, a.y, a.z, b.x, b.y, b.z,
+                      c.x, c.y, c.z, d.x, d.y, d.z) == 0;
+}
+
+bool test_points_colinear(s_point a, s_point b, s_point c)
+{
+    if (orient3d(a.x,a.y,a.z, b.x,b.y,b.z, c.x,c.y,c.z, a.x+1,a.y,a.z) == 0 &&
+        orient3d(a.x,a.y,a.z, b.x,b.y,b.z, c.x,c.y,c.z, a.x,a.y+1,a.z) == 0 &&
+        orient3d(a.x,a.y,a.z, b.x,b.y,b.z, c.x,c.y,c.z, a.x,a.y,a.z+1) == 0)
+        return true;
+    else return false;
+}
+
+
+#ifdef GEOMETRY_COMPILE_TESTS_POWER
 int test_orthosegment(int k, const double c[k], const double wc[k], 
                       double xp, double wp)
 {
@@ -182,9 +203,7 @@ int test_orthosphere_w(int k, const s_point c[k], const double wc[k],
             exit(1);
     }
 }
-
-
-
+#endif  // GEOMETRY_COMPILE_TESTS_POWER
 
 
 /* HELPERS */

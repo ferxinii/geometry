@@ -1,5 +1,5 @@
-#ifndef CONVH_H
-#define CONVH_H
+#ifndef _GEOMETRY_CONVH_H
+#define _GEOMETRY_CONVH_H
 
 #include "points.h"
 #include "gtests.h"

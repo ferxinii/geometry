@@ -1,5 +1,5 @@
-#ifndef GEOMETRY_GTESTS_H
-#define GEOMETRY_GTESTS_H
+#ifndef _GEOMETRY_GTESTS_H
+#define _GEOMETRY_GTESTS_H
 #include "points.h"
 
 typedef enum geom_test {  
@@ -37,6 +37,11 @@ int test_orientation_2d(const s_point2d line[2], s_point2d p);
 int test_orientation(const s_point plane[3], s_point p);
 int test_incircle(const s_point2d circle[3], s_point2d p);
 int test_insphere(const s_point sph[4], s_point p);
+bool test_points_concyclic(s_point a, s_point b, s_point c, s_point d);
+bool test_points_colinear(s_point a, s_point b, s_point c);
+
+
+#ifdef GEOMETRY_COMPILE_TESTS_POWER
 int test_orthosegment(int k, const double c[k], const double wc[k], 
                       double xp, double wp);
 int test_orthocircle(int k, const s_point2d c[k], const double wc[k], 
@@ -49,9 +54,7 @@ int test_orthocircle_w(int k, const s_point2d c[k], const double wc[k],
                        double alpha);
 int test_orthosphere_w(int k, const s_point c[k], const double wc[k],
                        double alpha);
-
-
-
+#endif  // GEOMETRY_COMPILE_TESTS_POWER
 
 
 /* EPS_degenerate is a scale for the minimum value of an object to be non-degenerate. Avoids division by 0, ignore too small / degenerate triangles, ...

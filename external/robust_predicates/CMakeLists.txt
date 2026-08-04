@@ -1,17 +1,24 @@
 cmake_minimum_required(VERSION 3.13)
 project(robust_predicates LANGUAGES CXX)
 
-add_library(robust_predicates STATIC
-    robust_predicates_n1.cpp
-    robust_predicates_n2.cpp
-    robust_predicates_n3.cpp
+add_library(predicates_basic STATIC
+    predicates_basic_n2.cpp
+    predicates_basic_n3.cpp
+    predicates_basic_other.cpp
 )
 
-add_library(voronoi_predicates EXCLUDE_FROM_ALL STATIC
-    voronoi_predicates.cpp
+add_library(predicates_power EXCLUDE_FROM_ALL STATIC
+    predicates_power_n1.cpp
+    predicates_power_n2.cpp
+    predicates_power_n3.cpp
 )
 
-foreach(_tgt robust_predicates voronoi_predicates)
+add_library(predicates_lp EXCLUDE_FROM_ALL STATIC
+    predicates_lp_n2.cpp
+    predicates_lp_n3.cpp
+)
+
+foreach(_tgt predicates_basic predicates_power predicates_lp)
     target_include_directories(${_tgt} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/includes/geometry
         ${CMAKE_CURRENT_SOURCE_DIR}/includes/mp11
@@ -27,13 +34,13 @@ endforeach()
 option(ROBUST_PREDICATES_DEBUG "Build robust_predicates with debug info instead of -O3" OFF)
 
 if (NOT ROBUST_PREDICATES_DEBUG)
-    foreach(_tgt robust_predicates voronoi_predicates)
+    foreach(_tgt predicates_basic predicates_power predicates_lp)
         target_compile_options(${_tgt} PRIVATE
             -O3 -march=native -DNDEBUG -g0
         )
     endforeach()
 else()
-    foreach(_tgt robust_predicates voronoi_predicates)
+    foreach(_tgt predicates_basic predicates_power predicates_lp)
         target_compile_options(${_tgt} PRIVATE
             -O0 -g
         )
@@ -43,7 +50,7 @@ endif()
 
 option(ROBUST_PREDICATES_PRINT_SIZE "Emit compile-time deprecation warnings showing stage_d buffer sizes" OFF)
 if(ROBUST_PREDICATES_PRINT_SIZE)
-    foreach(_tgt robust_predicates voronoi_predicates)
+    foreach(_tgt predicates_basic predicates_power predicates_lp)
         target_compile_definitions(${_tgt} PRIVATE ROBUST_PREDICATES_PRINT_SIZE)
     endforeach()
     message(STATUS "robust_predicates: ROBUST_PREDICATES_PRINT_SIZE enabled — expect deprecation warnings during build")

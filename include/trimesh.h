@@ -1,5 +1,5 @@
-#ifndef GEOMETRY_TRIMESH_H
-#define GEOMETRY_TRIMESH_H
+#ifndef _GEOMETRY_TRIMESH_H
+#define _GEOMETRY_TRIMESH_H
 
 #include <stdint.h>
 #include "points.h"
