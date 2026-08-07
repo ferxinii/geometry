@@ -714,32 +714,13 @@ extern "C" int lp3_feasible_SSS_T(double sx, double sy, double sz,
 #ifdef ROBUST_PREDICATES_PRINT_SIZE
 template <std::size_t N>
 struct [[deprecated("results_size -- see template argument")]] show_stage_d_size {};
-using _size_lp_feasible_T0_T1_S = show_stage_d_size<lp_feasible_T0_T1_S_impl::exact::results_size>*;
-using _size_lp_feasible_T1_T2_S = show_stage_d_size<lp_feasible_T1_T2_S_impl::exact::results_size>*;
-using _size_lp_feasible_T0_T2_S = show_stage_d_size<lp_feasible_T0_T2_S_impl::exact::results_size>*;
-using _size_lp_D_T0_S     = show_stage_d_size<lp_D_T0_S_impl::exact::results_size>*;
-using _size_lp_D_T1_S     = show_stage_d_size<lp_D_T1_S_impl::exact::results_size>*;
-using _size_lp_D_T2_S     = show_stage_d_size<lp_D_T2_S_impl::exact::results_size>*;
-using _size_lp_det2       = show_stage_d_size<lp_det2_impl::exact::results_size>*;
-using _size_lp_feasible_T0_S_S_f1 = show_stage_d_size<lp_feasible_T0_S_S_factor1_impl::exact::results_size>*;
-using _size_lp_feasible_T0_S_S_f2 = show_stage_d_size<lp_feasible_T0_S_S_factor2_impl::exact::results_size>*;
-using _size_lp_feasible_T1_S_S_f1 = show_stage_d_size<lp_feasible_T1_S_S_factor1_impl::exact::results_size>*;
-using _size_lp_feasible_T1_S_S_f2 = show_stage_d_size<lp_feasible_T1_S_S_factor2_impl::exact::results_size>*;
-using _size_lp_feasible_T2_S_S_f1 = show_stage_d_size<lp_feasible_T2_S_S_factor1_impl::exact::results_size>*;
-using _size_lp_feasible_T2_S_S_f2 = show_stage_d_size<lp_feasible_T2_S_S_factor2_impl::exact::results_size>*;
-using _size_lp_det3       = show_stage_d_size<lp_det3_impl::exact::results_size>*;
-using _size_lp_feasible_S_S_T0_f2 = show_stage_d_size<lp_feasible_S_S_T0_factor2_impl::exact::results_size>*;
-using _size_lp_feasible_S_S_T2_f2 = show_stage_d_size<lp_feasible_S_S_T2_factor2_impl::exact::results_size>*;
-using _size_lp_feasible_S_S_T1_f2 = show_stage_d_size<lp_feasible_S_S_T1_factor2_impl::exact::results_size>*;
 using _size_lp3_D_TSS     = show_stage_d_size<lp3_D_TSS_impl::exact::results_size>*;
 using _size_lp3_feasible_TTS_S_f1 = show_stage_d_size<lp3_feasible_TTS_S_factor1_impl::exact::results_size>*;
 using _size_lp3_feasible_TTS_S_f2 = show_stage_d_size<lp3_feasible_TTS_S_factor2_impl::exact::results_size>*;
+using _size_lp3_feasible_TTS_T_f2 = show_stage_d_size<lp3_feasible_TTS_T_factor2_impl::exact::results_size>*;
 using _size_lp3_feasible_TSS_S_f2 = show_stage_d_size<lp3_feasible_TSS_S_factor2_impl::exact::results_size>*;
 using _size_lp3_feasible_TSS_T_f2 = show_stage_d_size<lp3_feasible_TSS_T_factor2_impl::exact::results_size>*;
+using _size_lp3_feasible_TSS_T_gen_f2 = show_stage_d_size<lp3_feasible_TSS_T_gen_factor2_impl::exact::results_size>*;
 using _size_lp3_feasible_SSS_T_f1 = show_stage_d_size<lp3_feasible_SSS_T_factor1_impl::exact::results_size>*;
 using _size_lp3_feasible_SSS_T_f2 = show_stage_d_size<lp3_feasible_SSS_T_factor2_impl::exact::results_size>*;
-using _size_incircle3d = show_stage_d_size<incircle3d_impl::exact::results_size>*;
-using _size_orient3d_dd = show_stage_d_size<orient3d_dd_impl::exact::results_size>*;
-// lp_feasible_T1_S_T2 reuses lp_D_T1_S_impl and lp_feasible_T1_T2_S_impl -- no new size entry
-// lp_feasible_T0_S_T2 reuses lp_D_T0_S_impl and lp_feasible_T0_T2_S_impl -- no new size entry
 #endif

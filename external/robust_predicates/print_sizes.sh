@@ -8,10 +8,14 @@ CXX="${CXX:-c++}"
 INCLUDES="-I$RPDIR/includes/geometry -I$RPDIR/includes/mp11"
 FLAGS="-std=c++20 -fsyntax-only -Wno-error -Wdeprecated-declarations -DROBUST_PREDICATES_PRINT_SIZE"
 FILES=(
-    "$RPDIR/robust_predicates_n1.cpp"
-    "$RPDIR/robust_predicates_n2.cpp"
-    "$RPDIR/robust_predicates_n3.cpp"
-    "$RPDIR/voronoi_predicates.cpp"
+    "$RPDIR/predicates_basic_n2.cpp"
+    "$RPDIR/predicates_basic_n3.cpp"
+    "$RPDIR/predicates_basic_other.cpp"
+    "$RPDIR/predicates_power_n1.cpp"
+    "$RPDIR/predicates_power_n2.cpp"
+    "$RPDIR/predicates_power_n3.cpp"
+    "$RPDIR/predicates_lp_n2.cpp"
+    "$RPDIR/predicates_lp_n3.cpp"
 )
 
 echo "Compiling to extract stage_d sizes (may take a minute)..."

@@ -103,4 +103,10 @@ extern "C" int powertest_n2_k3_unweighted(double ax, double ay,
 }
 
 
+#ifdef ROBUST_PREDICATES_PRINT_SIZE
+template <std::size_t N>
+struct [[deprecated("results_size — see template argument")]] show_stage_d_size {};
+using _size_orient2d = show_stage_d_size<orient2d_impl::exact::results_size>*;
+using _size_powertest_n2_k3_unweighted = show_stage_d_size<powertest_n2_k3_unweighted_impl::exact::results_size>*;
+#endif
 

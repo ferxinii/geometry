@@ -755,15 +755,11 @@ using _size_orthow_n3_k1 = show_stage_d_size<orthow_n3_k1_impl::exact::results_s
 using _size_orthow_n3_k2 = show_stage_d_size<orthow_n3_k2_impl::exact::results_size>*;
 using _size_orthow_n3_k3 = show_stage_d_size<orthow_n3_k3_impl::exact::results_size>*;
 using _size_orthow_n3_k4 = show_stage_d_size<orthow_n3_k4_impl::exact::results_size>*;
+
+// orthow_n3_k4 is the only predicate in this file with an active (uncommented)
+// stage_b -- every other predicate here has it commented out of its pipeline.
 template <std::size_t N>
 struct [[deprecated("results_size — see template argument")]] show_stage_b_size {};
-using _size_powertest_n3_k1_b = show_stage_b_size<powertest_n3_k1_impl::stage_b::results_size>*;
-using _size_powertest_n3_k2_b = show_stage_b_size<powertest_n3_k2_D_xy_impl::stage_b::results_size>*;
-using _size_powertest_n3_k3_b = show_stage_b_size<powertest_n3_k3_impl::stage_b::results_size>*;
-using _size_powertest_n3_k4_b = show_stage_b_size<powertest_n3_k4_D_impl::stage_b::results_size>*;
-using _size_orthow_n3_k1_b = show_stage_b_size<orthow_n3_k1_impl::stage_b::results_size>*;
-using _size_orthow_n3_k2_b = show_stage_b_size<orthow_n3_k2_impl::stage_b::results_size>*;
-using _size_orthow_n3_k3_b = show_stage_b_size<orthow_n3_k3_impl::stage_b::results_size>*;
 using _size_orthow_n3_k4_b = show_stage_b_size<orthow_n3_k4_impl::stage_b::results_size>*;
 #endif
 
