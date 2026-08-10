@@ -1,0 +1,1840 @@
+
+\documentclass[12pt]{article}
+ 
+\usepackage[margin=1in]{geometry}  % Puts correct margin
+\usepackage{amsmath, amsthm, amssymb}  % Math, theorems, math symbols (\mathbb{})
+\usepackage{subcaption}  % Subcaptions for subfigures
+\usepackage{graphicx}  % Better interface for \includegraphics
+\usepackage{listings}  % Allows to input code
+\usepackage{cancel}
+\usepackage{mdframed}
+\usepackage[verbose]{placeins}  % Defines: \FloatBarrier
+\usepackage[backend=biber,style=numeric,sorting=none]{biblatex}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.15}
+\usepackage{mathrsfs}
+\usepackage{breqn}
+\usetikzlibrary{arrows}
+ 
+% User commands:
+\DeclareRobustCommand{\loongrightarrow}{%
+  \DOTSB\relbar\joinrel\relbar\joinrel\rightarrow
+}
+\DeclareRobustCommand{\loongmapsto}{\DOTSB\mapstochar\loongrightarrow}
+
+\definecolor{mGreen}{rgb}{0,0.6,0}
+\definecolor{mGray}{rgb}{0.6,0.6,0.6}
+\definecolor{mPurple}{rgb}{0.58,0,0.82}
+\lstdefinestyle{CStyle}{
+    commentstyle=\color{mGreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{mGray},
+    stringstyle=\color{mPurple},
+    basicstyle=\linespread{0.4}\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2,
+    language=C,
+    literate={á}{{\'a}}1 {ã}{{\~a}}1 {é}{{\'e}}1 {π}{{pi}}1
+}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{claim}[theorem]{Claim}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\makeatletter
+\renewenvironment{proof}[1][\proofname]{\par
+  \pushQED{\qed}%
+  \normalfont \footnotesize \topsep6\p@\@plus6\p@\relax
+  \list{}{\leftmargin=2em
+          \settowidth{\itemindent}{\itshape#1}%
+          \labelwidth=\itemindent
+          % the following line is not needed with amsart, 
+          % but might be with other classes
+          \parsep=0pt \listparindent=\parindent 
+  }
+  \item[\hskip\labelsep
+        \itshape
+    #1\@addpunct{.}]\ignorespaces
+}{%
+  \popQED\endlist\@endpefalse
+}
+\makeatother
+
+\newenvironment{rcases}
+  {\left.\begin{aligned}}
+  {\end{aligned}\right\rbrace}
+
+% --------------------------------------------------------------
+%                         Start
+% --------------------------------------------------------------
+
+\addbibresource{refs.bib}
+
+\begin{document}
+
+\title{\vspace{-40pt}Geometric tests}
+\author{Fernando Muñoz Puente}
+
+\date{August 2026}
+\maketitle
+
+\tableofcontents
+
+
+\section*{Introduction}
+Geometric predicates are functions that return the sign of a polynomial expression in the input coordinates, encoding geometric relationships such as orientation or sphere containment. It is critical to implement these 
+robustly, as floating-point arithmetic can produce incorrect signs in near-degenerate configurations \cite{shewchuk1997adaptive}. 
+
+To this end, we use the generic floating-point filter framework of \cite{bartels2023fast}, which automatically derives tight semi-static error bounds for arbitrary arithmetic expressions at compile time. Each predicate 
+is evaluated first by its floating-point approximation, which is compared against a rigorously derived error bound; if the result is inconclusive, a fallback to exact expansion arithmetic \cite{shewchuk1997adaptive} guarantees a correct answer. Underflow protection is enabled throughout. 
+
+
+All of the implemented tests return a value in $\{-1, 0, 1\}$. This can be interpreted as each test answering some geometric question, mapping to $\{ \text{no, uncertain, yes}\}$.
+
+\bigskip
+This document first lists and gives a brief interpretation of the implemented tests. The full mathematical derivations and proofs are found in the two appendices.
+
+\newpage
+
+
+\section{Description of implemented tests}
+ We list here the tests implemented and their interpretation in the case of output 1.
+
+\subsection{Primitive tests ($\mathbb{R}^n$)}
+Note that in the ``orient'' tests, input order of the first points matters, whereas in the incircle / insphere tests it does not. 
+\begin{table}[h]
+\begin{tabular}{|l|l|}
+\hline
+\multicolumn{1}{|c|}{\textbf{Test}} &  
+\multicolumn{1}{c|}{\textbf{Geometric interpretation}}\\
+\hline\hline
+\texttt{test\_orientation\_2D(a,b,c)} &  $c$ below oriented line passing by $(a,b)$ (in $\mathbb{R}^2$). \\
+\hline
+\texttt{test\_orientation\_3D(a,b,c,d)} & $d$ below oriented plane passing by $(a,b,c)$ (in $\mathbb{R}^3$). \\
+\hline\hline
+\texttt{test\_incircle(abc[3],d)} & $d$ inside circle passing by $\{a,b,c\}$ (in $\mathbb{R}^2$). \\
+\hline
+\texttt{test\_insphere(abcd[4],e)} & $e$ inside sphere passing by $\{a,b,c,d\}$ (in $\mathbb{R}^3$).\\
+\hline
+\end{tabular}
+\end{table}
+
+
+% \subsubsection*{Other tests}
+With the previous basic tests we can build others, such as
+\texttt{test\_point\_in\_triangle\_2D/3D}, \texttt{test\_point\_in\_tetrahedron},
+and \texttt{segment\_triangle\_intersect\_2D/3D}.
+
+\noindent
+These tests have an \texttt{EPS\_DEG} parameter, controlling the threshold for degenerate cases (i.e. triangle area $< \mathtt{EPS\_DEG}$\dots), and a \texttt{TOL} parameter, controlling the threshold for boundary cases (distance from point to boundary of triangle\dots). If $\mathtt{TOL}= 0$, then the tests are exact.
+%
+
+
+\subsection{Orthogonal hypersphere tests ($\mathbb{R}^n \times \mathbb{R}$)}
+
+
+In order to give a proper interpretation of the \textit{power} tests, we first define a weighted point $\hat x = (x, w_x)\in (\mathbb{R}^n \!\times\! \mathbb{R})$, interpreted as a hypersphere with center $x$ and radius $r_x = \sqrt{w_x}$ (for $w_x > 0$). We define the power distance between two weighted points as
+\begin{equation*}
+    \pi(\hat x, \hat y) = \| x - y\|^2 - w_x - w_y = \| x - y\|^2 - r_x^2 - r_y^2, \quad \hat x, \hat y \in (\mathbb{R}^n \!\times\! \mathbb{R}).
+\end{equation*}
+
+The \emph{orthogonal hypersphere} to a set of $k$ linearly independent weighted points $\hat p_i$, $1 \leq k \leq n+1$, is the unique $\hat{S} = (S, w_S)$ satisfying $\pi(\hat{p}_i, \hat{S}) = 0$ for  $i = 1, \ldots, k$ and with $S$ in the affine hull of the $k$ points. The interpretation of $\pi(\hat p, \hat S) <0$ is not straightforward. However, in the case where $w_p = 0$ and $w_S > 0$, $\pi(\hat p, \hat S) <0$ implies that $p$ is inside the sphere $\hat S$.
+
+\bigskip
+
+In the orthocircle and orthosphere tests, for efficiency, we have implemented each variant $\alpha = 0$ and $\alpha \neq 0$, in 2D the cases $k=1, \, k=2$ and in 3D the cases $k=1, \, k=2, \, k=3$.
+
+\begin{table}[h]
+\begin{tabular}{|l|l|}
+\hline
+\multicolumn{1}{|c|}{\textbf{Test}} &  
+\multicolumn{1}{c|}{\textbf{Geometric interpretation}}\\
+\hline\hline
+\texttt{test\_orthosegment(arr[k], \!\!$\hat{\texttt{p}}$)} & $\pi (\hat p, \hat S) < 0 $, $\hat S$ orthosegment of $\{\hat a_1, \ldots \hat a_k \}$ (in $\mathbb{R}\times \mathbb{R}$).\\
+\hline
+\texttt{test\_orthocircle(arr[k], \!\!$\hat{\texttt{p}}$)} & $\pi (\hat p, \hat S) < 0 $, $\hat S$ orthocircle of $\{\hat a_1, \ldots \hat a_k \}$ (in $\mathbb{R}^2\times \mathbb{R}$).\\
+\hline
+\texttt{test\_orthosphere(arr[k], \!\!$\hat{\texttt{p}}$)} & $\pi (\hat p, \hat S) < 0 $, $\hat S$ orthosphere of $\{\hat a_1, \ldots \hat a_k \}$ (in $\mathbb{R}^3 \times \mathbb{R}$). \\
+\hline \hline
+\texttt{test\_orthosegment\_w(arr[k], \!\!$\alpha$)} & $ w_S < \alpha $, $\hat S$ orthosegment of $\{\hat a_1, \ldots \hat a_k \}$ (in $\mathbb{R}\times \mathbb{R}$).\\
+\hline
+\texttt{test\_orthocircle\_w(arr[k], \!\!$\alpha$)} & $w_S < \alpha $, $\hat S$ orthocircle of $\{\hat a_1, \ldots \hat a_k \}$ (in $\mathbb{R}^2\times \mathbb{R}$).\\
+\hline
+\texttt{test\_orthosphere\_w(arr[k], \!\!$\alpha$)} & $w_S < \alpha $, $\hat S$ orthosphere of $\{\hat a_1, \ldots \hat a_k \}$ (in $\mathbb{R}^3 \times \mathbb{R}$). \\
+\hline
+\end{tabular}
+\end{table}
+
+
+
+\subsection{Linear Programming tests for Voronoi cells}
+
+A \emph{planar constraint} ($i,j,k$ below) is a half-plane in the oblique
+coordinates of a triangle's plane --- an edge of the triangle, or the
+Voronoi bisector to a neighboring seed; two meet at a boundary point
+$i\wedge j$. A \emph{spatial constraint} ($a,b,c,d$ below) is a half-space
+in $\mathbb{R}^3$ --- a tetrahedron face, or a Voronoi bisector to a
+neighboring seed; three meet at a boundary point $a\wedge b\wedge c$.
+
+\begin{table}[h]
+\begin{tabular}{|l|l|}
+\hline
+\multicolumn{1}{|c|}{\textbf{Test}} &
+\multicolumn{1}{c|}{\textbf{Geometric interpretation}}\\
+\hline\hline
+\texttt{lp2\_D(i,j)} & $j$ is a lower bound for the boundary line of $i$ (in $\mathbb{R}^2$). \\
+\hline
+\texttt{lp2\_feasible(i,j;k)} & $i\wedge j$ strictly satisfies $k$ (in $\mathbb{R}^2$). \\
+\hline\hline
+\texttt{lp3\_D(a,b,c)} & $a,b,c$ meet with a fixed right-handed orientation (in $\mathbb{R}^3$). \\
+\hline
+\texttt{lp3\_feasible(a,b,c;d)} & $a\wedge b\wedge c$ strictly satisfies $d$ (in $\mathbb{R}^3$). \\
+\hline
+\end{tabular}
+\end{table}
+
+\noindent
+Built from these: \texttt{lp2\_vcell\_hits\_face} (a boolean, not a sign)
+tests cell-triangle intersection; \texttt{lp3\_feasible} drives the
+tetrahedron clip, and --- combined with \texttt{lp3\_D}, not as any new
+predicate --- also orders reconstructed-surface vertices sharing an edge
+(\S\ref{sec:lp-edge}).
+
+
+
+
+\newpage
+\appendix
+
+\section{Geometric predicates in $\mathbb{R}^n$ and $\mathbb{R}^n \times \mathbb{R}$}\label{appendix:predicates}
+
+\subsection{Orientation}
+\begin{definition}[Generalized cross product]
+    Let $v_1, \ldots, v_{n-1} \in \mathbb{R}^n$. Denote by $e_1, \ldots, e_n$ the standard basis vectors of $\mathbb{R}^n$ and $v_i^{(j)} \in \mathbb{R}$ the $j$-th component of $v_i$. We define $\mathrm{cross} \left( v_1, \cdots, v_{n-1} \right)\in \mathbb{R}^n$ as the vector resulting from formally expanding the following determinant along the first row:
+\begin{equation*}
+\mathrm{cross} \left(v_1, \cdots, v_{n-1}\right) = \det 
+\scalebox{0.82}{$
+\begin{pmatrix} 
+e_1 & \cdots & e_n \\ 
+v_1^{(1)} & \cdots & v_1^{(n)} \\ 
+\vdots & & \vdots \\ 
+v_{n-1}^{(1)} & \cdots & v_{n-1}^{(n)} 
+\end{pmatrix}$}.
+\end{equation*}
+\end{definition}
+
+In $\mathbb{R}^3$, this reduces to the standard $v_1 \times v_2$.
+
+\begin{proposition}[Determinant characterization]\label{prop:determinant_charact}
+Let $v_1, \ldots, v_{n-1} \in \mathbb{R}^n$. Then for any $x \in \mathbb{R}^n$:
+\begin{equation*}
+    \mathrm{cross}\left(v_1, \cdots, v_{n-1}\right) \cdot x =
+\det 
+    \left( \begin{array}{c|c|c|c}
+            x & v_1 & \cdots & v_{n-1} 
+\end{array} \right)
+% = (-1)^{n-1} \det 
+%     \left( \begin{array}{c|c|c|c}
+%             v_1 & \cdots & v_{n-1} & x
+% \end{array} \right)
+\end{equation*}
+\end{proposition}
+\begin{proof}
+Let $M_i$ be the $(n-1)\times(n-1)$ determinant of the matrix with rows $v_1, \ldots, v_{n-1}$, with column $i$ deleted.
+Then by definition, $\mathrm{cross}\left(v_1, \cdots, v_{n-1}\right) = \left( M_1, -M_2, \ldots, (-1)^{n-1}M_n\right)$.
+
+\noindent
+Therefore $ \mathrm{cross}\left(v_1, \cdots, v_{n-1}\right) \cdot x = \sum_{i=1}^n (-1)^{1+i} M_i \, x^{(i)} $,
+which is precisely the cofactor expansion of $\det(x, v_1, \ldots, v_{n-1})$ along the first row, since the cofactor of $x^{(i)}$ in the first row is $(-1)^{1+i} M_i$. 
+\end{proof}
+
+From this last proposition its clear that $\mathrm{cross}\left(v_1, \cdots, v_{n-1}\right)$ is perpendicular to each $v_i$.
+
+
+\medskip
+Given $n$ affinely independent points, it is easy to see that there exists a unique hyperplane passing through them. The following definition establishes an orientation for it.
+\begin{definition}[Hyperplane orientation]
+    Let $(p_1, \ldots, p_{n})$ be an ordered set of $n$ affinely independent points in $\mathbb{R}^n$. The hyperplane $H$ passing through them has normal 
+\begin{equation*}
+    \mathbf{n} = \mathrm{cross}\left( p_2 -p_1, p_3 -p_1, \ldots, p_n-p_1\right),
+\end{equation*}
+so it is precisely the set $H = \{ x \in \mathbb{R}^n \mid \mathbf{n} \cdot (x - p_1) = 0\}$. $H^+, \ H^-$ are the upper and lower half-spaces, respectively: $H^+ = \{ x \in \mathbb{R}^n \mid \mathbf{n} \cdot (x - p_1) > 0\}, \ H^-=\{ x \in \mathbb{R}^n \mid \mathbf{n} \cdot (x - p_1) < 0\}$.
+\end{definition}
+
+\begin{theorem}[Orientation predicate]\label{thm:orient}
+    Let $(p_1, \ldots, p_{n})$ be an ordered set of $n$ affinely independent points in $\mathbb{R}^n$, and let $H$ be the hyperplane passing through them with normal $\mathbf{n}$. Let $p_{n+1} \in \mathbb{R}^n$ be a query point. Define
+\begin{equation*}
+    \mathrm{orient}_{n}(p_1, \ldots, p_{n+1}) = \det 
+\left( \begin{array}{c|c|c}
+        p_1 - p_{n+1} & \cdots & p_{n} - p_{n+1} 
+\end{array} \right).
+\end{equation*}
+
+\noindent
+Then $\mathrm{orient}_{n}(p_1, \ldots, p_{n+1}) = - \mathbf{n} \cdot (p_{n+1} - p_1)$ 
+and in particular:
+\begin{itemize}
+    \item $\mathrm{orient}_{n} < 0 \iff p_{n+1} \in H^+$ (it lies on the \textbf{upper side} of $H$).
+    \item $\mathrm{orient}_{n} = 0 \iff p_{n+1} \in H$ (\textbf{affinely dependent}).
+    \item $\mathrm{orient}_{n} > 0 \iff p_{n+1} \in H^-$ (it lies on the \textbf{lower side} of $H$).
+\end{itemize}
+\end{theorem}
+
+\begin{proof}
+    By proposition \ref{prop:determinant_charact}, we have $\mathbf{n} \cdot (p_{n+1}-p_{1}) = \det 
+\left( \begin{array}{c|c|c|c}
+        p_{n+1}-p_1 & p_2 - p_1 & \cdots & p_{n} - p_1
+\end{array} \right)$.
+Subtracting the first row to all other rows, we obtain 
+$\det 
+\left( \begin{array}{c|c|c|c}
+        p_{n+1}-p_1 & p_2 - p_{n+1} & \cdots & p_{n} - p_{n+1}
+\end{array} \right)$.
+Then changing the sign of the first row, $-\det 
+\left( \begin{array}{c|c|c|c}
+        p_{1}-p_{n+1} & p_2 - p_{n+1} & \cdots & p_{n} - p_{n+1}\end{array} \right)$.
+Thus, $\mathbf{n} \cdot (p_{n+1}-p_{1}) = - \mathrm{orient}_n \left(p_1, \ldots, p_{n+1} \right)$ and its sign directly encodes the belonging of $p_{n+1}$ to $H$, $H^+$ or $H^-$.
+\end{proof}
+
+This convention coincides with that of Shewchuk \cite{shewchuk1997adaptive}, where $\mathrm{orient}_n > 0$ corresponds to $p_{n+1}$ lying on the negative side of $H$. When $p_1, \ldots, p_n$ are affinely dependent, $\mathrm{orient}_n = 0$ regardless 
+of $p_{n+1}$, so the predicate is degenerate and carries no geometric information about the position of $p_{n+1}$. 
+Finally note that by performing row operations, we can rewrite as $\mathrm{orient}_{n}(p_1, \ldots, p_{n+1}) = (-1)^n \det 
+\left( \begin{array}{c|c|c}
+        p_2 - p_{1} & \cdots & p_{n+1} - p_{1} 
+\end{array} \right)$.
+
+
+
+\subsection{Orthogonal hypersphere power}
+\begin{definition}[Weighted point]
+A weighted point in $\mathbb{R}^n$ is a pair $(p, w) \in \mathbb{R}^n \times 
+\mathbb{R}$, where $p$ is called the \textbf{center} and $w \in \mathbb{R}$ the 
+\textbf{weight}.
+\end{definition}
+
+A weighted point $(p, w)$ can be interpreted as a hypersphere with center $p$ and radius $r = \sqrt{w}$ when $w > 0$. For $w < 0$, this interpretation leads to the existence of imaginary radii. The case $w=0$ simply corresponds to a point.
+
+
+\begin{definition}[Power distance]
+The power distance between two weighted points $\hat p = (p, w_p)$ and $\hat q = (q, w_q)$ 
+in $\mathbb{R}^n$ is defined as:
+\begin{equation*}
+\pi(\hat p, \hat q) = \|p - q\|^2 - w_p - w_q .
+\end{equation*}
+\end{definition}
+
+The power distance is symmetric in $\hat p$ and $\hat q$. When $w_p = 0$, 
+it reduces to the classical power of a point $p$ with respect to the sphere 
+$\hat q = (q, w_q)$: $ \pi(p, \hat q) = \|p - q\|^2 - w_q $,
+which is negative if $p$ lies inside the sphere, zero if $p$ lies on it, and 
+positive if $p$ lies outside.
+
+
+
+\begin{definition}[Orthogonal hypersphere]
+Let $\hat p_1, \ldots, \hat p_{k}$ be $k$ weighted points in $\mathbb{R}^n$ 
+with $1 \leq k \leq n+1$, whose centers are affinely independent. The orthogonal hypersphere $\hat S$ of these weighted points is the unique weighted point $\hat S = (p_S, w_S)$ such that:
+\begin{equation*}
+\begin{cases}
+    \pi(\hat p_i, \hat S) = 0 \quad \forall i = 1, \ldots, k \\
+    \text{its center $p_S$ lies in the affine hull of $p_1, \ldots, p_{k}$.}
+\end{cases}   
+\end{equation*}
+
+\end{definition}
+
+When $k = n+1$, the affine hull of $p_1, \ldots, p_{n+1}$ is all of $\mathbb{R}^n$, so the center constraint is vacuous and the orthogonal hypersphere is determined solely by the $n+1$ orthogonality conditions. When all weights are zero, $\hat S$ reduces to the \textbf{circumscribed hypersphere}.
+
+\begin{proposition}[Existence and uniqueness]
+Let $\hat p_1, \ldots, \hat p_k$ be $k$ weighted points in $\mathbb{R}^n$ with $1 \leq k \leq n+1$, whose centers are affinely independent. Their orthogonal hypersphere exists and is unique.
+\end{proposition}
+\begin{proof}
+Subtracting the $i=1$ orthogonality condition $\pi(\hat p_i, \hat S) = 0$ 
+from the remaining $k-1$ eliminates $w_S$, yielding $k-1$ linear equations in $p_S$:
+$
+2(p_i - p_1) \cdot p_S = \|p_i\|^2 - \|p_1\|^2 - (w_i - w_1), \quad i = 2, \ldots, k.
+$
+Restricting $p_S$ to the affine hull of $p_1, \ldots, p_k$ reduces the system 
+to a $(k-1)\times(k-1)$ linear system whose coefficient matrix is the Gram matrix 
+of $p_2 - p_1, \ldots, p_k - p_1$, which is positive definite by affine 
+independence. This uniquely determines $p_S$, and then $w_S = \|p_1 - p_S\|^2 - w_1$ 
+is uniquely determined.
+\end{proof}
+
+\begin{definition}[Paraboloid lifting map]
+The \textbf{paraboloid lifting map} $\phi: \mathbb{R}^n \times \mathbb{R} \to 
+\mathbb{R}^{n+1}$ is defined by:
+\begin{equation*}
+\phi(\hat p) = \phi(p, w) = (p,\ \|p\|^2 - w) \in \mathbb{R}^{n+1}.
+\end{equation*}
+\end{definition}
+
+For an unweighted point, $\phi(\hat p)$ lies on the paraboloid $\mathcal{K} = \{ (x, z) \in \mathbb{R}^{n+1} \mid z = \|x\|^2 \}$. A nonzero weight $w$ shifts the last coordinate vertically by $-w$, moving the lifted point below the paraboloid for $w > 0$ and above it for $w < 0$.
+
+\begin{lemma}[Lift and power distance]\label{lemma:lift_power_dist}
+    Let $\hat q = (q, w_q)$ be a weighted point in $\mathbb{R}^n$. Define $\Pi \subset \mathbb{R}^{n+1}$ to be the hyperplane with normal $\mathbf{n}_\Pi = (-2 q, 1)$ passing by $p_\Pi= (q, \| q\|^2 + w_p)$:
+\begin{equation*}
+\Pi = \{ r \in \mathbb{R}^{n+1} \mid \mathbf{n}_\Pi \cdot (r - p_\Pi) = 0\}, \quad \text{with corresponding halfspaces} \quad \Pi^+,\, \Pi^-.
+\end{equation*}
+Then, for any weighted point $\hat x \in \mathbb{R}^n \times \mathbb{R}$, the paraboloid lifting map satisfies
+\begin{equation*}
+\phi(\hat x) \in \Pi,\ \Pi^-,\ \Pi^+ \iff \pi(\hat x, \hat q) = 0,\ < 0,\ > 0 \quad \text{correspondingly}.
+\end{equation*}
+\end{lemma}
+
+\begin{proof}
+Note that developing, we can write $\Pi$ as $\Pi = \{(x, z) \in \mathbb{R}^{n+1} \mid z = 2 q \cdot x - \|q\|^2 + w_q \}$. For any weighted point $\hat x = (x, w_x)$, compute the signed vertical distance of $\phi(\hat x) = (x, \|x\|^2 - w_x)$ from $\Pi$:
+\begin{equation*}
+\delta_\Pi(\hat x) = (\|x\|^2 - w_x) - (2q \cdot x - \|q\|^2 + w_q)
+\end{equation*}
+Expanding and rearranging:
+$
+\delta_\Pi(\hat x) = \|x\|^2 - 2q \cdot x + \|q\|^2 - w_x - w_q 
+= \|x - q\|^2 - w_x - w_q = \pi(\hat x, \hat q)
+$.
+Therefore $\delta_\Pi(\hat x) = \pi(\hat x, \hat q)$ for all $\hat x \in 
+\mathbb{R}^n \times \mathbb{R}$. 
+\end{proof}
+
+Actually there is a one-to-one correspondence between weighted points orthogonal to $\hat q$ and points in $\Pi$, weighted points with negative power distance and points $\Pi^+$, etc.\ Since $\mathbf{n}$ has positive last component, $\Pi^+$ is always ``above'' in the $z$-direction.
+
+
+
+\begin{theorem}[Orthogonal hypersphere power predicate]
+Let $\hat p_1, \ldots, \hat p_k$ be $k$ weighted points in $\mathbb{R}^n$ 
+with $2 \leq k \leq n+1$, whose centers are affinely independent, and consider their orthogonal hypersphere $\hat S$. Let $\hat p_{k+1}$ be a query weighted point. 
+Let $e_{j_1}, \ldots, e_{j_{n+1-k}}$ be standard basis vectors of $\mathbb{R}^n$ 
+s.t.:
+\begin{equation*}
+    \mathbf{v}_s = \mathrm{cross}(p_2 - p_1,\ \ldots,\ p_k - p_1,\ 
+e_{j_1},\ \ldots,\ \widehat{e_{j_s}},\ \ldots,\ e_{j_{n+1-k}})
+\end{equation*}
+are linearly independent vectors in $\mathbb{R}^{n}$, where $\widehat{e_{j_s}}$ denotes omission of 
+$e_{j_s}$. Define:
+\begin{equation*}
+\begin{cases}
+    \begin{aligned}
+    \ell_i &= \|p_i - p_{k+1}\|^2 - (w_i - w_{k+1}), && i = 1, \ldots, k \\
+    \mu_s &= 
+    % 2 (p_1 - p_{k+1}) \cdot \mathbf{v}_s \\
+           2 \det \left( \begin{array}{c|c|c|c|c|c|c|c}
+                      p_{1} - p_{k+1}& \ldots & p_{k} - p_{k+1} & e_{j_1} & \ldots & \widehat{e_{j_s}} & \ldots 
+& e_{j_{n+1-k}}
+\end{array}\right), && s = 1, \ldots, n+1-k
+\end{aligned}
+\end{cases}
+\end{equation*}
+and the $(n+1) \times (n+1)$ determinant:
+\begin{equation*}
+    D = \det 
+    \scalebox{0.82}{$\begin{pmatrix} 
+p_1 - p_{k+1} & \ell_1 \\ 
+\vdots & \vdots \\ 
+p_k - p_{k+1} & \ell_k \\ 
+\mathbf{v}_1 & \mu_1 \\ 
+\vdots & \vdots \\ 
+\mathbf{v}_{n+1-k} & \mu_{n+1-k}
+\end{pmatrix}$}.
+\end{equation*}
+Define also the $n \times n$ matrix collecting the direction vectors of the construction:
+\begin{equation*}
+    A = \left( \begin{array}{c|c|c|c|c|c}
+        p_2 - p_1 & \cdots & p_k - p_1 & e_{j_1} & \cdots & e_{j_{n+1-k}}
+    \end{array} \right).
+\end{equation*}
+Then, we have:
+\begin{equation*}
+\mathrm{sign}(\pi(\hat p_{k+1}, \hat S)) =
+\begin{cases}
+    (-1)^{\frac{n-k}{2}} \cdot \mathrm{sign}(D), &n-k \ \text{even} \\
+    (-1)^{n+\frac{n-k-1}{2}}
+    \cdot\mathrm{sign}(\det A) \cdot \mathrm{sign}(D), & n-k \ \text{odd}
+\end{cases}
+\end{equation*}
+\end{theorem}
+
+\begin{remark}[Orientation form of the factor, and why the anchor matters]
+$\det A$ is the orientation of the direction basis completing the affine hull
+of the centers, and it is manifestly translation-invariant -- as it must be,
+since $\pi(\hat p_{k+1}, \hat S)$ and $D$ are (every entry of $D$ is a
+coordinate difference or a direction). It can equivalently be written as an
+orientation test, \emph{provided} the artificial directions are anchored at a
+point of the configuration, like the points $p_1 + \mathbf{v}_s$ in the proof:
+by the row-operation identity of the orientation predicate,
+\begin{equation*}
+    \mathrm{orient}_n(p_1,\ldots,p_k,\,p_1+e_{j_1},\ldots,\,p_1+e_{j_{n+1-k}})
+    = (-1)^n \det A .
+\end{equation*}
+The anchor is essential: the unanchored expression
+$\mathrm{orient}_n(p_1,\ldots,p_k,e_{j_1},\ldots,e_{j_{n+1-k}})$ places the
+artificial points at the \emph{origin} and is therefore position-dependent
+(e.g.\ for $n=3$, $k=2$, translating $a$ and $b$ changes its sign but not that
+of $\det A = (b-a)\cdot(e_{j_1}\times e_{j_2})$), so it cannot appear in the
+formula; note the two coincide exactly when $p_1$ is at the origin, which makes
+the mistake easy to miss. For $k = n+1$ no artificial vectors remain and
+$\det A = (-1)^n\,\mathrm{orient}_n(p_1,\ldots,p_{n+1})$, recovering the
+familiar orientation form. In the implemented case $n=3$, $k=2$,
+$\mathrm{sign}(\det A)$ is the sign of a single coordinate difference of
+$b-a$ (see the case expansions below), computed exactly by one comparison.
+\end{remark}
+
+\begin{proof}
+~\\
+\noindent
+\textbf{Step 1: Lifted input points lie on $\Pi$.} By lemma \ref{lemma:lift_power_dist}, since $\pi(\hat p_i, \hat S) = 0$ for $i = 1, \ldots, k$, 
+the lifted points $\phi(\hat p_1), \ldots, \phi(\hat p_k)$ all lie on the 
+hyperplane $\Pi \subset \mathbb{R}^{n+1}$ associated to $\hat S$.
+
+
+\bigskip \noindent
+\textbf{Step 2: Lifted artificial points lie on $\Pi$.} Define the artificial weighted points $\hat q_s = (p_1 + \mathbf{v}_s, 
+w_1 + \|\mathbf{v}_s\|^2)$ for $s = 1, \ldots, n+1-k$. We claim they are orthogonal to $\hat S$,
+$\pi(\hat q_s, \hat S) = 0$. Expanding:
+\begin{equation*}
+\pi(\hat q_s, \hat S) = \|p_1 + \mathbf{v}_s - p_S\|^2 - w_1 - 
+\|\mathbf{v}_s\|^2 - w_S
+= \underbrace{\|p_1 - p_S\|^2 - w_1 - w_S}_{=\pi(\hat p_1, \hat S)= 0} + 
+2\underbrace{(p_1 - p_S)\cdot\mathbf{v}_s}_{=0}\  .
+\end{equation*}
+The first term vanishes by definition of $\hat S$. The second term vanishes 
+because $p_S$ lies in the affine hull of $p_1, \ldots, p_k$, so $p_1 - p_S = \sum_{i=2}^k \lambda_i (p_i - p_1)$, and by the cross product's orthogonality property, $(p_i - p_1) \cdot \mathbf{v}_s = 0$ for $i = 2, \ldots, k$ since each $p_i - p_1$ is an input of $\mathbf{v}_s$.
+
+\bigskip\noindent
+\textbf{Step 3: $D$ equals $\mathrm{orient}_{n+1}$ of the lifted points.} Consider the $(n+1)\times(n+1)$ determinant (written in transposed manner here for compactness, but think of it as constructed row by row):
+\begin{align*}
+    \Delta &= \mathrm{orient}_{n+1}\left(\phi(\hat p_1), \ldots, \phi(\hat p_k), \phi(\hat q_1), \ldots, \phi (\hat q_{n+1-k}), \phi(\hat p_{k+1})\right) \\
+           &=
+    \det \left(\begin{array}{c|c|c|c|c|c}
+            \phi(\hat p_1) - \phi(\hat p_{k+1}) &
+            \ldots &
+            \phi(\hat p_k) - \phi(\hat p_{k+1}) &
+            \phi(\hat q_1) - \phi(\hat p_{k+1}) &
+            \ldots &
+            \phi(\hat q_{n+1-k}) - \phi(\hat p_{k+1})
+    \end{array} \right).
+\end{align*}
+The input rows have the form $(p_i - p_{k+1}, \|p_i\|^2 - w_i - \|p_{k+1}\|^2 + w_{k+1})$, which can be converted to $(p_i - p_{k+1}, \ell_i)$ after column operations subtracting $2p_{k+1}^{(j)}$ times column $j$ from the 
+last column. The artificial rows have the form 
+$(p_1 - p_{k+1} + \mathbf{v}_s, \|p_1\|^2 + 2p_1\cdot\mathbf{v}_s - w_1 - \|p_{k+1}\|^2 + w_{k+1})$. After the column operations, the last entry of the artificial row simplifies to
+\begin{equation*}
+\|p_1\|^2 + 2p_1\cdot\mathbf{v}_s - w_1 - \|p_{k+1}\|^2 + w_{k+1} 
+- 2 p_{k+1} \cdot (p_1 - p_{k+1} + \mathbf{v}_s) 
+= \ell_1 + 2(p_1 - p_{k+1}) \cdot \mathbf{v}_s 
+= \ell_1 + \mu_s.
+\end{equation*}
+The last equality is easy to see by applying \ref{prop:determinant_charact} 
+and trivial row manipulations. Therefore the artificial rows become $(p_1 - p_{k+1} + \mathbf{v}_s, \ell_1 + \mu_s)$. Subtracting the first input row $(p_1 - p_{k+1}, \ell_1)$ from each artificial row gives rows of the form $(\mathbf{v}_s, \mu_s)$. Hence $\Delta = D$.
+
+\bigskip\noindent
+\textbf{Step 4: Sign relationship.}
+By the orient theorem in $\mathbb{R}^{n+1}$, the sign of $\Delta$ tells us 
+on which side of the hyperplane through $(\phi(\hat p_1), \ldots, \phi(\hat p_k), \phi(\hat q_1), \ldots, \phi(\hat q_{n+1-k})$ 
+the point $\phi(\hat p_{k+1})$ lies, relative to the orientation 
+\emph{induced by the ordering} of those points. To compare this to 
+$\Pi$ as defined by $\mathbf{n}_\Pi = (-2p_S, 1)$ in lemma \ref{lemma:lift_power_dist}, we can project the induced normal to $e_{n+1}$ (since $\mathbf{n}_\Pi$ points upwards in the last component):
+\begin{align*}
+    \text{(induced normal)} \cdot e_{n+1}
+    &=\mathrm{cross}\left( \phi(\hat p_2) - \phi(\hat p_1), \ldots, \phi (\hat q_{n+1-k})- \phi(\hat p_1)\right) \cdot (0, \ldots,0, 1) \\
+    &=\det \left(  \begin{array}{c|c|c|c}
+            (0,\ldots, 0, 1) & \phi(\hat p_2) - \phi(\hat p_1) &\ldots & \phi (\hat q_{n+1-k})- \phi(\hat p_1)
+    \end{array}\right)\\
+    &= (-1)^{n} \det \left(  \begin{array}{c|c|c}
+            p_2 - p_1 &\ldots & q_{n+1-k}- p_1
+    \end{array}\right)\\
+    &= (-1)^{n}(-1)^{n-1} \det \left(  \begin{array}{c|c|c}
+            p_1 - q_{n+1-k} &\ldots & q_{n-k}- q_{n+1-k}
+    \end{array}\right)\\
+    &= -\mathrm{orient}_n \left( p_1, \ldots,p_k, q_1, \ldots, q_{n+1-k}\right)
+\end{align*}
+
+Thus, the induced orientation will point in the same direction as $\mathbf{n}_\Pi$ (and the oriented plane will be the same as $\Pi$) iff $-\mathrm{orient}_n \left( p_1, \ldots, q_{n+1-k}\right) > 0$. Combining with lemma \ref{lemma:lift_power_dist}, we have:
+\begin{equation*}
+    \mathrm{sign}(\pi(\hat p_{k+1}, \hat S)) = -\mathrm{sign}\left( \mathrm{orient}_n(p_1, \ldots, p_k, p_1 + \mathbf{v}_1, \ldots, p_1 + \mathbf{v}_{n+1-k}) \right) \cdot \mathrm{sign}(D).
+\end{equation*}
+
+\bigskip\noindent
+\textbf{Step 5: Rewrite $\mathrm{orient}_n(\ldots)$}:
+Define $\delta_i = (p_{i+1} - p_1)$ and consider the $n \times n$ matrices
+\begin{equation*}
+A = \begin{pmatrix} \delta_1 \\ \vdots \\ \delta_{k-1} \\ e_{j_1} \\ \vdots \\ 
+e_{j_{n+1-k}} \end{pmatrix}, \qquad
+B = \begin{pmatrix} \delta_1 \\ \vdots \\ \delta_{k-1} \\ \mathbf{v}_1 \\ \vdots \\
+\mathbf{v}_{n+1-k} \end{pmatrix}.
+\end{equation*}
+($A$ is the transpose of the matrix in the theorem statement, which leaves the
+determinant unchanged.) Note that $\det(B) =
+(-1)^n\mathrm{orient}_n(p_1,\ldots,p_k,p_1+\mathbf{v}_1,\ldots)$
+by the row-operation identity of the orientation predicate (all its arguments
+are genuine points). Combining with step 4,
+\begin{equation*}
+    \mathrm{sign}(\pi(\hat p_{k+1}, \hat S)) = (-1)^{n+1}\,\mathrm{sign}(\det B) \cdot \mathrm{sign}(D),
+\end{equation*}
+and the remainder of the proof works directly with determinants. Consider the product $AB^T$. By the identity
+$w \cdot \mathrm{cross}(u_1,\ldots,u_{n-1}) = \det(w \mid u_1 \mid \cdots \mid u_{n-1})$:
+\begin{itemize}
+    \item For $1 \leq i,j \leq k-1$: $(AB^T)_{ij} = \delta_i \cdot \delta_j = G_{ij}$, 
+    the Gram matrix of $\delta_1,\ldots,\delta_{k-1}$.
+    \item For $1 \leq i \leq k-1$ and $k \leq j \leq n$: 
+    $(AB^T)_{ij} = \delta_i \cdot \mathbf{v}_{j-k+1} = 0$.
+    \item For $k \leq i \leq n$ and $1 \leq j \leq k-1$: 
+    $(AB^T)_{ij} = e_{j_{i-k+1}} \cdot \delta_j = 0$.
+    \item For $k \leq i,j \leq n$: $(AB^T)_{ij} = e_{j_{i-k+1}} \cdot \mathbf{v}_{j-k+1}$. 
+    By the cross product identity this equals
+    \begin{equation*}
+    \det \left( \begin{array}{c|c|c|c|c|c|c|c|c}
+        e_{j_{i-k+1}} & \delta_1 & \cdots & \delta_{k-1} & 
+        e_{j_1} & \cdots & \widehat{e_{j_{j-k+1}}} & \cdots & e_{j_{n+1-k}} 
+    \end{array} \right).
+    \end{equation*}
+    If $i \neq j$, then $e_{j_{i-k+1}}$ already appears and hence $(AB^T)_{ij} = 0$. If $i = j$,
+    the row $e_{j_s}$ is moved to its position $i$ in $A$, requiring $i-1$ adjacent row swaps. Therefore $(AB^T)_{ii} = (-1)^{i-1}\det(A)$.
+\end{itemize}
+Therefore $AB^T$ is block diagonal with blocks $G$ and 
+$\mathrm{diag}((-1)^{k-1}, (-1)^{k}, \ldots, (-1)^{n-1})\det(A)$.
+Taking determinants of both sides and using 
+$\sum_{i=k}^{n}(i-1) = \frac{(n+1-k)(n+k-2)}{2}$:
+\begin{equation*}
+    \det(A) \cdot \det(B) = \det(G) \cdot (-1)^{\frac{(n+1-k)(n+k-2)}{2}}\det(A)^{n+1-k}.
+\end{equation*}
+Dividing by $\det(A)$ (nonzero by linear independence of $\delta_i$ and $e_{j_s}$):
+\begin{equation*}
+\det(B) = (-1)^{\frac{(n+1-k)(n+k-2)}{2}}\det(G) \cdot \det(A)^{n-k}.
+\end{equation*}
+Since $\det(G) > 0$, taking signs:
+\begin{equation*}
+    \mathrm{sign}(\det B)
+    = (-1)^{\frac{(n+1-k)(n+k-2)}{2}}
+    \cdot\mathrm{sign}(\det(A)^{n-k}).
+\end{equation*}
+Substituting into the relation obtained at the beginning of this step,
+\begin{equation*}
+    \mathrm{sign}(\pi(\hat p_{k+1}, \hat S))
+    = (-1)^{E}\,\mathrm{sign}(\det(A)^{n-k}) \cdot \mathrm{sign}(D),
+    \qquad E = \frac{(n+1-k)(n+k-2)}{2} + n + 1.
+\end{equation*}
+Finally, observe that $\mathrm{sign}(x^N)$ simplifies to $+1$ if $N$ is even, and to $\mathrm{sign}(x)$ if $N$ is odd.
+
+\bigskip\noindent
+\textbf{Step 6: simplify $(-1)^E$:}
+Define $m = n - k$. Substituting and noting $n+k-2 = 2n-m-2$, the exponent becomes
+\[
+  E = \frac{(m+1)(2n-m-2)}{2} + n + 1.
+\]
+
+\begin{itemize}
+\item\textbf{Case $m$ even.} Write $m = 2j$. Then $(m+1)$ is odd and $(2n-m-2)$
+is even, so the fraction is an integer. Reducing modulo~$2$:
+\[
+  \frac{(2j+1)(2n-2j-2)}{2} \equiv (2j+1)(n-j-1) \equiv n-j-1 \pmod{2}.
+\]
+Hence
+\[
+  E \equiv (n-j-1)+(n+1) = 2n-j \equiv j \pmod{2},
+\]
+so $(-1)^{E} = (-1)^{j} = (-1)^{(n-k)/2}$; the $\det A$ factor is absent since
+$\mathrm{sign}(\det A)^{n-k} = +1$ for $n-k$ even.
+
+\item\textbf{Case $m$ odd.} Write $m = 2j+1$. Then $m+1 = 2(j+1)$, so
+\[
+  \frac{(m+1)(2n-m-2)}{2} = (j+1)(2n-2j-3) \equiv j+1 \pmod{2}.
+\]
+Hence
+\[
+  E \equiv (j+1)+(n+1) = n+j+2 \equiv n+j \pmod{2},
+\]
+so $(-1)^{E} = (-1)^{n+j} = (-1)^{n+(n-k-1)/2}$.
+\end{itemize}
+\end{proof}
+
+
+% \subsection*{Particular cases}
+\subsubsection*{Case k=n+1}\label{sec:insphere-case}
+In this case, $n-k = -1$ is odd and no artificial basis vectors remain: $A$ has
+columns $p_2 - p_1, \ldots, p_{n+1} - p_1$, so
+$\det A = (-1)^n\,\mathrm{orient}_n(p_1, \ldots, p_{n+1})$, and the prefactor is
+$(-1)^{n + \frac{n-k-1}{2}} = (-1)^{n-1}$. Combining the two,
+$(-1)^{n-1} \cdot (-1)^{n} = -1$, and the theorem simplifies to
+\begin{align*}
+    &D = \det 
+    \scalebox{0.82}{$\begin{pmatrix} 
+            p_1 - p_{n+2} & \|p_1 - p_{n+2}\|^2 - (w_1 - w_{n+2}) \\ 
+\vdots & \vdots \\ 
+p_{n+1} - p_{n+2} & \|p_{n+1} - p_{n+2}\|^2 - (w_{n+1} - w_{n+2}) 
+\end{pmatrix}$} \\
+    &\mathrm{sign}(\pi(\hat p_{n+2}, \hat S)) = -\mathrm{sign}(\mathrm{orient}_n(p_1, \ldots, p_{n+1})) \cdot \mathrm{sign}(D)
+\end{align*}
+Furthermore, in the case where all weights are $0$, $D$ simplifies to the regular ``insphere'' predicate described by \cite{shewchuk1997adaptive}. If $D>0$ and $\mathrm{orient}_n \left( p_1, \ldots, p_{n+1}\right) > 0$, then $\pi(p_{n+2}, \hat S) < 0$ and thus $p_{n+2}$ is inside the orthosphere of $(\hat p_1, \ldots, \hat p_{n+1})$.
+
+% \subsubsection*{Case k=n}
+% In this case, $\sigma = 1$ and $n-k$ is even, so $\mathrm{sign}(\pi(\hat p_{n+1}, \hat S)) =  \mathrm{sign}(D)$.
+
+\subsubsection*{Case n=2, k=2}
+Consider $\hat a = (a, w_a), \hat b = (b, w_b) \in \mathbb{R}^2 \times \mathbb{R}$, and the query point $\hat c = (c, w_c) \in \mathbb{R}^2 \times \mathbb{R}$. Then, $\mathbf{v}_1 = \mathrm{cross}(b-a) = (b_y - a_y, a_x - b_x)$, and $\mu_1 = 2(a_x - c_x)(b_y-c_y) - 2(a_y-c_y)(b_x-c_x)$. Also note that $n-k = 0$ is even, and $(-1)^{\frac{n-k}{2}}=(-1)^0=+1$, so 
+\begin{align*}
+&D = \det 
+    \scalebox{0.82}{$\begin{pmatrix} 
+            a_x - c_x & a_y - c_y & (a_x-c_x)^2 + (a_y-c_y)^2 - (w_a - w_c) \\
+            b_x - c_x & b_y - c_y & (b_x-c_x)^2 + (b_y-c_y)^2 - (w_b - w_c) \\
+            b_y - a_y & a_x - b_x & 2(a_x - c_x)(b_y-c_y) - 2(a_y-c_y)(b_x-c_x)
+\end{pmatrix}$}, \\
+&\mathrm{sign}(\pi(\hat c, \hat S)) =  \mathrm{sign}(D).
+\end{align*}
+
+
+\subsubsection*{Case n=3, k=3}
+Consider $\hat a, \hat b,  \hat c \in \mathbb{R}^3 \times \mathbb{R}$, and the query point $\hat d \in \mathbb{R}^3 \times \mathbb{R}$. Then, $\mathbf{v}_1 = \mathrm{cross}(b-a, c-a)$. The components of this usual vector product in $\mathbb{R}^3$ are $\mathbf{v}_1^x = (b_y-a_y)(c_z-a_z) - (b_z-a_z)(c_y-a_y)$, $\mathbf{v}_1^y = (b_z-a_z)(c_x-a_x) - (b_x-a_x)(c_z-a_z)$, and $\mathbf{v}_1^z = (b_x-a_x)(c_y-a_y) - (b_y-a_y)(c_x-a_x)$. $\mu_1 = 2\det \left( 
+\begin{array}{c|c|c}
+    a-d & b-d & c-d
+\end{array}\right)$. Also note that $n-k=0$ is even, and $(-1)^{\frac{n-k}{2}} = +1$, so 
+\begin{align*}
+    &D = \det 
+    \scalebox{0.82}{$\begin{pmatrix} 
+            a_x - d_x & a_y - d_y &a_z - d_z & (a_x-d_x)^2 + (a_y-d_y)^2 + (a_z - d_z)^2 - (w_a - w_d) \\
+            b_x - d_x & b_y - d_y &b_z - d_z & (b_x-d_x)^2 + (b_y-d_y)^2 + (b_z - d_z)^2 - (w_b - w_d) \\
+            c_x - d_x & c_y - d_y &c_z - d_z & (c_x-d_x)^2 + (c_y-d_y)^2 + (c_z - d_z)^2 - (w_c - w_d) \\
+            \mathbf{v}_1^x & \mathbf{v}_1^y & \mathbf{v}_1^z & 2\det \left( 
+\begin{array}{c|c|c}
+    a-d & b-d & c-d
+\end{array}\right)
+\end{pmatrix}$},\\
+&\mathrm{sign}(\pi(\hat d, \hat S)) =  \mathrm{sign}(D).
+\end{align*}
+
+
+
+\subsubsection*{Case n=3, k=2}
+Consider $\hat a, \hat b,  \in \mathbb{R}^3 \times \mathbb{R}$, and the query point $\hat c \in \mathbb{R}^3 \times \mathbb{R}$. We have to choose $e_{j_1}, e_{j_2}$, basis vectors of $\mathbb{R}^3$, least parallel to $b-a$. $\mathbf{v}_1 = \mathrm{cross}(b-a, e_{j_2})$, $\mathbf{v}_2 = \mathrm{cross}(b-a, e_{j_1})$. Define $\delta a = a -c, \, \delta b = b-c$. Then $\mu_1 = 2\det \left( 
+\begin{array}{c|c|c}
+    \delta a & \delta b & e_{j_2}
+\end{array}\right)$, $\mu_2 = 2\det \left( 
+\begin{array}{c|c|c}
+    \delta a & \delta b & e_{j_1}
+\end{array}\right)$. Also note that $n-k = 1$ is odd, the prefactor is
+$(-1)^{n+\frac{n-k-1}{2}} = (-1)^{3+0} = -1$, and
+$\det A = \det \left( \begin{array}{c|c|c} b-a & e_{j_1} & e_{j_2} \end{array} \right)
+= (b-a)\cdot(e_{j_1} \times e_{j_2})$,
+i.e.\ the component of $b-a$ left out of the basis pair. So
+\begin{align*}
+    &D = \det 
+    \scalebox{0.82}{$\begin{pmatrix} 
+            \delta a_x & \delta a_y & \delta a_z & \delta a_x^2+ \delta a_y^2 + \delta a_z^2 - (w_a - w_c) \\
+            \delta b_x & \delta b_y & \delta b_z & \delta b_x^2+ \delta b_y^2 + \delta b_z^2 - (w_b - w_c) \\
+            \mathbf{v}_1^x & \mathbf{v}_1^y & \mathbf{v}_1^z & \mu_1 \\
+%             2\det \left( 
+% \begin{array}{c|c|c}
+%     a-c & b-c & e_{j_2}
+% \end{array}\right) \\
+            \mathbf{v}_2^x & \mathbf{v}_2^y & \mathbf{v}_2^z & \mu_2 \\
+%             2\det \left( 
+% \begin{array}{c|c|c}
+%     a-c & b-c & e_{j_1}
+% \end{array}\right)
+\end{pmatrix}$}, \\
+&\mathrm{sign}(\pi(\hat c, \hat S)) =  -\mathrm{sign}\big((b-a)\cdot(e_{j_1} \times e_{j_2})\big) \cdot \mathrm{sign}(D).
+\end{align*}
+
+Note that the orientation factor $-\det A$ is a single coordinate difference of
+$b-a$ (see the per-case expressions below), which is computed exactly by one
+floating-point comparison -- unlike $D$, it needs no robust evaluation. Since
+the basis pair is chosen least parallel to $b-a$, this is the component of
+$b-a$ largest in magnitude, so the factor vanishes only when $a = b$.
+
+\noindent
+\begin{itemize}
+    \item $\mathbf{e}_{j_1}=\mathbf{e}_1, \ \mathbf{e}_{j_2}=\mathbf{e}_2$: 
+        \begin{itemize}
+         \item[$\circ$] $\mathbf{v}_1 = (a_z-b_z, 0, b_x-a_x), \, \mathbf{v}_2=(0, b_z-a_z, a_y-b_y)$.
+         \item[$\circ$] $\mu_1= 2 \delta a_z \delta b_x - 2 \delta a_x \delta b_z, \, \mu_2= 2 \delta a_y \delta b_z -2 \delta a_z \delta b_y$.
+        \end{itemize}
+        \begin{align*}
+        % &D = \det\scalebox{0.78}{$\begin{pmatrix}
+        %     a_x - c_x & a_y - c_y & a_z - c_z & (a_x-c_x)^2 + (a_y-c_y)^2 + (a_z-c_z)^2 - (w_a-w_c) \\
+        %     b_x - c_x & b_y - c_y & b_z - c_z & (b_x-c_x)^2 + (b_y-c_y)^2 + (b_z-c_z)^2 - (w_b-w_c) \\
+        %     a_z-b_z & 0 & b_x-a_x & 2(a_z-c_z)(b_x-c_x)-2(a_x-c_x)(b_z-c_z) \\
+        %     0 & b_z-a_z & a_y-b_y & 2(a_y-c_y)(b_z-c_z)-2(a_z-c_z)(b_y-c_y)
+        % \end{pmatrix}$}\\
+          &D = \scalebox{0.78}{$\begin{vmatrix}
+                    \delta a_x & \delta a_y \\
+                    \delta b_x & \delta b_y
+            \end{vmatrix}$} 
+            \scalebox{0.78}{$\begin{vmatrix}
+                    \mathbf{v}_1^z & \mu_1 \\
+                    \mathbf{v}_2^z & \mu_2 
+            \end{vmatrix}$}
+            + \mathbf{v}_2^y \left( 
+            \scalebox{0.78}{$ \delta a_x \begin{vmatrix}
+                    \delta b_z & \ell_b \\
+                    \mathbf{v}_1^z & \mu_1
+            \end{vmatrix}$} -
+            \scalebox{0.78}{$ \delta b_x \begin{vmatrix}
+                    \delta a_z & \ell_a\\
+                    \mathbf{v}_1^z & \mu_1
+            \end{vmatrix}$}
+            \right) +
+            \mathbf{v}_1^x \scalebox{0.78}{$ \begin{vmatrix}
+                    \delta a_y & \delta a_z & \ell_a\\
+                    \delta b_y & \delta b_z & \ell_b\\
+                    \mathbf{v}_2^y & \mathbf{v}_2^z & \mu_2
+            \end{vmatrix}$} \\
+        &-\det A = -(b-a)\cdot(e_1 \times e_2) = a_z - b_z
+        \end{align*}
+
+
+    \item $\mathbf{e}_{j_1}=\mathbf{e}_2, \ \mathbf{e}_{j_2}=\mathbf{e}_3$: 
+        \begin{itemize}
+         \item[$\circ$] $\mathbf{v}_1=(b_y-a_y, a_x-b_x, 0),\, \mathbf{v}_2 = (a_z-b_z, 0, b_x-a_x)$.
+         \item[$\circ$] $\mu_1= 2 \delta a_x \delta b_y -2 \delta a_y \delta b_x, \, \mu_2= 2 \delta a_z \delta b_x - 2 \delta a_x \delta b_z $.
+        \end{itemize}
+        % &D = \det\scalebox{0.78}{$\begin{pmatrix}
+        %     a_x - c_x & a_y - c_y & a_z - c_z & (a_x-c_x)^2 + (a_y-c_y)^2 + (a_z-c_z)^2 - (w_a-w_c) \\
+        %     b_x - c_x & b_y - c_y & b_z - c_z & (b_x-c_x)^2 + (b_y-c_y)^2 + (b_z-c_z)^2 - (w_b-w_c) \\
+        %     b_y-a_y & a_x-b_x & 0 & 2(a_x-c_x)(b_y-c_y)-2(a_y-c_y)(b_x-c_x) \\
+        %     a_z-b_z & 0 & b_x-a_x & 2(a_z-c_z)(b_x-c_x)-2(a_x-c_x)(b_z-c_z)
+        % \end{pmatrix}$} \\
+        \begin{align*}
+        &D = \scalebox{0.78}{$\begin{vmatrix}
+                    \delta a_y & \delta a_z \\
+                    \delta b_y & \delta b_z
+            \end{vmatrix}$} 
+            \scalebox{0.78}{$\begin{vmatrix}
+                    \mathbf{v}_1^x & \mu_1 \\
+                    \mathbf{v}_2^x & \mu_2 
+            \end{vmatrix}$}
+            + \mathbf{v}_2^z \left( 
+            \scalebox{0.78}{$ \delta a_y \begin{vmatrix}
+                    \delta b_x & \ell_b \\
+                    \mathbf{v}_1^x & \mu_1
+            \end{vmatrix}$} -
+            \scalebox{0.78}{$ \delta b_y \begin{vmatrix}
+                    \delta a_x & \ell_a\\
+                    \mathbf{v}_1^x & \mu_1
+            \end{vmatrix}$}
+            \right) +
+            \mathbf{v}_1^y \scalebox{0.78}{$ \begin{vmatrix}
+                    \delta a_z & \delta a_x & \ell_a\\
+                    \delta b_z & \delta b_x & \ell_b\\
+                    \mathbf{v}_2^z & \mathbf{v}_2^x & \mu_2
+            \end{vmatrix}$} \\
+        &-\det A = -(b-a)\cdot(e_2 \times e_3) = a_x - b_x
+        \end{align*}
+
+
+    \item $\mathbf{e}_{j_1}=\mathbf{e}_3, \ \mathbf{e}_{j_2}=\mathbf{e}_1$: 
+        \begin{itemize}
+         \item[$\circ$] $\mathbf{v}_1 = (0, b_z-a_z, a_y-b_y),\, \mathbf{v}_2=(b_y-a_y, a_x-b_x, 0)$.
+         \item[$\circ$] $\mu_1=2 \delta a_y \delta b_z-2 \delta a_z \delta b_y,\,  \mu_2=2 \delta a_x \delta b_y - 2 \delta a_y \delta b_x $.
+        \end{itemize}
+        \begin{align*}
+        % &D = \det\scalebox{0.78}{$\begin{pmatrix}
+        %     a_x - c_x & a_y - c_y & a_z - c_z & (a_x-c_x)^2 + (a_y-c_y)^2 + (a_z-c_z)^2 - (w_a-w_c) \\
+        %     b_x - c_x & b_y - c_y & b_z - c_z & (b_x-c_x)^2 + (b_y-c_y)^2 + (b_z-c_z)^2 - (w_b-w_c) \\
+        %     0 & b_z-a_z & a_y-b_y & 2(a_y-c_y)(b_z-c_z)-2(a_z-c_z)(b_y-c_y) \\
+        %     b_y-a_y & a_x-b_x & 0 & 2(a_x-c_x)(b_y-c_y)-2(a_y-c_y)(b_x-c_x)
+        % \end{pmatrix}$} \\
+        &D = \scalebox{0.78}{$\begin{vmatrix}
+                    \delta a_z & \delta a_x \\
+                    \delta b_z & \delta b_x
+            \end{vmatrix}$} 
+            \scalebox{0.78}{$\begin{vmatrix}
+                    \mathbf{v}_1^y & \mu_1 \\
+                    \mathbf{v}_2^y & \mu_2 
+            \end{vmatrix}$}
+            + \mathbf{v}_2^x \left( 
+            \scalebox{0.78}{$ \delta a_z \begin{vmatrix}
+                    \delta b_y & \ell_b \\
+                    \mathbf{v}_1^y & \mu_1
+            \end{vmatrix}$} -
+            \scalebox{0.78}{$ \delta b_z \begin{vmatrix}
+                    \delta a_y & \ell_a\\
+                    \mathbf{v}_1^y & \mu_1
+            \end{vmatrix}$}
+            \right) +
+            \mathbf{v}_1^z \scalebox{0.78}{$ \begin{vmatrix}
+                    \delta a_x & \delta a_y & \ell_a\\
+                    \delta b_x & \delta b_y & \ell_b\\
+                    \mathbf{v}_2^x & \mathbf{v}_2^y & \mu_2
+            \end{vmatrix}$} \\
+        &-\det A = -(b-a)\cdot(e_3 \times e_1) = a_y - b_y
+        \end{align*}
+\end{itemize}
+
+
+When $p_1, \ldots, p_k$ are affinely dependent, the orthosphere $\hat S$ is not uniquely defined and $D = 0$ (since the first $k$ rows of $D$ become linearly dependent), so $\pi(\hat p_{k+1}, \hat S) = 0$ but this case carries no geometrical meaning.
+
+\subsubsection*{An alternative: clearing the Gram denominator}
+
+The theorem above computes $\mathrm{sign}(\pi)$ through the lifted determinant $D$. A second route solves the orthocenter system directly by Cramer's rule and
+clears its denominator, which is a \emph{positive} quantity -- so no
+orientation factor of any kind appears.
+
+\begin{proposition}[Cleared form of the power predicate]\label{prop:cleared_power}
+Let $\hat p_1, \ldots, \hat p_k$ be $k$ weighted points in $\mathbb{R}^n$ with
+$2 \leq k \leq n+1$, whose centers are affinely independent, let $\hat S$ be
+their orthogonal hypersphere and $\hat q = (q, w_q)$ a query weighted point.
+Define $\delta_i = p_{i+1} - p_1$, $t = q - p_1$, the Gram matrix
+$G_{ij} = \delta_i \cdot \delta_j$, and the vectors $u, b \in \mathbb{R}^{k-1}$
+with $u_i = t \cdot \delta_i$ and $b_i = \|\delta_i\|^2 - (w_{i+1} - w_1)$.
+Then
+\begin{equation*}
+    \pi(\hat q, \hat S) = \|t\|^2 + w_1 - w_q - u^T G^{-1} b,
+\end{equation*}
+and, since $\det(G) > 0$,
+\begin{equation*}
+    \mathrm{sign}(\pi(\hat q, \hat S)) =
+    \mathrm{sign}\Big( \det(G)\,\big(\|t\|^2 + w_1 - w_q\big) - u^T \mathrm{adj}(G)\, b \Big),
+\end{equation*}
+whose argument is a polynomial of total degree $2k$ in the input coordinates
+and weights.
+\end{proposition}
+\begin{proof}
+Write $p_S = p_1 + \sum_{i} \lambda_i \delta_i$; as in the existence
+proposition, the orthogonality conditions give $G\lambda = b/2$. Then
+$\|q - p_S\|^2 = \|t\|^2 - 2\,u^T\lambda + \lambda^T G \lambda$ and
+$w_S = \|p_S - p_1\|^2 - w_1 = \lambda^T G \lambda - w_1$, so the quadratic
+terms cancel in the power distance:
+\begin{equation*}
+    \pi(\hat q, \hat S) = \|q - p_S\|^2 - w_q - w_S
+    = \|t\|^2 + w_1 - w_q - 2\,u^T\lambda
+    = \|t\|^2 + w_1 - w_q - u^T G^{-1} b .
+\end{equation*}
+Multiplying by $\det(G) > 0$ (positive definite by affine independence) and
+using $\mathrm{adj}(G) = \det(G)\, G^{-1}$ gives the claim.
+\end{proof}
+
+For $k = 2$ the Gram matrix is the scalar $\|d\|^2$ with $d = b - a$, its
+adjugate is $1$, and the cleared form collapses to a degree-4 polynomial built
+from three inner products:
+\begin{equation*}
+    E \;=\; \|d\|^2\,\big(\|t\|^2 + w_a - w_q\big) \;-\; (t \cdot d)\,\big(\|d\|^2 + w_a - w_b\big),
+    \qquad \mathrm{sign}(E) = \mathrm{sign}(\pi(\hat q, \hat S)).
+\end{equation*}
+
+\begin{remark}[Comparison of the two routes]
+The two formulations trade degree against structure, and the crossover matters for robust implementations. For some combinations of $n$ and $k$ one may be more efficient than the other.
+\begin{itemize}
+    \item The cleared form has total degree $2k$ but no artificial construction and no orientation factor at all. For $k = 2$ it is dramatically smaller (for
+    the exact stage of the staged implementation: a buffer bound of $1\,897$
+    doubles versus $33\,701$ for each of the three basis branches of the $D$
+    form, and roughly $4\times$ faster in both the filtered and the exact
+    paths); for $k = 3$ the advantage is marginal, and for $k = n+1$ the $D$
+    form wins (degree $2k = 8$ versus $5$).
+\end{itemize}
+Finally, the proposition below on $\mathrm{sign}(w_S - \alpha)$ is this same
+denominator-clearing technique applied to the radius test.
+No lower-degree analogue exists:
+$\det(G)$ is (generically) the exact denominator of $w_S$, so degree $2k$ is
+intrinsic. Its exact
+stage is by far the most expensive one, improvements there must come from the
+evaluation strategy, not from the algebra.
+\end{remark}
+
+% Finally, we observe that if we want to check if $\pi(\hat p_{k+1}, \hat S) < \alpha$ instead of $\pi(\hat p_{k+1}, \hat S) < 0$, we can just change the weight of $\hat p_{k+1}$, $\hat p^*_{k+1}=(p_{k+1}, w_{k+1} + \alpha)$, and then $\pi(\hat p_{k+1}, \hat S) < \alpha \iff \pi(\hat p^*_{k+1}, \hat S) < 0$. Effectively, only the lifts would change $\ell_i = \|p_i - p_{k+1}\|^2 - (w_i - w_{k+1}) + \alpha$.
+
+
+
+\begin{proposition}\label{prop:ws_radius}
+    Let $\hat p_1, \ldots, \hat p_k$ be $k$ weighted points in $\mathbb{R}^n$ with $2 \leq k \leq n+1$, whose centers are affinely independent, and consider their orthogonal hypersphere $\hat S$. Define the vector $b \in \mathbb{R}^{k-1}$ with components $\ b_i=\|p_{i+1} - p_1\|^2 - (w_{i+1} -w_1)$, and the $(k-1)\times (k-1)$ matrix $G$ with components $G_{ij} = (p_{i+1} - p_1) \cdot (p_{j+1} - p_1)$. Then, 
+    \begin{equation*}
+        \mathrm{sign}(w_S - \alpha) = - \mathrm{sign} \ \mathrm{det} \begin{pmatrix}
+                4 (w_1 + \alpha) & b^T \\ b & G
+            \end{pmatrix} 
+            % = \mathrm{sign}(\sum_{i=1}^n \nu_i b_i - 2 (w_1 + \alpha) \mathrm{det}(G)) \quad \forall \alpha \in \mathbb{R}.
+    \end{equation*} 
+\end{proposition}
+\begin{proof}
+    By definition of $\hat S$, its center $p_S$ must lie in the affine hull of $p_1, \ldots, p_k$, so $p_S = p_1 + \sum_{i=2}^k \lambda_i(p_i - p_1)$. Imposing the orthogonality condition $\pi(\hat S, \hat p_j) =0 \ \forall j=1,\ldots, k$, we obtain the linear system $G \lambda = \frac{b}{2}$ for the coefficients $\lambda_i$. Note that $G$ is the Gram matrix of $(p_i - p_1)$, and by the hypothesis of affine independence, it is positive definite (so $\mathrm{det}(G) > 0$ and is invertible). Also, note that imposing $\pi(\hat S, \hat p_1) = 0$ implies $w_S + w_1 = \| p_S - p_1\|^2 = \lambda ^T G \lambda = {b^T G^{-1} b}/{4}$.
+
+On another hand, consider the matrix $\begin{pmatrix}
+                4 (w_1 + \alpha) & b^T \\ b & G
+                \end{pmatrix}$.
+By the Schur complement formula, we have that its determinant equals $\mathrm{det}(G) \cdot \mathrm{det}(4 (w_1+\alpha) - b^T G^{-1}b)$. By the previous result, this equals $\mathrm{det}(G) \cdot (4 w_1 + 4 \alpha - 4 w_S - 4 w_1) = - 4 (w_S - \alpha) \mathrm{det}(G)$. Since $4\mathrm{det}(G) > 0$, this proves the claim.
+\end{proof}
+
+
+
+\newpage
+\section{Linear Programming tests for Voronoi cells}\label{appendix:LP}
+
+\subsection{The LP feasibility predicate}\label{sec:lp-feasible}
+
+Two applications below --- clipping a Voronoi cell against a triangle (in the
+$2$-dimensional oblique coordinates of its plane) and against a tetrahedron
+(directly in ambient $\mathbb{R}^3$) --- reduce to the same question at
+different ambient dimension $n$: given $n$ half-space constraints whose
+boundaries meet at a unique point, on which side of an $(n+1)$-th query
+constraint does that point lie? We isolate this predicate once, at general
+$n$, and specialize it to $n=2$ and $n=3$ in the sections that follow.
+
+\begin{definition}[Constraint]\label{def:constraint}
+A \emph{constraint} $\mathcal{C}$ in $\mathbb{R}^n$ is a pair $(a, c)
+\in (\mathbb{R}^n\setminus\{0\}) \times \mathbb{R}$, defining the half-space
+$\{x \in \mathbb{R}^n \mid a\cdot x \leq c\}$. A point $x$
+\textbf{strictly satisfies} $\mathcal C$ if $a \cdot x < c$,
+\textbf{violates} it if $a \cdot x > c$, and lies on its
+\textbf{boundary} if $a \cdot x = c$.
+\end{definition}
+
+\begin{definition}[Slope determinant]\label{def:slope}
+Given $n$ constraints $\mathcal C_1, \ldots, \mathcal C_n$ in $\mathbb{R}^n$
+with normals $a_1, \ldots, a_n$, their \textbf{slope
+determinant} is
+\begin{equation*}
+    \Delta(\mathcal C_1,\ldots,\mathcal C_n) = \det \begin{pmatrix} a_1,\, \cdots,\, a_n \end{pmatrix}.
+\end{equation*}
+\end{definition}
+
+\begin{proposition}\label{prop:lp-vertex}
+$\Delta(\mathcal C_1,\ldots,\mathcal C_n) \neq 0$ if and only if the $n$
+boundary hyperplanes of $\mathcal C_1, \ldots, \mathcal C_n$ meet at a unique
+point $p$, given by $p = M^{-1}c$, where $M$ has rows
+$a_1,\ldots,a_n$ and $c =
+(c_1,\ldots,c_n)$.
+\end{proposition}
+\begin{proof}
+    The boundaries $a_i \cdot x = c_i$, $i=1,\ldots,n$, form the
+    linear system $Mx = c$. This has a unique solution if and only if
+    $M$ is invertible, i.e.\ $\det M = \Delta \neq 0$, in which case
+    $p = M^{-1}c$.
+\end{proof}
+
+\begin{theorem}[LP feasibility predicate]\label{thm:lp-feasible}
+Let $\mathcal C_1, \ldots, \mathcal C_n$ be constraints in $\mathbb{R}^n$ with
+$\Delta(\mathcal C_1,\ldots,\mathcal C_n) \neq 0$, so their boundaries meet at
+the unique point $p$ of Proposition~\ref{prop:lp-vertex}. Let $\mathcal
+C_{n+1} = (a_{n+1}, c_{n+1})$ be a query constraint. Define
+\begin{equation*}
+    \Gamma(\mathcal C_1,\ldots,\mathcal C_{n+1}) = \det \begin{pmatrix} a_1 & c_1 \\ \vdots & \vdots \\ a_{n+1} & c_{n+1} \end{pmatrix},
+    \qquad
+    \mathrm{feasible}(\mathcal C_1,\ldots,\mathcal C_n;\, \mathcal C_{n+1}) = \mathrm{sign}(\Delta)\cdot \mathrm{sign}(\Gamma).
+\end{equation*}
+Then:
+\begin{itemize}
+    \item $\mathrm{feasible} > 0 \iff p$ strictly satisfies $\mathcal C_{n+1}$.
+    \item $\mathrm{feasible} = 0 \iff p$ lies on the boundary of $\mathcal
+    C_{n+1}$ (or $\Delta = 0$, by convention).
+    \item $\mathrm{feasible} < 0 \iff p$ violates $\mathcal C_{n+1}$.
+\end{itemize}
+Moreover $\mathrm{feasible}$ is invariant under any permutation of $\mathcal
+C_1,\ldots,\mathcal C_n$: transposing two of them flips the sign of both
+$\Delta$ and $\Gamma$, leaving their product unchanged.
+\end{theorem}
+\begin{proof}
+    Let $M$ have rows $a_1,\ldots,a_n$, $c =
+    (c_1,\ldots,c_n)$, so $p = M^{-1}c$. Let $V =
+    a_{n+1}\cdot p - c_{n+1}$ be the signed violation of $\mathcal C_{n+1}$ at
+    $p$: $V<0$ is strict satisfaction, $V>0$ is violation. Write $\Gamma$ as
+    the bordered block determinant
+    \begin{equation*}
+        \Gamma = \det \begin{pmatrix} M & c \\ a_{n+1} & c_{n+1} \end{pmatrix}.
+    \end{equation*}
+    Since $M$ is invertible, the Schur complement of $M$ gives
+    \begin{equation*}
+        \Gamma = \det(M)\big(c_{n+1} - a_{n+1} M^{-1} c\big)
+               = \Delta \cdot (c_{n+1} - a_{n+1}\cdot p) = -\Delta \cdot V.
+    \end{equation*}
+    Hence $\mathrm{sign}(V) = -\mathrm{sign}(\Delta)\mathrm{sign}(\Gamma)$, and
+    $\mathrm{feasible} := -\mathrm{sign}(V) = \mathrm{sign}(\Delta)\mathrm{sign}(\Gamma)$
+    has the stated meaning. When $\Delta = 0$ the block factorization is
+    invalid --- exactly the degenerate case where the $n$ boundaries fail to
+    meet at a unique point --- and we set $\mathrm{feasible} = 0$ by
+    convention.
+\end{proof}
+
+\begin{lemma}[Reference-point reduction]\label{lem:refpoint}
+Let $A \in \mathbb{R}^n$ be any point. Replacing the offset column
+$(c_1,\ldots,c_{n+1})$ of $\Gamma$ by $(c_1 - a_1\cdot A,
+\ldots, c_{n+1}-a_{n+1}\cdot A)$ leaves $\Gamma$, and hence
+$\mathrm{feasible}$, unchanged.
+\end{lemma}
+\begin{proof}
+    The new offset column equals the old one minus $\sum_{j=1}^n A_j
+    (\text{column } j)$, a linear combination of the normal-columns already
+    present in $\Gamma$; adding a multiple of one column to another leaves a
+    determinant unchanged.
+\end{proof}
+
+\noindent
+The reference point $A$ carries no geometric meaning of its own --- by the
+lemma above, $\mathrm{feasible}$ does not depend on it. Its only role is to
+lower the polynomial degree of the offset entries: choosing $A$ on the
+boundary of one of the constraints zeroes that row's offset entirely.
+
+\bigskip
+The other recurring object in both applications is the perpendicular
+bisector between two seeds, which defines a constraint directly in
+$\mathbb{R}^n$ without reference to any embedding:
+
+\begin{definition}[Bisector constraint]\label{def:bisector}
+Let $s,t \in \mathbb{R}^n$ with $s\neq t$. The \textbf{bisector constraint}
+$\mathcal S = (s\!\to\!t)$ is the half-space favoring $s$ in the
+perpendicular bisector of $s,t$:
+\begin{equation*}
+    \mathcal S = (a_{\mathcal S}, c_{\mathcal S}), \qquad
+    a_{\mathcal S} = t-s, \qquad c_{\mathcal S} = \tfrac12\big(\|t\|^2 - \|s\|^2\big),
+\end{equation*}
+i.e.\ $x$ satisfies $\mathcal S$ if and only if $\|x-s\|^2 \le \|x-t\|^2$.
+\end{definition}
+
+\begin{lemma}[Bisector value]\label{lem:bisector-value}
+For $\mathcal S = (s\!\to\!t)$ and any $x \in \mathbb{R}^n$,
+\begin{equation*}
+    a_{\mathcal S}\cdot x - c_{\mathcal S} = \tfrac12\big(\|x-s\|^2 - \|x-t\|^2\big).
+\end{equation*}
+\end{lemma}
+\begin{proof}
+    Expand $\|x-s\|^2 - \|x-t\|^2 = -2s\cdot x + \|s\|^2 + 2t\cdot x - \|t\|^2
+    = 2(t-s)\cdot x - (\|t\|^2 - \|s\|^2) = 2(a_{\mathcal S}\cdot x -
+    c_{\mathcal S})$.
+\end{proof}
+
+\subsection{Cell-triangle intersection}\label{sec:lp-plane}
+
+This section specializes Theorem~\ref{thm:lp-feasible} to $n=2$: clipping a
+Voronoi cell against a triangle, cast as a feasibility problem in the oblique
+coordinates of the triangle's plane.
+
+\subsubsection*{Oblique coordinates and the restriction lemma}
+
+Let $\Pi \subset \mathbb{R}^3$ be a plane through $p_0 \in \mathbb{R}^3$,
+spanned by linearly independent vectors $u,v$. Every point of $\Pi$ is
+$x(\alpha,\beta) = p_0 + \alpha u + \beta v$ for a unique $(\alpha,\beta) \in
+\mathbb{R}^2$: a one-to-one map $\mathbb{R}^2 \to \Pi$.
+
+\begin{lemma}[Restriction of a half-space to a plane]\label{lem:restrict}
+Let $\mathcal{H} = (\nu, d)$ be a constraint in $\mathbb{R}^3$
+(Definition~\ref{def:constraint}) with $\nu \cdot u,\, \nu \cdot v$ not both
+zero. Then $\mathcal H \cap \Pi$ is, in the oblique coordinates
+$(\alpha,\beta)$, the planar constraint $\mathcal C = (a,c)$ with
+\begin{equation*}
+    a = (\nu\cdot u,\; \nu \cdot v), \qquad c = d - \nu\cdot p_0.
+\end{equation*}
+\end{lemma}
+\begin{proof}
+$x(\alpha,\beta)$ satisfies $\mathcal H$ iff $\nu \cdot (p_0 + \alpha u +
+\beta v) \le d$, i.e.\ $\alpha(\nu\cdot u) + \beta(\nu\cdot v) \le d - \nu\cdot
+p_0$, which is exactly $a\cdot(\alpha,\beta)\le c$. The hypothesis ensures
+$a\neq0$ ($\nu$ is not orthogonal to $\Pi$), so $\mathcal C$ is well-defined.
+\end{proof}
+
+\begin{corollary}[Planar bisector constraint]\label{cor:planar-bisector}
+Let $s_1,s_2 \in \mathbb{R}^3$, $s_1\neq s_2$, with $s_2-s_1$ not orthogonal
+to $\Pi$. The restriction to $\Pi$ of the bisector constraint
+(Definition~\ref{def:bisector}) $(s_1\!\to\!s_2)$ is, in oblique
+coordinates, $\mathcal S = (a,c)$ with
+\begin{equation*}
+    a = \big((s_2-s_1)\cdot u,\ (s_2-s_1)\cdot v\big), \qquad
+    c = \tfrac12\big(\|s_2-p_0\|^2-\|s_1-p_0\|^2\big).
+\end{equation*}
+\end{corollary}
+\begin{proof}
+Apply Lemma~\ref{lem:restrict} with $\nu=s_2-s_1$, $d=\tfrac12(\|s_2\|^2-\|s_1\|^2)$
+(Definition~\ref{def:bisector}). By Lemma~\ref{lem:bisector-value} at
+$x=p_0$, $c_{\mathcal S} - \nu\cdot p_0 = \tfrac12(\|p_0-s_1\|^2-\|p_0-s_2\|^2)$,
+so $c = d-\nu\cdot p_0 = \tfrac12(\|s_2-p_0\|^2-\|s_1-p_0\|^2)$.
+\end{proof}
+
+\subsubsection*{Triangle and seed constraints}
+
+Let $\mathbf T$ be a triangle with affinely independent vertices $A,B,C \in
+\mathbb{R}^3$, spanning $\Pi_{\mathbf T}$ with oblique coordinates $p_0=A$,
+$u=B-A$, $v=C-A$, so $\mathbf T = \{x(\alpha,\beta)\mid \alpha\ge0,\,\beta\ge0,\,
+\alpha+\beta\le1\}$. Equivalently $\mathbf T$ is the intersection of three
+\textbf{triangle constraints}, written conventionally as triples $(a,b,c)$
+rather than as a vector-offset pair:
+\begin{equation*}
+    \mathcal C_{\mathbf T_0} = (-1,0,0), \quad \mathcal C_{\mathbf T_1} = (0,-1,0), \quad \mathcal C_{\mathbf T_2} = (1,1,1).
+\end{equation*}
+For two seeds $s_1,s_2$ with $s_2-s_1$ not orthogonal to $\Pi_{\mathbf T}$, we
+call the restriction of $(s_1\!\to\!s_2)$ to $\Pi_{\mathbf T}$ (Corollary~\ref{cor:planar-bisector},
+$p_0=A$) a \textbf{seed constraint} $\mathcal S=(a,b,c)$:
+\begin{equation*}
+    a = (s_2-s_1)\cdot(B-A), \quad b = (s_2-s_1)\cdot(C-A), \quad
+    c = \tfrac12\big(\|s_2-A\|^2-\|s_1-A\|^2\big).
+\end{equation*}
+Every vertex of $\mathbf T \cap \mathrm{cell}(s_1)$ is the intersection of
+two of these constraints, tested by Theorem~\ref{thm:lp-feasible} at $n=2$
+against a third.
+
+\begin{corollary}\label{cor:D-tri}
+For any constraint $\mathcal C=(a,b,c)$ and the triangle constraints above,
+writing $D_{ij}$ for the slope determinant (Definition~\ref{def:slope}) of
+constraints $i,j$:
+\begin{equation*}
+    D_{\mathbf T_0,\mathcal C} = -b, \qquad D_{\mathbf T_1,\mathcal C} = a, \qquad D_{\mathbf T_2,\mathcal C} = b-a.
+\end{equation*}
+\end{corollary}
+\begin{proof}
+Direct evaluation of the $2\times2$ slope determinant with a triangle
+constraint's normal as one row, e.g.\ $D_{\mathbf T_0,\mathcal C} =
+\det\begin{pmatrix}-1&0\\a&b\end{pmatrix} = -b$, and likewise for the other
+two.
+\end{proof}
+
+\begin{proposition}[Bound direction]\label{prop:bound-direction}
+Let $\mathcal C_i,\mathcal C_j$ be planar constraints with $D_{ij} =
+a_ib_j-a_jb_i \neq 0$, so by Proposition~\ref{prop:lp-vertex} ($n=2$) their
+boundaries meet at a unique point $p_{ij}$. Parametrize $\mathcal C_i$'s
+boundary line by $t\mapsto(\alpha_0+b_it,\ \beta_0-a_it)$, direction
+$(b_i,-a_i)$ orthogonal to $(a_i,b_i)$. Then $\mathcal C_j$ restricts this
+line from below if $D_{ij}>0$ (a \textbf{lower bound}, cutting off
+$t\to-\infty$) and from above if $D_{ij}<0$ (an \textbf{upper bound}, cutting
+off $t\to+\infty$).
+\end{proposition}
+\begin{proof}
+Substituting the parametrization into $a_j\alpha+b_j\beta\le c_j$ gives
+$-t\cdot D_{ij} \le c_j - a_j\alpha_0-b_j\beta_0$. If $D_{ij}<0$ this reads
+$t\le t^\star$ ($\mathcal C_j$ an upper bound); if $D_{ij}>0$ it reads $t\ge
+t^\star$ (a lower bound).
+\end{proof}
+
+\subsubsection*{Feasibility across constraint types}
+
+We call constraints of the form $\mathcal S_i=(a_i,b_i,c_i)$ (SEED) and the
+fixed $\mathcal C_{\mathbf T_0},\mathcal C_{\mathbf T_1},\mathcal C_{\mathbf
+T_2}$ (TRI) the two families in play. Every vertex of $\mathbf T \cap
+\mathrm{cell}(s)$ is defined by two constraints tested against a third; by
+Theorem~\ref{thm:lp-feasible}, $\mathrm{feasible}(\mathcal C_i,\mathcal
+C_j;\mathcal C_k) = \mathrm{feasible}(\mathcal C_j,\mathcal C_i;\mathcal
+C_k)$, so only the unordered definer pair and the query matter. The table
+below covers every combination that can arise.
+
+\begin{proposition}\label{prop:case-table}
+With $\mathcal C_{\mathbf T_0}=(-1,0,0)$, $\mathcal C_{\mathbf T_1}=(0,-1,0)$,
+$\mathcal C_{\mathbf T_2}=(1,1,1)$, a seed constraint $\mathcal S=(a,b,c)$,
+and two seed constraints $\mathcal S_i=(a_i,b_i,c_i)$, $\mathcal
+S_j=(a_j,b_j,c_j)$ with $c_i^\star=2c_i$, $c_j^\star=2c_j$:
+
+\medskip
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{ll}
+\hline
+\textbf{Triple} & \textbf{feasible} \\
+\hline
+$(\mathcal{C}_{\mathbf{T}_i}, \mathcal{C}_{\mathbf{T}_j}; \mathcal{C}_{\mathbf{T}_k})$
+    & $(1-\delta_{ij})(1-\delta_{ik})(1-\delta_{jk})$ \\
+\hline
+$(\mathcal{C}_{\mathbf{T}_0}, \mathcal{C}_{\mathbf{T}_1}; \mathcal{S})$
+    & $\mathrm{sign}(c) = \mathrm{sign}(\|s_2-A\|^2 - \|s_1-A\|^2)$ \\
+$(\mathcal{C}_{\mathbf{T}_1}, \mathcal{C}_{\mathbf{T}_2}; \mathcal{S})$
+    & $\mathrm{sign}(c-a) = \mathrm{sign}(\|s_2-B\|^2 - \|s_1-B\|^2)$ \\
+$(\mathcal{C}_{\mathbf{T}_0}, \mathcal{C}_{\mathbf{T}_2}; \mathcal{S})$
+    & $\mathrm{sign}(c-b) = \mathrm{sign}(\|s_2-C\|^2 - \|s_1-C\|^2)$ \\
+\hline
+$(\mathcal{C}_{\mathbf{T}_0}, \mathcal{S}; \mathcal{C}_{\mathbf{T}_1})$
+    & $\phantom{-}\mathrm{sign}(b) \cdot \mathrm{sign}(c) = - D_{\mathbf{T}_0, \mathcal{S}} \cdot \mathrm{feasible}(\mathcal{C}_{\mathbf{T}_0}, \mathcal{C}_{\mathbf{T}_1}; \mathcal{S})$ \\
+$(\mathcal{C}_{\mathbf{T}_1}, \mathcal{S}; \mathcal{C}_{\mathbf{T}_0})$
+    & $\phantom{-}\mathrm{sign}(a) \cdot \mathrm{sign}(c) = \phantom{-}D_{\mathbf{T}_1, \mathcal{S}} \cdot \mathrm{feasible}(\mathcal{C}_{\mathbf{T}_0}, \mathcal{C}_{\mathbf{T}_1}; \mathcal{S})$ \\
+$(\mathcal{C}_{\mathbf{T}_0}, \mathcal{S}; \mathcal{C}_{\mathbf{T}_2})$
+    & $-\mathrm{sign}(b) \cdot \mathrm{sign}(c-b) = \phantom{-} D_{\mathbf{T}_0, \mathcal{S}} \cdot \mathrm{feasible}(\mathcal{C}_{\mathbf{T}_0}, \mathcal{C}_{\mathbf{T}_2}; \mathcal{S})$ \\
+$(\mathcal{C}_{\mathbf{T}_2}, \mathcal{S}; \mathcal{C}_{\mathbf{T}_0})$
+    & $-\mathrm{sign}(b-a) \cdot \mathrm{sign}(c-b) = -D_{\mathbf{T}_2, \mathcal{S}} \cdot \mathrm{feasible}(\mathcal{C}_{\mathbf{T}_0}, \mathcal{C}_{\mathbf{T}_2}; \mathcal{S})$ \\
+$(\mathcal{C}_{\mathbf{T}_1}, \mathcal{S}; \mathcal{C}_{\mathbf{T}_2})$
+    & $-\mathrm{sign}(a) \cdot \mathrm{sign}(c-a) = -D_{\mathbf{T}_1, \mathcal{S}} \cdot \mathrm{feasible}(\mathcal{C}_{\mathbf{T}_1}, \mathcal{C}_{\mathbf{T}_2}; \mathcal{S})$ \\
+$(\mathcal{C}_{\mathbf{T}_2}, \mathcal{S}; \mathcal{C}_{\mathbf{T}_1})$
+    & $\phantom{-}\mathrm{sign}(b-a) \cdot \mathrm{sign}(c-a) = \phantom{-}
+    D_{\mathbf{T}_2, \mathcal{S}}\cdot \mathrm{feasible}(\mathcal{C}_{\mathbf{T}_1}, \mathcal{C}_{\mathbf{T}_2}; \mathcal{S})$ \\
+\hline
+$(\mathcal{C}_{\mathbf{T}_0}, \mathcal{S}_i; \mathcal{S}_j)$
+    & $\mathrm{sign}(b_i) \cdot \mathrm{sign}(b_i c_j^* - c_i^* b_j) = - D_{\mathbf{T}_0,\mathcal{S}_i} \cdot \mathrm{sign}(b_i c_j^* - c_i^* b_j)$ \\
+$(\mathcal{C}_{\mathbf{T}_1}, \mathcal{S}_i; \mathcal{S}_j)$
+    & $\mathrm{sign}(a_i) \cdot \mathrm{sign}(a_i c_j^* - c_i^* a_j) = \phantom{-} D_{\mathbf{T}_1, \mathcal{S}_i} \cdot \mathrm{sign}(a_i c_j^* - c_i^* a_j)$ \\
+$(\mathcal{C}_{\mathbf{T}_2}, \mathcal{S}_i; \mathcal{S}_j)$
+    & $\mathrm{sign}(b_i-a_i) \cdot \mathrm{sign}(b_i c_j^* - c_i^* b_j - a_i c_j^* + c_i^* a_j + 2a_i b_j - 2b_i a_j)$ \\
+\hline
+$(\mathcal{S}_i, \mathcal{S}_j; \mathcal{C}_{\mathbf{T}_0})$
+    & $\mathrm{sign}(a_i b_j - a_j b_i) \cdot \mathrm{sign}(b_j c_i^* - c_j^* b_i)$ \\
+$(\mathcal{S}_i, \mathcal{S}_j; \mathcal{C}_{\mathbf{T}_1})$
+    & $\mathrm{sign}(a_i b_j - a_j b_i) \cdot \mathrm{sign}(a_i c_j^* - c_i^* a_j)$ \\
+$(\mathcal{S}_i, \mathcal{S}_j; \mathcal{C}_{\mathbf{T}_2})$
+    & $\mathrm{sign}(a_i b_j - a_j b_i) \cdot \mathrm{sign}(b_i c_j^* - c_i^* b_j + c_i^* a_j - a_i c_j^* + 2a_i b_j - 2b_i a_j)$ \\
+\hline
+\end{tabular}
+\end{table}
+\end{proposition}
+
+\FloatBarrier
+\begin{proof}
+~
+
+\subsubsection*{(TRI, TRI; TRI):}
+Each pair of distinct triangle constraints intersects at a vertex of
+$\mathbf{T}$, which satisfies the third; repeated constraints yield
+$D_{ij} = 0$ and (or) make the $3 \times 3$ determinant $=0$.
+
+\subsubsection*{(TRI, TRI; SEED):}
+
+\textbf{Vertex $A$ (from $\mathcal{C}_{\mathbf{T}_0}, \mathcal{C}_{\mathbf{T}_1}$):}
+The constraint pair determinant is $D = (-1)(-1) - (0)(0) = 1 > 0$.
+The 3×3 determinant evaluates to $c$, giving $\mathrm{feasible} = \mathrm{sign}(1) \cdot \mathrm{sign}(c)$.
+
+\noindent
+\textbf{Vertex $B$ (from $\mathcal{C}_{\mathbf{T}_1}, \mathcal{C}_{\mathbf{T}_2}$):}
+We have $D = (0)(1) - (1)(-1) = 1 > 0$ and the 3×3 determinant equals $c - a$, giving $\mathrm{feasible} = \mathrm{sign}(1) \cdot \mathrm{sign}(c - a) = \mathrm{sign}(c - a)$.
+Expanding the distance difference with $A$ as reference:
+$
+    \|s_2 - B\|^2 - \|s_1 - B\|^2 = \|s_2 - A\|^2 - \|s_1 - A\|^2 + 2(s_1 - s_2) \cdot (B - A) = 2(c - a).
+$
+
+\noindent
+\textbf{Vertex $C$ (from $\mathcal{C}_{\mathbf{T}_0}, \mathcal{C}_{\mathbf{T}_2}$):}
+We have $D = (-1)(1) - (1)(0) = -1 < 0$ and the 3×3 determinant equals $b - c$, giving $\mathrm{feasible} = \mathrm{sign}(-1) \cdot \mathrm{sign}(b - c) = \mathrm{sign}(c - b)$.
+Similarly:
+$
+    \|s_2 - C\|^2 - \|s_1 - C\|^2 = \|s_2 - A\|^2 - \|s_1 - A\|^2 + 2(s_1 - s_2) \cdot (C - A) = 2(c - b).
+$
+
+\subsubsection*{(TRI, SEED; TRI):}
+
+\textbf{($\mathcal{C}_{\mathbf{T}_0}, \mathcal{S}; \mathcal{C}_{\mathbf{T}_1}$):} We have $D_{\mathbf{T}_0, \mathcal{S}} = -b$. The $3\times 3$ determinant is:
+$
+    \begin{vmatrix}
+        -1   & 0  & 0   \\
+        a & b & c \\
+        0  & -1   & 0
+    \end{vmatrix} = -c,
+$
+giving $\mathrm{feasible} = \mathrm{sign}(-b) \cdot \mathrm{sign}(-c) = \mathrm{sign}(b) \cdot \mathrm{sign}(c)$.
+
+\noindent
+\textbf{($\mathcal{C}_{\mathbf{T}_1}, \mathcal{S}; \mathcal{C}_{\mathbf{T}_0}$):} We have $D_{\mathbf{T}_1, \mathcal{S}} = a$. The $3\times 3$ determinant is:
+$
+    \begin{vmatrix}
+        0   & -1  & 0   \\
+        a & b & c \\
+        -1  & 0   & 0
+    \end{vmatrix} = c,
+$
+giving $\mathrm{feasible} = \mathrm{sign}(a) \cdot \mathrm{sign}(c)$.
+
+\noindent
+\textbf{($\mathcal{C}_{\mathbf{T}_0}, \mathcal{S}; \mathcal{C}_{\mathbf{T}_2}$):} We have $D_{\mathbf{T}_0, \mathcal{S}} = -b$. The $3\times 3$ determinant is:
+$
+    \begin{vmatrix}
+        -1  & 0   & 0   \\
+        a & b & c \\
+        1   & 1   & 1
+    \end{vmatrix} = c - b,
+$
+giving $\mathrm{feasible} = \mathrm{sign}(-b) \cdot \mathrm{sign}(c - b)$.
+
+\noindent
+\textbf{($\mathcal{C}_{\mathbf{T}_2}, \mathcal{S}; \mathcal{C}_{\mathbf{T}_0}$):} We have $D_{\mathbf{T}_2, \mathcal{S}} = b - a$. The $3\times 3$ determinant is:
+$
+    \begin{vmatrix}
+        1   & 1   & 1   \\
+        a & b & c \\
+        -1  & 0   & 0
+    \end{vmatrix} = b - c,
+$
+giving $\mathrm{feasible} = \mathrm{sign}(b - a) \cdot \mathrm{sign}(b - c) = -\mathrm{sign}(b - a) \cdot \mathrm{sign}(c-b)$.
+
+\noindent
+\textbf{($\mathcal{C}_{\mathbf{T}_1}, \mathcal{S}; \mathcal{C}_{\mathbf{T}_2}$):} We have $D_{\mathbf{T}_1, \mathcal{S}} = a$. The $3\times 3$ determinant is:
+$
+    \begin{vmatrix}
+        0   & -1  & 0   \\
+        a & b & c \\
+        1   & 1   & 1
+    \end{vmatrix} = a - c,
+$
+giving $\mathrm{feasible} = \mathrm{sign}(a) \cdot \mathrm{sign}(a - c) = -\mathrm{sign}(a) \cdot \mathrm{sign}(c-a)$.
+
+\noindent
+\textbf{($\mathcal{C}_{\mathbf{T}_2}, \mathcal{S}; \mathcal{C}_{\mathbf{T}_1}$):} We have $D_{\mathbf{T}_2, \mathcal{S}} = b - a$. The $3\times 3$ determinant is:
+$
+    \begin{vmatrix}
+        1   & 1   & 1   \\
+        a & b & c \\
+        0   & -1  & 0
+    \end{vmatrix} = c - a,
+$
+giving $\mathrm{feasible} = \mathrm{sign}(b - a) \cdot \mathrm{sign}(c - a)$.
+
+\subsubsection*{(TRI, SEED; SEED):}
+
+\textbf{$\mathcal{C}_{\mathbf{T}_0}$:} We have $D_{\mathbf{T}_0,i} = -b_i$. The $3\times 3$ determinant is:
+$
+    \begin{vmatrix}
+        -1  & 0   & 0   \\
+        a_i & b_i & c_i \\
+        a_j & b_j & c_j
+    \end{vmatrix} = b_j c_i - c_j b_i,
+    $
+giving $\mathrm{feasible} = \mathrm{sign}(-b_i) \cdot \mathrm{sign}(b_j c_i - c_j b_i) = \mathrm{sign}(b_i) \cdot \mathrm{sign}(b_i c_j - c_i b_j)$.
+Substituting $c = c^*/2$ and multiplying by $2$, $
+    \mathrm{feasible} = \mathrm{sign}(b_i) \cdot \mathrm{sign}(b_i c_j^* - c_i^* b_j)$.
+
+\noindent
+\textbf{$\mathcal{C}_{\mathbf{T}_1}$:} We have $D_{\mathbf{T}_1,i} = a_i$. The $3\times 3$ determinant is:
+$
+    \begin{vmatrix}
+        0   & -1  & 0   \\
+        a_i & b_i & c_i \\
+        a_j & b_j & c_j
+    \end{vmatrix} = a_i c_j - c_i a_j,
+$
+giving $\mathrm{feasible} = \mathrm{sign}(a_i) \cdot \mathrm{sign}(a_i c_j - c_i a_j)$. Substituting $c = c^*/2$,
+$
+    \mathrm{feasible} = \mathrm{sign}(a_i) \cdot \mathrm{sign}(a_i c_j^* - c_i^* a_j).
+$
+
+\noindent
+\textbf{$\mathcal{C}_{\mathbf{T}_2}$:} We have $D_{\mathbf{T}_2,i} = b_i - a_i$. The $3\times 3$ determinant is:
+$
+    \begin{vmatrix}
+        1   & 1   & 1   \\
+        a_i & b_i & c_i \\
+        a_j & b_j & c_j
+    \end{vmatrix} = (b_i c_j - c_i b_j) - (a_i c_j - c_i a_j) + (a_i b_j - b_i a_j),
+$
+giving $\mathrm{feasible} = \mathrm{sign}(b_i - a_i) \cdot \mathrm{sign}(b_i c_j - c_i b_j - a_i c_j + c_i a_j + a_i b_j - b_i a_j)$.
+Substituting $c = c^*/2$ and multiplying by $2$,
+$
+    \mathrm{feasible} = \mathrm{sign}(b_i - a_i) \cdot \mathrm{sign}(b_i c_j^* - c_i^* b_j - a_i c_j^* + c_i^* a_j + 2a_i b_j - 2b_i a_j).
+$
+
+\subsubsection*{(SEED, SEED; TRI):}
+
+In all three cases we have $D_{i,j} = a_i b_j - a_j b_i$.
+
+\noindent
+\textbf{$\mathcal{C}_{\mathbf{T}_0}$:} The $3\times 3$ determinant is:
+$
+    \begin{vmatrix}
+        a_i & b_i & c_i \\
+        a_j & b_j & c_j \\
+        -1  & 0   & 0
+    \end{vmatrix} = -(b_i c_j - c_i b_j).
+$
+Substituting $c = c^*/2$:
+$
+    \mathrm{feasible} = \mathrm{sign}(a_i b_j - a_j b_i) \cdot \mathrm{sign}(b_j c_i^* - c_j^* b_i).
+$
+
+\bigskip\noindent
+\textbf{$\mathcal{C}_{\mathbf{T}_1}$:} The $3\times 3$ determinant is:
+$
+    \begin{vmatrix}
+        a_i & b_i & c_i \\
+        a_j & b_j & c_j \\
+        0   & -1  & 0
+    \end{vmatrix} = a_i c_j - c_i a_j.
+$
+Substituting $c = c^*/2$:
+$
+    \mathrm{feasible} = \mathrm{sign}(a_i b_j - a_j b_i) \cdot \mathrm{sign}(a_i c_j^* - c_i^* a_j).
+$
+
+\bigskip\noindent
+\textbf{$\mathcal{C}_{\mathbf{T}_2}$:} The $3\times 3$ determinant is:
+$
+    \begin{vmatrix}
+        a_i & b_i & c_i \\
+        a_j & b_j & c_j \\
+        1   & 1   & 1
+    \end{vmatrix} = (b_i c_j - c_i b_j) - (a_i c_j - c_i a_j) + (a_i b_j - b_i a_j),
+$
+giving:
+$
+    \mathrm{feasible} = \mathrm{sign}(a_i b_j - a_j b_i) \cdot \mathrm{sign}(b_i c_j - c_i b_j  + c_i a_j -a_i c_j + a_i b_j - b_i a_j)$. Substituting $c = c^*/2$ we have:
+$
+    \mathrm{sign}(a_i b_j - a_j b_i) \cdot \mathrm{sign}(b_i c^*_j -c^*_i b_j + c^*_i a_j - a_i c^*_j + 2a_i b_j - 2b_i a_j).
+$
+\end{proof}
+
+\subsubsection*{Robust Seidel's algorithm (summary)}
+
+Given a triangle $\mathbf T$ and the $n-1$ seed constraints separating a
+seed $s$ from its Voronoi neighbors, Seidel's randomized incremental
+algorithm decides whether $\mathbf T \cap \mathrm{cell}(s)$ is non-empty in
+$O(n)$ expected time, using only $D$ (Definition~\ref{def:slope}) and
+$\mathrm{feasible}$ (Theorem~\ref{thm:lp-feasible} at $n=2$) --- no
+coordinate pair $(\alpha,\beta)$ is ever materialized.
+
+\begin{itemize}
+    \item \textbf{Pre-check.} If any pair of triangle constraints has
+    $D=0$, two edges are parallel and $\mathbf T$ is degenerate.
+    \item \textbf{Outer loop.} Track a candidate vertex as a pair of active
+    constraints $(A,B)$, initialized to $(\mathcal C_{\mathbf T_0},\mathcal
+    C_{\mathbf T_1})$. Process the seed constraints in random order,
+    skipping $\mathcal C_i$ whenever $\mathrm{feasible}(A,B;\mathcal
+    C_i)\ge0$.
+    \item \textbf{Inner loop.} Otherwise the new vertex must lie on
+    $\mathcal C_i$'s boundary line: solve a $1$D LP there, represented as an
+    interval $(\mathtt{lo},\mathtt{hi})$ of constraint identifiers.
+    Proposition~\ref{prop:bound-direction} assigns each previously-processed
+    constraint to the $\mathtt{lo}$ or $\mathtt{hi}$ slot by the sign of
+    $D$, tightened by comparing against the current occupant via
+    $\mathrm{feasible}$; the interval is empty iff
+    $\mathrm{feasible}(\mathcal C_i,\mathtt{lo};\mathtt{hi})<0$. If so, the
+    triangle and cell do not intersect. Otherwise set
+    $(A,B)=(\mathcal C_i,\mathtt{lo})$ and continue.
+    \item \textbf{Degenerate sub-cases.} A triangle edge parallel to
+    $\mathcal C_i$'s line ($D=0$) either permits the whole line or forbids
+    it outright, decided by one $\mathrm{feasible}$ call against the known
+    finite endpoint. Three triangle boundaries concurrent at a point already
+    known to violate $\mathcal C_i$ reject immediately. Both require no
+    machinery beyond $\mathrm{feasible}$ itself.
+\end{itemize}
+
+\subsection{Cell-tetrahedron intersection}\label{sec:lp-tet}
+
+This section specializes Theorem~\ref{thm:lp-feasible} to $n=3$, directly in
+ambient $\mathbb{R}^3$ --- no chart or restriction step is needed here,
+unlike \S\ref{sec:lp-plane}. It answers the same question as
+\S\ref{sec:lp-plane}, $\mathrm{cell}(s)\cap X$ for $X$ now a tetrahedron, but
+to a different depth: \S\ref{sec:lp-plane} only needs the intersection's
+\emph{existence}, so Seidel's algorithm stops at a boolean. Here, downstream
+mesh reconstruction needs the intersection's actual \emph{shape}, so every
+vertex of $\mathrm{cell}(s)\cap\mathbf{tet}$ is classified instead --- i.e.\
+the cell is clipped against the tetrahedron.
+
+\subsubsection*{T and S constraints}
+
+Let a tetrahedron have vertices $P,Q,R,W$, and write its face $PQR$ (with
+$W$ the opposite vertex) as a \textbf{T constraint}
+\begin{equation*}
+    \mathcal T = (n_T, d_T), \qquad n_T = (Q-P)\times(R-P), \quad d_T = n_T\cdot P,
+\end{equation*}
+with the sign of $(n_T,d_T)$ flipped if necessary so that $W$ satisfies
+$\mathcal T$ (the tetrahedron interior is the feasible side); $n_T$ has
+degree $2$ and $d_T$ degree $3$. Between the cell's own seed $s$ and a
+neighboring seed $t$, the \textbf{S constraint} is exactly the bisector
+constraint $(s\!\to\!t)$ of Definition~\ref{def:bisector}, taken directly in
+$\mathbb{R}^3$ rather than restricted to a plane:
+\begin{equation*}
+    a_{\mathcal S} = t-s \ \ (\text{degree }1), \qquad c_{\mathcal S} = \tfrac12(\|t\|^2-\|s\|^2)\ \ (\text{degree }2).
+\end{equation*}
+Every vertex of $\mathrm{cell}(s)\cap\mathbf{tet}$ is the intersection of
+three T/S constraints, tested by Theorem~\ref{thm:lp-feasible} at $n=3$
+against a fourth.
+
+\subsubsection*{Reference point and a zero-free $\Gamma$}
+
+By Lemma~\ref{lem:refpoint}, $\mathrm{feasible}$ does not depend on the
+reference point $A$; we use that freedom purely to reduce polynomial degree.
+\textbf{Standing convention:} take $A$ to be a vertex of a T-face among the
+three vertex-definers (a vertex on the shared edge, when two T-faces are
+definers). This zeroes that row's offset in $\Gamma$ outright, and turns
+every S-row offset into $c=\|t-A\|^2-\|s-A\|^2$ --- dropping the positive
+factor $\tfrac12$ carried by $c_{\mathcal S}$, which affects no sign.
+
+\begin{remark}[Zero-free implementation]\label{rem:zerofree}
+A row zeroed by this convention should never be built as a literal $0$
+entry: a floating-point filter cannot bound a constant-zero leaf.
+Cofactor-expanding $\Gamma$ along the offset column instead drops every
+zero-offset row automatically, leaving a sum of (nonzero offset)$\times$
+($3\times3$ minor of normals) terms. All formulas below are already stated
+in this zero-free form.
+\end{remark}
+
+\subsubsection*{TTS crossings}
+
+Two T-faces meet along a tetrahedron edge with endpoints $A,B$; an S
+constraint $(s\!\to\!t)$ may cross it. Write $g_X=\|X-s\|^2-\|X-t\|^2$
+(twice the bisector value of Lemma~\ref{lem:bisector-value}, hence affine in
+$X$), $h_X=\|X-s\|^2-\|X-u\|^2$ for a second S constraint $(s\!\to\!u)$, and
+$w_X=n_c\cdot(X-P_c)$ for a query T-face with vertex $P_c$ and
+interior-oriented normal $n_c$.
+
+\begin{lemma}[Existence]\label{prop:tts-exist}
+Parametrizing the edge as $x(\lambda)=A+\lambda(B-A)$, the bisector crosses
+the segment interior iff $\mathrm{sign}(g_A)\neq\mathrm{sign}(g_B)$, at
+$\lambda^\star = g_A/(g_A-g_B) \in (0,1)$: $g$ affine gives
+$g(x(\lambda))=g_A+\lambda(g_B-g_A)$, root $\lambda^\star=g_A/(g_A-g_B)$,
+placed strictly in $(0,1)$ exactly when $g_A,g_B$ have opposite signs.
+\end{lemma}
+
+\begin{lemma}[Own tetrahedron is automatic]\label{prop:tts-vsT}
+If the crossing exists, it automatically satisfies every face of the
+tetrahedron the edge $AB$ belongs to: $A,B$ are vertices of a convex
+tetrahedron, so the segment $AB$, and hence $x(\lambda^\star)$, lies inside
+it.
+\end{lemma}
+
+\begin{lemma}[Ordering two crossings]\label{prop:tts-order}
+For two S constraints $(s\!\to\!t_1),(s\!\to\!t_2)$ crossing the same edge
+at $\lambda_1,\lambda_2$ (with $g_{iX}=\|X-s\|^2-\|X-t_i\|^2$),
+\begin{equation*}
+    \mathrm{sign}(\lambda_1-\lambda_2) = \mathrm{sign}(g_{1B}g_{2A}-g_{1A}g_{2B})\cdot\mathrm{sign}(g_{1A}-g_{1B})\cdot\mathrm{sign}(g_{2A}-g_{2B}),
+\end{equation*}
+substituting $\lambda_i=g_{iA}/(g_{iA}-g_{iB})$ into $\lambda_1-\lambda_2$
+and clearing denominators. Orders two bisectors crossing the same
+tetrahedron edge, e.g.\ inside the $1$D sub-problem of an edge clip.
+\end{lemma}
+
+\subsubsection*{Slope determinants for TSS and SSS}
+
+Two S constraints $(s\!\to\!t_1),(s\!\to\!t_2)$ meeting a T-face $\mathrm
+T_1$ (normal $n_{T_1}$) have slope determinant
+$\Delta_{TSS}=\det[t_1{-}s;t_2{-}s;n_{T_1}]$, degree $4$. Three S
+constraints $(s\!\to\!t_1),(s\!\to\!t_2),(s\!\to\!t_3)$ meet at the
+circumcenter $p$ of the Delaunay tetrahedron $(s,t_1,t_2,t_3)$, with
+\begin{equation*}
+    \Delta_{SSS} = \det[t_1{-}s;\,t_2{-}s;\,t_3{-}s] = \mathrm{orient}_3(t_1,t_2,t_3,s),
+\end{equation*}
+immediate from the definition of $\mathrm{orient}_3$ (Theorem~\ref{thm:orient})
+with $s$ as the query point; degree $3$. Both are nonzero for a genuine
+tetrahedron. Take the reference point $A$ on $\mathrm T_1$ (resp.\ on the
+query T-face) and write $c_i=\|t_i-A\|^2-\|s-A\|^2$.
+
+\begin{proposition}[Feasibility for a tetrahedron clip]\label{prop:tet-case-table}
+Let $V$ be a tetrahedron vertex and $\mathrm T'$ a query T-face, possibly
+different from a vertex-defining one:
+
+\medskip
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{lll}
+\hline
+\textbf{Triple} & \textbf{feasible} & \textbf{deg} \\
+\hline
+$(\mathrm T,\mathrm T,\mathrm T;\mathcal S)$
+    & $-\mathrm{sign}\big(\|V-s\|^2-\|V-t\|^2\big)$ & $2$ \\
+$(\mathrm T,\mathrm T,\mathrm T;\mathrm T')$
+    & $1$ if $\mathrm T'$ is the face opposite $V$, else $0$ & --- \\
+\hline
+$(\mathrm T,\mathrm T,\mathcal S;\mathcal S')$
+    & $-\mathrm{sign}(g_Ah_B-g_Bh_A)\cdot\mathrm{sign}(g_A-g_B)$ & $4$ \\
+$(\mathrm T,\mathrm T,\mathcal S;\mathrm T')$
+    & $-\mathrm{sign}(g_Aw_B-g_Bw_A)\cdot\mathrm{sign}(g_A-g_B)$ & $5$ \\
+\hline
+$(\mathrm T,\mathcal S,\mathcal S;\mathcal S')$
+    & $\mathrm{sign}(\Delta_{TSS})\cdot\mathrm{sign}(\Gamma_{TSS,S})$ & $4/6$ \\
+$(\mathrm T,\mathcal S,\mathcal S;\mathrm T')$
+    & $\mathrm{sign}(\Delta_{TSS})\cdot\mathrm{sign}(\Gamma_{TSS,T})$ & $4/7$ \\
+\hline
+$(\mathcal S,\mathcal S,\mathcal S;\mathcal S')$
+    & $-\mathrm{sign}\big(\texttt{test\_insphere(s,t\_1,t\_2,t\_3;u)}\big)$ & $4$ \\
+$(\mathcal S,\mathcal S,\mathcal S;\mathrm T)$
+    & $\mathrm{sign}(\Delta_{SSS})\cdot\mathrm{sign}(\Gamma_{SSS,T})$ & $3/6$ \\
+\hline
+\end{tabular}
+\end{table}
+Where two degrees are shown they are $\deg\Delta\,/\,\deg\Gamma$. Only
+\texttt{test\_insphere} and the $\mathrm{orient}_3$-combinatorics of the
+first block are reused from Appendix~\ref{appendix:predicates}; the rest
+are new, reducing to Theorem~\ref{thm:lp-feasible} and
+Lemma~\ref{lem:bisector-value}, which also underlie \S\ref{sec:lp-plane}.
+\end{proposition}
+
+\FloatBarrier
+\begin{proof}
+~
+
+\subsubsection*{(a) TTT --- a tetrahedron vertex}
+A tetrahedron vertex $V$ trivially lies on the three faces meeting at it
+and strictly inside the opposite face, so against a T query the answer is
+combinatorial. Against an S constraint $(s\!\to\!t)$, Lemma~\ref{lem:bisector-value}
+at $x=V$ gives $\mathrm{feasible}=-\mathrm{sign}(a_{\mathcal S}\cdot
+V-c_{\mathcal S})=-\mathrm{sign}\big(\tfrac12(\|V-s\|^2-\|V-t\|^2)\big)$.
+
+\subsubsection*{(b) TTS --- a bisector crosses a tetrahedron edge}
+Against a second S constraint $(s\!\to\!u)$: $h$ is affine, so substituting
+$\lambda^\star$ (Lemma~\ref{prop:tts-exist}) and clearing the denominator,
+$h(x(\lambda^\star)) = (g_Ah_B-g_Bh_A)/(g_A-g_B)$, giving
+$\mathrm{feasible}=-\mathrm{sign}(h(x(\lambda^\star)))$. Against an
+arbitrary query T-face: the signed position of the crossing relative to it
+is $n_c\cdot x(\lambda^\star)-d_c = w_A+\lambda^\star(w_B-w_A)$, since
+$n_c\cdot A-d_c=w_A$ and $n_c\cdot(B-A)=w_B-w_A$; substituting $\lambda^\star$
+as before gives the stated $2\times2$-determinant form. When the query face
+belongs to the crossing's own tetrahedron this reduces to the combinatorial
+fact of Lemma~\ref{prop:tts-vsT} --- no computation is needed there.
+
+\subsubsection*{(c) TSS --- a Voronoi edge meets a tetrahedron face}
+Apply Theorem~\ref{thm:lp-feasible} to $(\mathcal S_1,\mathcal S_2,\mathrm
+T_1)$. Against $\mathcal S=(s\!\to\!u)$ with $c_u=\|u-A\|^2-\|s-A\|^2$: the
+reference-point convention zeroes the $n_{T_1}$-row offset, and
+cofactor-expanding $\Gamma$ along the offset column (Remark~\ref{rem:zerofree})
+gives
+\begin{equation*}
+    \Gamma_{TSS,S} = -c_1\det[t_2{-}s;n_{T_1};u{-}s] + c_2\det[t_1{-}s;n_{T_1};u{-}s] + c_u\,\Delta_{TSS},
+\end{equation*}
+the last minor being $\Delta_{TSS}$ itself: degree $6$. Against a second,
+unrelated face $\mathrm T_2$ (vertex $P_2$, normal $n_{T_2}$,
+$w=n_{T_2}\cdot(P_2-A)$), $A$ lying on $\mathrm T_1$ only leaves the offset
+column $(\tfrac12c_1,\tfrac12c_2,0,w)$ --- a genuine mixture of scales,
+since the query offset $d_{T_2}-n_{T_2}\cdot A=w$ carries no compensating
+$\tfrac12$. Doubling the whole column (sign-preserving) clears it to
+$(c_1,c_2,0,2w)$; cofactor-expanding along it gives
+\begin{equation*}
+    \Gamma_{TSS,T} = -c_1\det[t_2{-}s;n_{T_1};n_{T_2}] + c_2\det[t_1{-}s;n_{T_1};n_{T_2}] + 2w\,\Delta_{TSS},
+\end{equation*}
+degree $7$. When $A$ can also be chosen on $\mathrm T_2$ (e.g.\ $\mathrm
+T_1,\mathrm T_2$ share a tetrahedron edge and $A$ is taken on it), $w=0$
+and the last term drops.
+
+\subsubsection*{(d) SSS --- a Voronoi vertex (circumcenter)}
+Against a fourth S constraint $(s\!\to\!u)$: $\mathrm{feasible} =
+-\mathrm{sign}(a_{\mathcal S}\cdot p-c_{\mathcal S}) =
+\mathrm{sign}(\|p-u\|^2-\|p-s\|^2)$ by Lemma~\ref{lem:bisector-value}. Since
+$p$ is the circumcenter, $\|p-s\|=\|p-t_i\|=R$; writing $\hat S=(p,R^2)$ for
+the (unweighted) circumsphere, $\pi(\hat u,\hat S)=\|p-u\|^2-R^2$ has the
+same sign, and by \S\ref{sec:insphere-case},
+$\mathrm{sign}(\pi(\hat u,\hat S)) = -\,\texttt{test\_insphere(s,t\_1,t\_2,t\_3;u)}$
+(output $1$ there means $u$ lies \emph{inside} the sphere, the opposite of
+satisfying $\mathcal S$). Against a T-face with vertices $A,Q,R$, normal
+$n_T$, reference point $A$, and $c_i=\|t_i-A\|^2-\|s-A\|^2$: applying
+Theorem~\ref{thm:lp-feasible} to the three S constraints and query T, the
+T-row offset vanishes and each S-row offset becomes $c_i$, so
+cofactor-expanding $\Gamma$ along the offset column (Remark~\ref{rem:zerofree})
+drops the T term and leaves
+\begin{equation*}
+    \Gamma_{SSS,T} = -c_1\det[t_2{-}s;t_3{-}s;n_T] + c_2\det[t_1{-}s;t_3{-}s;n_T] - c_3\det[t_1{-}s;t_2{-}s;n_T],
+\end{equation*}
+degree $6$.
+\end{proof}
+
+\subsubsection*{Conventions}
+\begin{itemize}
+    \item \emph{Face orientation.} A T constraint used as a \emph{query}
+    needs its interior side fixed: multiply by
+    $\sigma=\mathrm{sign}(\mathrm{orient}_3(P_1,P_2,P_3,W))$, with $W$ the
+    opposite tetrahedron vertex and $(P_1,P_2,P_3)$ the query face's
+    vertices in the exact order used to build its normal
+    $n=(P_2-P_1)\times(P_3-P_1)$ --- a permutation of the face vertices
+    flips $n$ and hence $\sigma$.
+    \item \emph{Reference point.} $A$ is a face vertex (an edge vertex when
+    two T constraints are definers or share a common face); by
+    Lemma~\ref{lem:refpoint} the predicate value does not depend on it, so
+    no cross-face coordination of $A$ is required.
+    \item \emph{Degeneracy.} $\mathrm{feasible}=0$ means a vertex lies
+    exactly on the query's boundary. Resolve with a single global rule
+    (symbolic perturbation or a lexicographic order) keyed on constraint
+    identities --- seed and tetrahedron-vertex indices, never coordinates
+    --- so that every pair of cells or clips sharing that vertex classifies
+    it identically.
+\end{itemize}
+
+\subsection{Surface reconstruction: edge ordering}\label{sec:lp-edge}
+
+Clipping produces, per cell, the vertices of every $\mathrm{cell}\cap
+\mathbf{tet}$ piece. Reconstructing the cell's boundary as a watertight mesh
+requires stitching the surviving faces into closed loops; every step is
+combinatorial (keyed on constraint identities) except one metric decision:
+\textbf{ordering the vertices that lie on a shared facet edge}. Two facets
+$P,Q$ meet along a line $\ell=P\cap Q$; every vertex on $\ell$ must be
+placed in the same order by both facets, or a crack opens between them.
+This reduces entirely to Theorem~\ref{thm:lp-feasible}.
+
+\subsubsection*{Setup}
+
+A surface vertex is, as before, a triple of constraint boundaries
+$\{C_1,C_2,C_3\}$. A facet is a single constraint $P$; the vertices on $P$
+are those triples containing it. Two facets $P,Q$ share the line
+$\ell=P\cap Q$ with direction $d=n_P\times n_Q\neq0$. A vertex on $\ell$ has
+$P,Q$ among its three constraints, distinguished by its third: write
+$u=\{P,Q,R_u\}$, $v=\{P,Q,R_v\}$. Ordering along $\ell$ is the sign of
+$d\cdot(u-v)$.
+
+\begin{theorem}[Edge ordering reduces to feasibility]\label{thm:order}
+Let $u=\{P,Q,R_u\}$, $v=\{P,Q,R_v\}$ lie on $\ell=P\cap Q$, with slope
+determinants $\Delta_u,\Delta_v\neq0$, and $d=n_P\times n_Q$. Then
+\begin{equation*}
+    \mathrm{ord}(u,v) := \mathrm{sign}\big(d\cdot(u-v)\big) = -\,\mathrm{sign}(\Delta_v)\cdot\mathrm{feasible}(P,Q,R_u;R_v).
+\end{equation*}
+$\mathrm{ord}$ is antisymmetric in $u,v$, hence a consistent total order
+along $\ell$; the two facets sharing $\ell$ evaluate the identical
+$\Delta$'s and $\Gamma$'s, so they subdivide it identically.
+\end{theorem}
+\begin{proof}
+$u,v$ both satisfy the boundaries of $P,Q$, so $u-v$ is parallel to $\ell$:
+$u-v=\mu d$ for a scalar $\mu$, and $\mathrm{sign}(d\cdot(u-v))=
+\mathrm{sign}(\mu)$. Dotting with $n_{R_v}$ and using $n_{R_v}\cdot
+v=c_{R_v}$,
+\begin{equation*}
+    n_{R_v}\cdot u - c_{R_v} = \mu\,(n_{R_v}\cdot d) = \mu\,\Delta_v, \qquad \Delta_v = \det[n_P;n_Q;n_{R_v}].
+\end{equation*}
+The left side is the signed violation $V$ of $R_v$ at $u$. By
+Theorem~\ref{thm:lp-feasible} applied to the triple $(P,Q,R_u)$ with query
+$R_v$, $\Gamma_{u;R_v} = -\Delta_u V$, so $\mathrm{sign}(V) =
+-\mathrm{sign}(\Delta_u)\mathrm{sign}(\Gamma_{u;R_v}) =
+-\mathrm{feasible}(P,Q,R_u;R_v)$, giving $\mathrm{sign}(\mu) =
+-\mathrm{sign}(\Delta_v)\,\mathrm{feasible}(P,Q,R_u;R_v)$. Swapping $u,v$
+swaps two rows of $\Gamma$ (flipping its sign) and exchanges
+$\Delta_u\leftrightarrow\Delta_v$, so $\mathrm{ord}(v,u)=-\mathrm{ord}(u,v)$.
+\end{proof}
+
+\noindent
+Since $\Delta_v$ is $v$'s own slope determinant --- already computed to
+classify $v$'s type in \S\ref{sec:lp-tet} --- every ordering costs exactly
+one $\mathrm{feasible}$ evaluation and one already-known sign.
+
+\subsubsection*{Catalogue}
+
+The line $\ell=P\cap Q$ falls into three kinds by the types of $P,Q$ (one
+ruled block per kind below). Within a block, $u$'s type is
+$\{P,Q,R_u\}$ and $v$'s type is $\{P,Q,R_v\}$ --- read off the same two
+columns, since $P,Q$ are fixed for the whole block. $u$'s type together
+with the query $R_v$ selects the row of Proposition~\ref{prop:tet-case-table}
+that evaluates $\mathrm{feasible}(P,Q,R_u;R_v)$ in
+Theorem~\ref{thm:order}'s formula; $v$'s type supplies
+$\mathrm{sign}(\Delta_v)$, the other factor, already computed to classify
+$v$ in \S\ref{sec:lp-tet}.
+
+\begin{table}[h!]
+\centering
+\small
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}llllll@{}}
+\hline
+\textbf{line $P\cap Q$} & \boldmath$R_u$ & \boldmath$R_v$ (query) & \textbf{$u$'s type} & \textbf{$v$'s type} & \textbf{row of Prop.~\ref{prop:tet-case-table}} \\
+\hline
+S$\cap$S (Voronoi edge)     & S & S & SSS & SSS & $(\mathcal S,\mathcal S,\mathcal S;\mathcal S')$ \\
+                             & S & T & SSS & TSS & $(\mathcal S,\mathcal S,\mathcal S;\mathrm T)$ \\
+                             & T & S & TSS & SSS & $(\mathrm T,\mathcal S,\mathcal S;\mathcal S')$ \\
+                             & T & T & TSS & TSS & $(\mathrm T,\mathcal S,\mathcal S;\mathrm T')$ \\
+\hline
+S$\cap$T (bisector/face)    & S & S & TSS & TSS & $(\mathrm T,\mathcal S,\mathcal S;\mathcal S')$ \\
+                             & S & T & TSS & TTS & $(\mathrm T,\mathcal S,\mathcal S;\mathrm T')$ \\
+                             & T & S & TTS & TSS & $(\mathrm T,\mathrm T,\mathcal S;\mathcal S')$ \\
+                             & T & T & TTS & TTS & $(\mathrm T,\mathrm T,\mathcal S;\mathrm T')$ \\
+\hline
+T$\cap$T (tetrahedron edge) & S & S & TTS & TTS & $(\mathrm T,\mathrm T,\mathcal S;\mathcal S')$ \\
+                             & S & T & TTS & TTT & $(\mathrm T,\mathrm T,\mathcal S;\mathrm T')$ \\
+                             & T & S & TTT & TTS & $(\mathrm T,\mathrm T,\mathrm T;\mathcal S)$ \\
+                             & T & T & TTT & TTT & edge endpoints, combinatorial \\
+\hline
+\end{tabular}
+\caption{Every edge ordering reduces to a row of
+Proposition~\ref{prop:tet-case-table}, times the sign of $v$'s own slope
+determinant. The only row \S\ref{sec:lp-tet} did not already need for the
+clip itself is $(\mathrm T,\mathrm T,\mathcal S;\mathrm T')$ in its general
+form: a clip vertex's query face always belongs to its own tetrahedron
+(Lemma~\ref{prop:tts-vsT} suffices there), but here the two facets sharing
+$\ell$ generally come from different tetrahedra.}
+\end{table}
+
+\FloatBarrier
+
+\subsubsection*{Degeneracy}
+
+$\mathrm{ord}(u,v)=0$ means $u,v$ coincide on $\ell$ (cospherical Voronoi
+vertices, or a Voronoi vertex lying exactly on a face). Resolve with the
+same index-keyed rule as \S\ref{sec:lp-tet}: break ties by the
+lexicographically-sorted constraint-index tuple of the two vertices,
+identically for both facets sharing $\ell$, collapsing them to a
+zero-length edge with no coordinate welding required.
+
+\printbibliography
+
+\end{document}

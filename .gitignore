@@ -4,3 +4,5 @@ build/
 .cache
 compile_flags.txt
 tests/
+REFS/aux/
+REFS/out/*gz
