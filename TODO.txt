@@ -1,0 +1,1 @@
+[ ] Need to review trimesh code (it was written by claude)
