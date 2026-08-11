@@ -23,7 +23,7 @@ predicates, convex hulls, and triangle meshes.
 
 ## Optional modules (CMake flag required)
 
-Each of these is gated behind a CMake option, OFF by default.
+Each of these is gated behind a CMake option, OFF by default. Enabling them may make compile time slower (the robust predicates dependency is slow to compile).
 | Header | CMake option | 
 |---|---|
 | `gtests.h`'s power/orthosphere predicates | `GEOMETRY_COMPILE_TESTS_POWER` | 
