@@ -11,11 +11,13 @@ add_library(predicates_power EXCLUDE_FROM_ALL STATIC
     predicates_power_n1.cpp
     predicates_power_n2.cpp
     predicates_power_n3.cpp
+    predicates_power_other.cpp
 )
 
 add_library(predicates_lp EXCLUDE_FROM_ALL STATIC
     predicates_lp_n2.cpp
     predicates_lp_n3.cpp
+    predicates_lp_power.cpp
 )
 
 foreach(_tgt predicates_basic predicates_power predicates_lp)

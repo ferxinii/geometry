@@ -70,6 +70,15 @@ int orthow_n3_k4(double ax, double ay, double az, double wa,
                  double dx, double dy, double dz, double wd,
                  double alpha);
 
+// power_incircle3d -- weighted analogue of incircle3d (predicates_basic.h):
+// is d co-orthocircular with the weighted triple (a,b,c), for COPLANAR
+// input?  Zero iff yes; returns 2 (sentinel) if a,b,c are collinear.  See
+// predicates_power_other.cpp for the derivation.
+int power_incircle3d(double ax, double ay, double az, double wa,
+                     double bx, double by, double bz, double wb,
+                     double cx, double cy, double cz, double wc,
+                     double dx, double dy, double dz, double wd);
+
 #ifdef __cplusplus
 }
 #endif
