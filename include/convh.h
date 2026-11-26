@@ -4,6 +4,7 @@
 #include "points.h"
 #include "gtests.h"
 #include <stdlib.h>
+#include <stdint.h>
 
 typedef struct convhull {
     s_points points;
