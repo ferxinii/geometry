@@ -1,6 +1,19 @@
 cmake_minimum_required(VERSION 3.20)
 project(geometry LANGUAGES C)
 
+# Default build (no CMAKE_BUILD_TYPE): -O3 + link-time optimization, asserts kept
+# (they are load-bearing). An explicit CMAKE_BUILD_TYPE (e.g. Debug) overrides it.
+if (NOT CMAKE_BUILD_TYPE)
+    add_compile_options(-O3)
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT _ipo_ok OUTPUT _ipo_msg LANGUAGES C)
+    if (_ipo_ok)
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+    else()
+        message(STATUS "LTO not supported, building without it: ${_ipo_msg}")
+    endif()
+endif()
+
 option(GEOMETRY_COMPILE_TESTS_POWER "Enable the power predicates" OFF)
 option(GEOMETRY_COMPILE_LP "Enable the Linear Programming functions" OFF)
 option(GEOMETRY_COMPILE_TESTS_IMPLICIT "Enable the implicit (indirect) predicates" OFF)
