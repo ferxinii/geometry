@@ -54,6 +54,10 @@ int test_orthocircle_w(int k, const s_point2d c[k], const double wc[k],
                        double alpha);
 int test_orthosphere_w(int k, const s_point c[k], const double wc[k],
                        double alpha);
+/* Weighted analogue of test_points_concyclic: are a,b,c,d (weights wa..wd)
+ * coplanar and on a common orthogonal circle?  Exact. */
+bool test_points_coorthocircular(s_point a, double wa, s_point b, double wb,
+                                 s_point c, double wc, s_point d, double wd);
 #endif  // GEOMETRY_COMPILE_TESTS_POWER
 
 

@@ -29,17 +29,23 @@ typedef enum { LP3_TET, LP3_SEED } e_ctype3;
 typedef struct { e_ctype3 type; int idx; } s_cid3;
 
 
+/* Weights (lp3_feasible, lp3_vcell_maybe_hits_*): `weights` is NULL-able and
+ * index-aligned with seeds->p[]; NULL = ordinary (unweighted) Voronoi cell.
+ * s_w is the weight of the cell's own seed s (ignored when weights == NULL).
+ * Non-NULL weights switch every seed-bisector (S) test to its power/Laguerre
+ * counterpart (power_lp2_* / power_lp3_*, test_orthosphere); the purely
+ * tet-face (T-only) cases are weight-independent.  lp3_D is unweighted only. */
 int lp3_D(const s_point tet[4], s_point s, const s_points *seeds,
           s_cid3 a, s_cid3 b, s_cid3 c);
 int lp3_feasible(const s_point tet[4], const int sigma_f[4], s_point s,
-                 const s_points *seeds,
+                 const s_points *seeds, const double *weights, double s_w,
                  s_cid3 a, s_cid3 b, s_cid3 c, s_cid3 d);
 int lp3_vcell_maybe_hits_tet(const s_point tet[4], s_point s,
-                            const s_points *seeds,
-                            const int *nbr, int nb);
+                             const s_points *seeds, const double *weights, double s_w,
+                             const int *nbr, int NB);
 int lp3_vcell_maybe_hits_tri(const s_point tri[3], s_point s,
-                            const s_points *seeds,
-                            const int *nbr, int NB);
+                             const s_points *seeds, const double *weights, double s_w,
+                             const int *nbr, int NB);
 
 // ***************************** HELPERS ***************************************
 static inline void lp3_face_idx(int f, int out[3])

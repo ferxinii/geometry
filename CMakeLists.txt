@@ -5,6 +5,12 @@ option(GEOMETRY_COMPILE_TESTS_POWER "Enable the power predicates" OFF)
 option(GEOMETRY_COMPILE_LP "Enable the Linear Programming functions" OFF)
 option(GEOMETRY_COMPILE_TESTS_IMPLICIT "Enable the implicit (indirect) predicates" OFF)
 
+# Weighted LP (lp3_* with non-NULL weights) uses test_orthosphere, which only
+# exists with the power predicates: LP therefore turns them on.
+if(GEOMETRY_COMPILE_LP)
+    set(GEOMETRY_COMPILE_TESTS_POWER ON CACHE BOOL "" FORCE)
+endif()
+
 add_library(geometry STATIC
     src/points.c
     src/gtests.c

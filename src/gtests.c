@@ -203,6 +203,15 @@ int test_orthosphere_w(int k, const s_point c[k], const double wc[k],
             exit(1);
     }
 }
+
+bool test_points_coorthocircular(s_point a, double wa, s_point b, double wb,
+                                 s_point c, double wc, s_point d, double wd)
+{   /* Coplanarity gate is unweighted (purely geometric); power_incircle3d == 0
+     * iff d is on the orthogonal circle of (a,wa),(b,wb),(c,wc). */
+    if (test_orientation((s_point[]){ a, b, c }, d) != 0) return false;   /* not coplanar */
+    return power_incircle3d(a.x, a.y, a.z, wa, b.x, b.y, b.z, wb,
+                            c.x, c.y, c.z, wc, d.x, d.y, d.z, wd) == 0;
+}
 #endif  // GEOMETRY_COMPILE_TESTS_POWER
 
 
