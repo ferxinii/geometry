@@ -42,10 +42,9 @@ constructions" -- see that directory's README for the paper). All state lives
 in a caller-owned registry; no globals, so independent builds (e.g. one per
 thread) can each own their own.
 
-**lp.h** -- exact LP-feasibility predicates (2D and 3D) for a tagged
-constraint (triangle/tet face vs. seed bisector), plus Seidel's randomized
-incremental LP-feasibility algorithm (`lp2_vcell_hits_face`) in 2D. Tailored for
-voronoi constructions.
+**lp.h** -- exact 3D LP-feasibility predicates for a tagged constraint (tet
+face vs. seed bisector, optionally power/weighted). Tailored for voronoi
+constructions.
 
 ## Example: removing intersection of two convex hulls
 <p align="center">

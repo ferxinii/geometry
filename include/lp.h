@@ -7,22 +7,6 @@
 
 #ifdef GEOMETRY_COMPILE_LP
 
-/* Identifies a constraint.  TRI* idx is unused (set to -1).
- * CSEED idx is the constraint's position in the best_idx[] array. */
-typedef enum { LP2_TRI0, LP2_TRI1, LP2_TRI2, LP2_SEED } e_ctype2;
-typedef struct { e_ctype2 type; int idx; } s_cid2;
-
-int lp2_D(const s_point face[3], s_point s,
-          const s_points *seeds, const int *best_idx,
-          s_cid2 i, s_cid2 j);
-int lp2_feasible(const s_point face[3], s_point s,
-                 const s_points *seeds, const int *best_idx,
-                 s_cid2 L, s_cid2 M, s_cid2 N);
-bool lp2_vcell_hits_face(const s_point face[3], const s_points *seeds,
-                         int N, int seeds_idx[N], int id,
-                         int (*randint)(void *rctx, int), void *rctx);
-
-
 /* Constraint identifier. CTET: idx = face 0..3 (face f = the 3 verts != v[f]).
  * CSEED: idx = partner seed index into seeds->p[]. */
 typedef enum { LP3_TET, LP3_SEED } e_ctype3;
