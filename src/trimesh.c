@@ -52,6 +52,50 @@ int trimesh_is_valid(const s_trimesh *m)
            m->adjacency != NULL;
 }
 
+bool trimesh_is_convex(const s_trimesh *m)
+{
+    if (!trimesh_is_valid(m)) return false;
+    const int Nf = m->Nf;
+
+    /* 1. Exactly one connected component (BFS over face adjacency). */
+    bool *seen  = calloc((size_t)Nf, sizeof(bool));
+    int  *queue = malloc(sizeof(int) * (size_t)Nf);
+    if (!seen || !queue) { free(seen); free(queue); return false; }
+    int qh = 0, qt = 0;
+    seen[0] = true; queue[qt++] = 0;
+    while (qh < qt) {
+        int f = queue[qh++];
+        for (int j = 0; j < 3; j++) {
+            int g = m->adjacency[f*3 + j];
+            if (g < 0 || g >= Nf) { free(seen); free(queue); return false; }
+            if (!seen[g]) { seen[g] = true; queue[qt++] = g; }
+        }
+    }
+    free(seen); free(queue);
+    if (qt != Nf) return false;
+
+    /* 2. Every edge locally convex. orient3d(a,b,c,d) > 0 iff d lies on the side
+     * OPPOSITE the normal (b-a)x(c-a), i.e. inside for an outward face; so the
+     * neighbour's far vertex must give >= 0 (0 = coplanar, allowed). Exact
+     * predicate on the stored coordinates. Each edge is checked once (f < g). */
+    for (int f = 0; f < Nf; f++) {
+        const int *F = &m->faces[f*3];
+        s_point tri[3] = { m->points.p[F[0]], m->points.p[F[1]], m->points.p[F[2]] };
+        for (int j = 0; j < 3; j++) {
+            int g = m->adjacency[f*3 + j];
+            if (g < f) continue;
+            int va = F[(j+1)%3], vb = F[(j+2)%3];
+            const int *G = &m->faces[g*3];
+            int d = -1;
+            for (int k = 0; k < 3; k++)
+                if (G[k] != va && G[k] != vb) { d = G[k]; break; }
+            if (d < 0) return false;   /* corrupted adjacency */
+            if (test_orientation(tri, m->points.p[d]) < 0) return false;
+        }
+    }
+    return true;
+}
+
 void free_trimesh(s_trimesh *m)
 {
     free_points(&m->points);

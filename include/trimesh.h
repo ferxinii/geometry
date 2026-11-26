@@ -2,6 +2,7 @@
 #define _GEOMETRY_TRIMESH_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "points.h"
 
 /*
@@ -24,6 +25,18 @@ typedef struct trimesh {
 #define trimesh_NAN (s_trimesh){0}
 
 int       trimesh_is_valid(const s_trimesh *m);
+
+/*
+ * True iff the mesh bounds a convex solid. Exact and O(Nf):
+ *   - exactly one connected component (disjoint blobs or a shell with an inner
+ *     cavity are NOT convex even though every edge may be locally convex);
+ *   - every edge locally convex: the far vertex of each neighbouring face lies
+ *     on or behind the face plane (exact orient3d; coplanar faces pass).
+ * Precondition: the constructors' invariant (closed manifold, consistently
+ * outward-oriented) and an embedded surface (no self-intersections; not
+ * checked). An inward-oriented mesh can only yield false, never a false true.
+ */
+bool      trimesh_is_convex(const s_trimesh *m);
 void      free_trimesh(s_trimesh *m);
 s_trimesh copy_trimesh(const s_trimesh *m);
 double    volume_trimesh(const s_trimesh *m);
