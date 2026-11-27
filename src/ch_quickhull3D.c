@@ -361,10 +361,6 @@ static int add_faces_from_horizon(const s_points *points, bool *isused,
                                    int query_pid)
 {
     int N_realloc = Nfaces + Nhorizon;
-    if (N_realloc >= CH_MAX_NUM_FACES) {
-        fprintf(stderr, "ch_quickhull3D: max faces exceeded (%d + %d).\n", Nfaces, Nhorizon);
-        return 0;
-    }
     faces->N = adj->N = N_realloc * 3;
     if (!dynarray_ensure_capacity(faces, N_realloc*3) ||
         !dynarray_ensure_capacity(adj,   N_realloc*3)) {
@@ -636,7 +632,8 @@ int quickhull_3d(const s_points *in_vertices,
     s_dynarray faces = {0}, adj = {0}, faces_isvisible = {0},
                horizon = {0}, AUX_horizon_nbr = {0},
                AUX_cop_fids = {0},
-               dfs_vis = {0}, dfs_stk = {0}, cl_arena = {0};
+               dfs_vis = {0}, dfs_stk = {0}, cl_arena = {0},
+               pmap = {0}, clhead = {0};   /* int, indexed by face id; grow with Nfaces */
     int  *buff_pmap          = NULL;
     int  *cl_head = NULL;
     int   cl_freelist = -1;
@@ -661,12 +658,13 @@ int quickhull_3d(const s_points *in_vertices,
         return 1;
     }
 
-    buff_pmap          = malloc(CH_MAX_NUM_FACES * sizeof(int));   if (!buff_pmap)          ALLOC_FAIL("malloc failed.");
     dfs_vis = dynarray_initialize(sizeof(bool), 64);        if (!dfs_vis.items)  ALLOC_FAIL("malloc failed.");
     dfs_stk = dynarray_initialize(sizeof(int),  64);        if (!dfs_stk.items)  ALLOC_FAIL("malloc failed.");
     cl_arena = dynarray_initialize(sizeof(s_cl_node), 64);  if (!cl_arena.items) ALLOC_FAIL("malloc failed.");
-    cl_head = malloc(CH_MAX_NUM_FACES * sizeof(int));       if (!cl_head) ALLOC_FAIL("malloc failed.");
-    for (int i = 0; i < CH_MAX_NUM_FACES; i++) cl_head[i] = -1;
+    pmap   = dynarray_initialize(sizeof(int), 64);      if (!pmap.items)   ALLOC_FAIL("malloc failed.");
+    clhead = dynarray_initialize(sizeof(int), 64);      if (!clhead.items) ALLOC_FAIL("malloc failed.");
+    cl_head = clhead.items;
+    for (int i = 0; i < Nfaces; i++) cl_head[i] = -1;
 
     build_conflict_lists(in_vertices, buff_isused,
                          faces.items, Nfaces, &cl_arena, cl_head, &cl_freelist);
@@ -724,6 +722,8 @@ int quickhull_3d(const s_points *in_vertices,
 
 
         /* 5. Delete visible faces and compact cl_head / horizon_nbr */
+        if (!dynarray_ensure_capacity(&pmap, Nfaces)) ALLOC_FAIL("malloc failed.");
+        buff_pmap = pmap.items;
         int old_Nfaces = Nfaces;
         delete_visible_faces(Nfaces, faces.items, adj.items, faces_isvisible.items,
                              buff_isused, buff_pmap);
@@ -749,6 +749,8 @@ int quickhull_3d(const s_points *in_vertices,
             { fprintf(stderr, "ch_quickhull3D: add_faces error.\n"); goto error; }
         Nfaces += Nhorizon;
         faces.N = adj.N = Nfaces * 3;
+        if (!dynarray_ensure_capacity(&clhead, Nfaces)) ALLOC_FAIL("malloc failed.");
+        cl_head = clhead.items;
 
         /* 7. Repartition pending points into new faces' conflict lists */
         for (int f = first_new_face; f < Nfaces; f++) cl_head[f] = -1;
@@ -773,7 +775,7 @@ int quickhull_3d(const s_points *in_vertices,
 
     #undef ALLOC_FAIL
 
-    free(buff_pmap); free(cl_head);
+    dynarray_free(&pmap); dynarray_free(&clhead);
     dynarray_free(&cl_arena); dynarray_free(&adj);
     dynarray_free(&faces_isvisible); dynarray_free(&horizon); dynarray_free(&AUX_horizon_nbr);
     dynarray_free(&AUX_cop_fids);
@@ -786,13 +788,13 @@ error_degenerate:
     ret = 0;
     goto cleanup;
 error:
-    fprintf(stderr, "ch_quickhull3D: error. Faces N = %d / %d\n", Nfaces, CH_MAX_NUM_FACES);
+    fprintf(stderr, "ch_quickhull3D: error. Faces N = %d\n", Nfaces);
     ret = -1;
 cleanup:
     if (faces.items)         dynarray_free(&faces);
     if (adj.items)           dynarray_free(&adj);
-    if (buff_pmap)           free(buff_pmap);
-    if (cl_head)             free(cl_head);
+    if (pmap.items)          dynarray_free(&pmap);
+    if (clhead.items)        dynarray_free(&clhead);
     if (cl_arena.items)      dynarray_free(&cl_arena);
     if (dfs_vis.items)       dynarray_free(&dfs_vis);
     if (dfs_stk.items)       dynarray_free(&dfs_stk);

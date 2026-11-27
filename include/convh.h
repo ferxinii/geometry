@@ -70,8 +70,6 @@ int clip_convhull_convhull(s_convh *C, const s_convh *clipper, double tol_bdry, 
 
 
 // INTERNAL
-#define CH_MAX_NUM_FACES 10000
-#define CH_N_INIT_INT_LIST 50  /* Memory buffers double memory when needed */
 int quickhull_3d(const s_points *in_vertices,
                  bool buff_isused[in_vertices->N],
                  int **out_faces, int *N_out_faces);
