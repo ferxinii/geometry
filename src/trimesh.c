@@ -164,11 +164,8 @@ typedef struct {
 } s_edge_entry;
 
 s_trimesh trimesh_from_arrays(const s_point *points, int N_points,
-                              const int *faces, int N_faces,
-                              double EPS_DEG)
+                              const int *faces, int N_faces)
 {
-    (void)EPS_DEG;
-
     if (!points || N_points <= 0 || !faces || N_faces <= 0)
         return trimesh_NAN;
 
@@ -357,7 +354,7 @@ fail:
  * point_in_trimesh  (Phase 2 - ray casting)
  * ----------------------------------------------------------------------- */
 
-int point_in_trimesh(const s_trimesh *m, s_point p, double EPS_DEG, int max_retries)
+int point_in_trimesh(const s_trimesh *m, s_point p, int max_retries)
 {
     if (!trimesh_is_valid(m)) return -1;
 
@@ -389,7 +386,7 @@ int point_in_trimesh(const s_trimesh *m, s_point p, double EPS_DEG, int max_retr
                 m->points.p[m->faces[i*3+2]]
             };
             e_intersect_type r = test_segment_triangle_intersect_3D(
-                    segment, tri, EPS_DEG, 0.0);
+                    segment, tri, 0.0);
             if      (r == INTERSECT_NONDEGENERATE) count++;
             else if (r == INTERSECT_DEGENERATE || r == INTERSECT_ERROR)
                 { retry = true; break; }
@@ -415,7 +412,7 @@ int point_in_trimesh(const s_trimesh *m, s_point p, double EPS_DEG, int max_retr
  * trimesh_from_obj
  * ----------------------------------------------------------------------- */
 
-s_trimesh trimesh_from_obj(const char *fname, double EPS_DEG)
+s_trimesh trimesh_from_obj(const char *fname)
 {
     FILE *f = fopen(fname, "r");
     if (!f) {
@@ -475,7 +472,7 @@ s_trimesh trimesh_from_obj(const char *fname, double EPS_DEG)
     }
 
     s_trimesh m = trimesh_from_arrays(dverts.items, (int)dverts.N,
-                                      dfaces.items,  (int)dfaces.N, EPS_DEG);
+                                      dfaces.items,  (int)dfaces.N);
     dynarray_free(&dverts);
     dynarray_free(&dfaces);
     return m;

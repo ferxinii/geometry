@@ -49,8 +49,7 @@ double    volume_trimesh(const s_trimesh *m);
  * Returns trimesh_NAN on error.
  */
 s_trimesh trimesh_from_arrays(const s_point *points, int N_points,
-                              const int *faces, int N_faces,
-                              double EPS_DEG);
+                              const int *faces, int N_faces);
 
 /*
  * Load a closed triangle mesh from a Wavefront OBJ file.
@@ -59,14 +58,14 @@ s_trimesh trimesh_from_arrays(const s_point *points, int N_points,
  * orientation are fixed automatically (same as trimesh_from_arrays).
  * Returns trimesh_NAN on error.
  */
-s_trimesh trimesh_from_obj(const char *fname, double EPS_DEG);
+s_trimesh trimesh_from_obj(const char *fname);
 
 /*
  * Returns 1 if p is strictly inside the closed trimesh, 0 if outside,
  * -1 on error. Uses ray casting in the +x direction. On degenerate
  * intersection retries with a perturbed direction up to max_retries times.
  */
-int point_in_trimesh(const s_trimesh *m, s_point p, double EPS_DEG, int max_retries);
+int point_in_trimesh(const s_trimesh *m, s_point p, int max_retries);
 
 /*
  * Generalized winding number of p wrt the mesh: the total signed solid angle

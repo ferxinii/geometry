@@ -311,7 +311,7 @@ s_trimesh trimesh_repaired(const s_trimesh *in,
     for (int i = 0; i < nf * 3; i++) F[i] = remap[F[i]];
     free(remap); free(P);
 
-    s_trimesh out = trimesh_from_arrays(P2, nv2, F, nf, 0.0);
+    s_trimesh out = trimesh_from_arrays(P2, nv2, F, nf);
     free(P2); free(F);
     if (!trimesh_is_valid(&out)) return trimesh_NAN;
 

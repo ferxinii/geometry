@@ -71,7 +71,7 @@ static int orient_face_if_needed(const s_points *points, bool isused[points->N],
  * min/max face of the bounding box), pick the most-separated pair (v0,v1),
  * then the point farthest from that edge (v2), then the point farthest
  * from that triangle (v3). */
-static int initial_tetra_vids(const s_points *points, double EPS_degenerate, int out[4])
+static int initial_tetra_vids(const s_points *points, int out[4])
 {
     int N = points->N;
     assert(N >= 4);
@@ -111,7 +111,7 @@ static int initial_tetra_vids(const s_points *points, double EPS_degenerate, int
     s_point line[2] = {points->p[v0], points->p[v1]};
     for (int i = 0; i < N; i++) {
         if (i == v0 || i == v1) continue;
-        double d = distance_sq_point_line(line, EPS_degenerate, points->p[i]);
+        double d = distance_sq_point_line(line, points->p[i]);
         if (d > best2) { best2 = d; v2 = i; }
     }
     if (v2 < 0) { fprintf(stderr, "ch_quickhull3D: all points are collinear.\n"); return 0; }
@@ -124,7 +124,7 @@ static int initial_tetra_vids(const s_points *points, double EPS_degenerate, int
     double best3 = -1.0;
     for (int i = 0; i < N; i++) {
         if (i == v0 || i == v1 || i == v2) continue;
-        double d = fabs(signed_distance_point_to_plane(points->p[i], tri, EPS_degenerate));
+        double d = fabs(signed_distance_point_to_plane(points->p[i], tri));
         if (d > best3) { best3 = d; v3 = i; }
     }
 
@@ -138,11 +138,10 @@ static int initial_tetra_vids(const s_points *points, double EPS_degenerate, int
     return 1;
 }
 
-static int initial_tetrahedron(const s_points *points, bool *isused,
-                                double EPS_degenerate, int faces[4*3], int adj[4*3])
+static int initial_tetrahedron(const s_points *points, bool *isused, int faces[4*3], int adj[4*3])
 {
     int vertex_ids[4];
-    if (!initial_tetra_vids(points, EPS_degenerate, vertex_ids)) return 0;
+    if (!initial_tetra_vids(points, vertex_ids)) return 0;
 
     memset(isused, 0, points->N * sizeof(bool));
     isused[vertex_ids[0]] = isused[vertex_ids[1]] = isused[vertex_ids[2]] = isused[vertex_ids[3]] = true;
@@ -208,7 +207,7 @@ static int coplanar_visible(const int *adj,
 
 static int visible_faces_from_point(const s_points *points, int Nfaces, int faces[Nfaces*3],
                                      const int *adj,
-                                     s_point p, double EPS,
+                                     s_point p,
                                      s_dynarray *coplanar_fids,
                                      s_dynarray *out_indicator)
 {
@@ -233,7 +232,7 @@ static int visible_faces_from_point(const s_points *points, int Nfaces, int face
                 (p.x==points->p[vi1].x && p.y==points->p[vi1].y && p.z==points->p[vi1].z) ||
                 (p.x==points->p[vi2].x && p.y==points->p[vi2].y && p.z==points->p[vi2].z))
                 return 0;
-            e_geom_test test = test_point_in_triangle_3D(face_pts, p, EPS, 0.0);
+            e_geom_test test = test_point_in_triangle_3D(face_pts, p, 0.0);
             if (test == TEST_BOUNDARY || test == TEST_IN)
                 return 0;
             if ((test == TEST_OUT || test == TEST_DEGENERATE) &&
@@ -493,14 +492,14 @@ static int topology_is_valid(int Nfaces, int *faces, s_dynarray *out_edges)
 typedef struct { int pid; double dist; int next; } s_cl_node;
 
 static int farthest_visible_face(const s_points *points, const int *faces,
-                                  int from, int to, s_point p, double EPS_degenerate,
+                                  int from, int to, s_point p,
                                   double *out_dist)
 {
     int best_f = -1;
     double best_d = 0.0;
     for (int f = from; f < to; f++) {
         s_point fv[3]; vertices_face(points, faces, f, fv);
-        double d = signed_distance_point_to_plane(p, fv, EPS_degenerate);
+        double d = signed_distance_point_to_plane(p, fv);
         if (d > best_d) { best_d = d; best_f = f; }
     }
     if (out_dist) *out_dist = best_d;
@@ -530,14 +529,13 @@ static void cl_insert(s_cl_node *arena, int *cl_head, int node, int face)
 
 static void build_conflict_lists(const s_points *points,
                                    const bool *buff_isused, const int *faces, int Nfaces,
-                                   s_dynarray *cl_arena, int *cl_head, int *cl_freelist,
-                                   double EPS_degenerate)
+                                   s_dynarray *cl_arena, int *cl_head, int *cl_freelist)
 {
     for (int i = 0; i < points->N; i++) {
         if (buff_isused[i]) continue;
         double best_d;
         int best_f = farthest_visible_face(points, faces, 0, Nfaces,
-                                            points->p[i], EPS_degenerate, &best_d);
+                                            points->p[i], &best_d);
         if (best_f < 0) continue;
         int node = cl_alloc(cl_arena, cl_freelist);
         if (node < 0) return;
@@ -596,7 +594,7 @@ static int collect_pending_nodes(s_dynarray *cl_arena, int Nfaces, const bool *f
 static void repartition_points(int pending, const s_points *points,
                                 const int *faces, int first_new_face, int Nfaces,
                                 s_dynarray *cl_arena, int *cl_head, int *cl_freelist,
-                                const bool *buff_isused, double EPS_degenerate)
+                                const bool *buff_isused)
 {
     while (pending >= 0) {
         s_cl_node *ar = cl_arena->items;
@@ -606,10 +604,10 @@ static void repartition_points(int pending, const s_points *points,
         if (!buff_isused[pid]) {
             double best_d;
             int best_f = farthest_visible_face(points, faces, first_new_face, Nfaces,
-                                                points->p[pid], EPS_degenerate, &best_d);
+                                                points->p[pid], &best_d);
             if (best_f < 0)
                 best_f = farthest_visible_face(points, faces, 0, first_new_face,
-                                               points->p[pid], EPS_degenerate, &best_d);
+                                               points->p[pid], &best_d);
             if (best_f >= 0) {
                 ar = cl_arena->items;
                 ar[pending].pid = pid; ar[pending].dist = best_d;
@@ -628,7 +626,7 @@ static void repartition_points(int pending, const s_points *points,
 
 /* ===== Main algorithm ===== */
 
-int quickhull_3d(const s_points *in_vertices, double EPS_degenerate,
+int quickhull_3d(const s_points *in_vertices,
                  bool buff_isused[in_vertices->N],
                  int **out_faces, int *N_out_faces)
 {
@@ -655,8 +653,7 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate,
     adj   = dynarray_initialize(sizeof(int), 12);
     if (!faces.items || !adj.items) ALLOC_FAIL("malloc failed.");
     adj.N = 12;
-    if (!initial_tetrahedron(in_vertices, buff_isused, EPS_degenerate,
-                              faces.items, adj.items))
+    if (!initial_tetrahedron(in_vertices, buff_isused, faces.items, adj.items))
         goto error_degenerate;
     if (in_vertices->N == 4) {
         *out_faces = faces.items; *N_out_faces = 4;
@@ -672,8 +669,7 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate,
     for (int i = 0; i < CH_MAX_NUM_FACES; i++) cl_head[i] = -1;
 
     build_conflict_lists(in_vertices, buff_isused,
-                         faces.items, Nfaces, &cl_arena, cl_head, &cl_freelist,
-                         EPS_degenerate);
+                         faces.items, Nfaces, &cl_arena, cl_head, &cl_freelist);
 
     faces_isvisible = dynarray_initialize(sizeof(bool), 0);
     AUX_horizon_nbr = dynarray_initialize(sizeof(int), 0);
@@ -699,8 +695,7 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate,
         /* 2. Classify faces visible from current_id */
         int N_vf = visible_faces_from_point(
             in_vertices, Nfaces, faces.items, adj.items,
-            in_vertices->p[current_id], EPS_degenerate,
-            &AUX_cop_fids, &faces_isvisible);
+            in_vertices->p[current_id], &AUX_cop_fids, &faces_isvisible);
         if (N_vf == -1) { fprintf(stderr, "ch_quickhull3D: visible_faces error.\n"); goto error; }
         if (N_vf == Nfaces) { fprintf(stderr, "ch_quickhull3D: point sees all faces.\n"); goto error; }
         if (N_vf == 0) { continue; }
@@ -759,7 +754,7 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate,
         for (int f = first_new_face; f < Nfaces; f++) cl_head[f] = -1;
         repartition_points(cl_pending, in_vertices, faces.items,
                            first_new_face, Nfaces, &cl_arena, cl_head, &cl_freelist,
-                           buff_isused, EPS_degenerate);
+                           buff_isused);
     }
 
 #ifndef NDEBUG
@@ -769,7 +764,7 @@ int quickhull_3d(const s_points *in_vertices, double EPS_degenerate,
       if (topology_is_valid(Nfaces, faces.items, &edges)) {
           write_points_to_csv("problematic.csv", "w", in_vertices);
           fprintf(stderr, "ch_quickhull3D: topology invalid  -- problematic points written to problematic.csv"
-                          " (EPS=%g)\n", EPS_degenerate);
+                          "\n");
           dynarray_free(&edges); goto error;
       }
       dynarray_free(&edges);

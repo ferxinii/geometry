@@ -41,19 +41,19 @@ static void free_point_list(s_point_list *point_list)
 
 
 /* Clip segment with convhull */
-static void append_if_nonexistent_lim2(int *Nout, s_point out[2], s_point p, double TOL)
+static void append_if_nonexistent_lim2(int *Nout, s_point out[2], s_point p, double tol_bdry)
 {
     if (*Nout >= 2) return;
     for (int ii=0; ii<*Nout; ii++) {
-        if (distance_squared(out[ii], p) <= TOL*TOL) return;
+        if (distance_squared(out[ii], p) <= tol_bdry*tol_bdry) return;
     }
     out[(*Nout)++] = p;
 }
 
-static e_intersect_type core_segment_convhull_surface_intersect(const s_convh *C, const s_point segment[2], double EPS_degenerate, double TOL, int *Nout, s_point out[2])
+static e_intersect_type core_segment_convhull_surface_intersect(const s_convh *C, const s_point segment[2], double tol_bdry, int *Nout, s_point out[2])
 {
-    e_geom_test i0 = test_point_in_convhull(C, segment[0], EPS_degenerate, TOL);
-    e_geom_test i1 = test_point_in_convhull(C, segment[1], EPS_degenerate, TOL);
+    e_geom_test i0 = test_point_in_convhull(C, segment[0], tol_bdry);
+    e_geom_test i1 = test_point_in_convhull(C, segment[1], tol_bdry);
 
     if (i0 == TEST_IN && i1 == TEST_IN) { 
         if (Nout) *Nout = 0;
@@ -83,9 +83,9 @@ static e_intersect_type core_segment_convhull_surface_intersect(const s_convh *C
         int o1 = test_orientation(face, segment[1]);
         if (o0 != 0 && o1 != 0 && o0 == o1) continue;  /* Skip if on same side of plane */
 
-        s_segment_intersect fi = segment_triangle_intersect_3D(segment, face, EPS_degenerate, TOL);
+        s_segment_intersect fi = segment_triangle_intersect_3D(segment, face, tol_bdry);
         // printf("fi.N: %d, ERROR: %d, \n", fi.N, fi.type == INTERSECT_ERROR);
-        for (int jj=0; jj<fi.N; jj++) append_if_nonexistent_lim2(&h, tmp, fi.coords[jj], TOL);
+        for (int jj=0; jj<fi.N; jj++) append_if_nonexistent_lim2(&h, tmp, fi.coords[jj], tol_bdry);
     }
 
     if (h == 0) {
@@ -104,21 +104,21 @@ static e_intersect_type core_segment_convhull_surface_intersect(const s_convh *C
     exit(1);
 }
 
-e_intersect_type test_segment_convhull_surface_intersect(const s_convh *C, const s_point segment[2], double EPS_degenerate, double TOL)
+e_intersect_type test_segment_convhull_surface_intersect(const s_convh *C, const s_point segment[2], double tol_bdry)
 {
-    return core_segment_convhull_surface_intersect(C, segment, EPS_degenerate, TOL, NULL, NULL);
+    return core_segment_convhull_surface_intersect(C, segment, tol_bdry, NULL, NULL);
 }
 
-s_segment_intersect segment_convhull_surface_intersect(const s_convh *C, const s_point segment[2], double EPS_degenerate, double TOL)
+s_segment_intersect segment_convhull_surface_intersect(const s_convh *C, const s_point segment[2], double tol_bdry)
 {
     s_segment_intersect out;
-    out.type = core_segment_convhull_surface_intersect(C, segment, EPS_degenerate, TOL, &out.N, out.coords);
+    out.type = core_segment_convhull_surface_intersect(C, segment, tol_bdry, &out.N, out.coords);
     return out;
 }
 
 
 /* Intersect two convhulls */
-int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degenerate, double TOL, s_convh *out)
+int intersection_convhulls(const s_convh *A, const s_convh *B, double tol_bdry, s_convh *out)
 {   /* Returns  1 if intersection non-empty,
                 0 if intersection empty,
                 -1 if error or intersection empty 
@@ -131,7 +131,7 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
 
     /* First add points of A strictly inside B (nonstrict points will be added with edge intersections) */
     // FILE *f = fopen("outside.txt", "w");
-    s_points_test AinB = test_points_in_convhull(B, &A->points, EPS_degenerate, TOL, buff);
+    s_points_test AinB = test_points_in_convhull(B, &A->points, tol_bdry, buff);
     if (AinB.Nerr > 0) goto error;
     int NpI = 0;
     for (int ii=0; ii<A->points.N; ii++) {
@@ -156,7 +156,7 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
         int e1; dynarray_get_value(&elist, ii*2+1, &e1);
         // if (e0 == 6 || e1 == 6) printf("using it! (%d, %d)\n", e0, e1);
         s_point segment[2] = {A->points.p[e0], A->points.p[e1]}; 
-        s_segment_intersect clips = segment_convhull_surface_intersect(B, segment, EPS_degenerate, TOL);
+        s_segment_intersect clips = segment_convhull_surface_intersect(B, segment, tol_bdry);
         if (clips.type == INTERSECT_NONDEGENERATE) for (int jj=0; jj<clips.N; jj++) {
             if (!increase_memory_point_list(&pI, NpI+1)) goto error;
             pI.list[NpI++] = clips.coords[jj];
@@ -171,7 +171,7 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
 
 
     /* Add points of B nonstrictly inside A */
-    s_points_test BinA = test_points_in_convhull(A, &B->points, EPS_degenerate, TOL, buff);
+    s_points_test BinA = test_points_in_convhull(A, &B->points, tol_bdry, buff);
     if (BinA.Nerr > 0) goto error;
     for (int ii=0; ii<B->points.N; ii++) 
         if (BinA.indicator[ii] == TEST_IN || BinA.indicator[ii] == TEST_BOUNDARY) {
@@ -186,14 +186,14 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
         int e0; dynarray_get_value(&elist, ii*2+0, &e0);
         int e1; dynarray_get_value(&elist, ii*2+1, &e1);
         s_point segment[2] = {B->points.p[e0], B->points.p[e1]};
-        s_segment_intersect clips = segment_convhull_surface_intersect(A, segment, EPS_degenerate, TOL);
+        s_segment_intersect clips = segment_convhull_surface_intersect(A, segment, tol_bdry);
         if (clips.type == INTERSECT_NONDEGENERATE) for (int jj=0; jj<clips.N; jj++) {
             if (!increase_memory_point_list(&pI, NpI+1)) goto error;
             pI.list[NpI++] = clips.coords[jj];
         }
     }
 
-    int i = convhull_from_points(&(s_points){NpI, pI.list}, EPS_degenerate, out);
+    int i = convhull_from_points(&(s_points){NpI, pI.list}, out);
     if (i == 0) goto degenerate;
     if (i == -1) goto error;
         
@@ -218,11 +218,11 @@ int intersection_convhulls(const s_convh *A, const s_convh *B, double EPS_degene
 }
 
 
-static void bisector_plane(const s_convh *A, const s_convh *B, const s_convh *I, double EPS_degenerate, s_point out[3])
+static void bisector_plane(const s_convh *A, const s_convh *B, const s_convh *I, s_point out[3])
 {   /* Normal points from A to B */  // TODO handle degeneracies
-    s_point cA = convhull_volume_centroid(A, EPS_degenerate);
-    s_point cB = convhull_volume_centroid(B, EPS_degenerate);
-    s_point n = normalize_vec(subtract_points(cB, cA), EPS_degenerate);
+    s_point cA = convhull_volume_centroid(A);
+    s_point cB = convhull_volume_centroid(B);
+    s_point n = vec_is_degenerate(cA, cB) ? point_NAN : normalize_vec(subtract_points(cB, cA));
     
     double vA = volume_convhull(A), vB = volume_convhull(B);
 
@@ -247,8 +247,8 @@ static void bisector_plane(const s_convh *A, const s_convh *B, const s_convh *I,
     s_point ref = (ref_coord == 0) ?   (s_point){{{1,0,0}}} :
                   ( (ref_coord == 1) ? (s_point){{{0,1,0}}} :
                                        (s_point){{{0,0,1}}} );
-    s_point u = normalize_vec(cross_prod(n, ref), EPS_degenerate);
-    s_point v = normalize_vec(cross_prod(n, u), EPS_degenerate);
+    s_point u = normalize_vec(cross_prod(n, ref));
+    s_point v = normalize_vec(cross_prod(n, u));
 
     out[0] = c_plane;
     out[1] = sum_points(c_plane, u);
@@ -256,14 +256,14 @@ static void bisector_plane(const s_convh *A, const s_convh *B, const s_convh *I,
 }
 
 
-int clip_convhull_halfspace(const s_convh *C, s_point plane[3], double EPS_degenerate, double TOL, s_convh *out) 
+int clip_convhull_halfspace(const s_convh *C, s_point plane[3], double tol_bdry, s_convh *out) 
 {   /* Returns  1 if clipped
                 0 if not clipped
                 -1 if error
     */
     s_points_test ptest = {0};  s_point_list p = {0};  s_dynarray elist = {0};
     /* Select points non-strictly inside halfspace */
-    ptest = test_points_in_halfspace(plane, &C->points, EPS_degenerate, TOL, NULL);
+    ptest = test_points_in_halfspace(plane, &C->points, tol_bdry, NULL);
     if (!ptest.indicator) goto error;
     if (ptest.Nerr > 0) { *out = convhull_NAN; return -1; }
     if (ptest.Nin + ptest.Nbdy == 0) { *out = convhull_NAN; return 0; }
@@ -285,7 +285,7 @@ int clip_convhull_halfspace(const s_convh *C, s_point plane[3], double EPS_degen
             ptest.indicator[e1] != TEST_ERROR &&
             ptest.indicator[e0] != ptest.indicator[e1]) {  /* Boundary points already considered */
             s_point segment[2] = {C->points.p[e0], C->points.p[e1]};
-            s_segment_intersect intersections = segment_plane_intersect(segment, plane, EPS_degenerate, TOL);
+            s_segment_intersect intersections = segment_plane_intersect(segment, plane, tol_bdry);
             for (int jj=0; jj<intersections.N; jj++) {
                 if (!increase_memory_point_list(&p, Np+1)) goto error;
                 p.list[Np++] = intersections.coords[jj];
@@ -293,7 +293,7 @@ int clip_convhull_halfspace(const s_convh *C, s_point plane[3], double EPS_degen
         }
     }
     
-    int i = convhull_from_points(&(s_points){Np, p.list}, EPS_degenerate, out);
+    int i = convhull_from_points(&(s_points){Np, p.list}, out);
     if (i == 0) goto degenerate;
     if (i == -1) goto error;
 
@@ -319,7 +319,7 @@ int clip_convhull_halfspace(const s_convh *C, s_point plane[3], double EPS_degen
 }
 
 
-int remove_intersection_convhulls(s_convh *A, s_convh *B, double EPS_degenerate, double TOL, double min_vol_I)
+int remove_intersection_convhulls(s_convh *A, s_convh *B, double tol_bdry, double min_vol_I)
 {   /* TODO: What if one is completely contained in the other? */
     /* Returns  1 if OK,
      *          0 if no intersection to remove,
@@ -329,7 +329,7 @@ int remove_intersection_convhulls(s_convh *A, s_convh *B, double EPS_degenerate,
     s_points p_newA = {0}, p_newB = {0};
     e_geom_test *buff = NULL;
 
-    int i = intersection_convhulls(A, B, EPS_degenerate, TOL, &I);
+    int i = intersection_convhulls(A, B, tol_bdry, &I);
     if (i == 0) return 0;
     if (i == -1) return -1;
     if (volume_convhull(&I) < min_vol_I) { free_convhull(&I); return 0; }
@@ -338,13 +338,13 @@ int remove_intersection_convhulls(s_convh *A, s_convh *B, double EPS_degenerate,
     if (!buff) goto error;
 
     s_point plane[3];
-    bisector_plane(A, B, &I, EPS_degenerate, plane);  /* Plane normal from A to B*/
+    bisector_plane(A, B, &I, plane);  /* Plane normal from A to B*/
 
 
     /* Points for reduced A */
-    i = clip_convhull_halfspace(&I, plane, EPS_degenerate, TOL, &IA);  /* Divide I with the plane */
+    i = clip_convhull_halfspace(&I, plane, tol_bdry, &IA);  /* Divide I with the plane */
     if (i == -1) goto error;
-    s_points_test Atest = test_points_in_halfspace(plane, &A->points, EPS_degenerate, TOL, buff);
+    s_points_test Atest = test_points_in_halfspace(plane, &A->points, tol_bdry, buff);
     p_newA.N = Atest.Nin + Atest.Nbdy + IA.points.N;
     assert(p_newA.N > 0);
     p_newA.p = malloc(sizeof(s_point) * p_newA.N);
@@ -358,9 +358,9 @@ int remove_intersection_convhulls(s_convh *A, s_convh *B, double EPS_degenerate,
 
     /* Points for reduced B */
     s_point tmp = plane[0]; plane[0] = plane[1];  plane[1] = tmp;  /* Flip plane normal */
-    i = clip_convhull_halfspace(&I, plane, EPS_degenerate, TOL, &IB);
+    i = clip_convhull_halfspace(&I, plane, tol_bdry, &IB);
     if (i == -1) goto error;
-    s_points_test Btest = test_points_in_halfspace(plane, &B->points, EPS_degenerate, TOL, buff);
+    s_points_test Btest = test_points_in_halfspace(plane, &B->points, tol_bdry, buff);
     p_newB.N = Btest.Nin + Btest.Nbdy + IB.points.N;
     assert(p_newB.N > 0);
     p_newB.p = malloc(sizeof(s_point) * p_newB.N);
@@ -374,8 +374,8 @@ int remove_intersection_convhulls(s_convh *A, s_convh *B, double EPS_degenerate,
 
     /* Construct new hulls and clean-up */
     s_convh newA, newB;
-    if (convhull_from_points(&p_newA, EPS_degenerate, &newA) != 1) goto error;
-    if (convhull_from_points(&p_newB, EPS_degenerate, &newB) != 1) goto error;
+    if (convhull_from_points(&p_newA, &newA) != 1) goto error;
+    if (convhull_from_points(&p_newB, &newB) != 1) goto error;
 
     free_convhull(A);
     free_convhull(B);
@@ -402,7 +402,7 @@ int remove_intersection_convhulls(s_convh *A, s_convh *B, double EPS_degenerate,
 }
 
 
-// int clip_convhull_convhull(s_convh *C, const s_convh *clipper, double EPS_degenerate, double TOL, double min_vol_I)
+// int clip_convhull_convhull(s_convh *C, const s_convh *clipper, double tol_bdry, double min_vol_I)
 // {   /* Returns  1 if OK (A modified),
 //                 0 if no intersection to remove (A unchanged),
 //                -1 if error
@@ -415,7 +415,7 @@ int remove_intersection_convhulls(s_convh *A, s_convh *B, double EPS_degenerate,
 //
 //     /* Compute intersection I */
 //     s_convh I = convhull_NAN; 
-//     int i = intersection_convhulls(A, B, EPS_degenerate, TOL, &I);
+//     int i = intersection_convhulls(A, B, tol_bdry, &I);
 //     if (i == 0 || volume_convhull(&I) < min_vol_I) {
 //         free_convhull(&I);
 //         free_edge_list(&elist);
@@ -425,7 +425,7 @@ int remove_intersection_convhulls(s_convh *A, s_convh *B, double EPS_degenerate,
 //     if (i == -1) goto error;
 //
 //     /* A vertices containment */
-//     s_points_test AinB = test_points_in_convhull(B, &A->points, EPS_degenerate, TOL, buff);
+//     s_points_test AinB = test_points_in_convhull(B, &A->points, tol_bdry, buff);
 //     if (AinB.Nerr > 0) goto error;
 //
 //     if (AinB.Nin + AinB.Nbdy == A->points.N) {  /* All inside: return empty */
@@ -452,7 +452,7 @@ int remove_intersection_convhulls(s_convh *A, s_convh *B, double EPS_degenerate,
 //     if (!list_edges_convhull(A, &N_eA, &elist)) goto error;
 //     for (int ei=0; ei<N_eA; ei++) {
 //         s_point seg[2] = { A->points.p[elist.list[ei].v[0]], A->points.p[elist.list[ei].v[1]] };
-//         s_segment_intersect clips = segment_convhull_surface_intersect(B, seg, EPS_degenerate, TOL);
+//         s_segment_intersect clips = segment_convhull_surface_intersect(B, seg, tol_bdry);
 //         for (int jj=0; jj<clips.N; jj++) {
 //             if (!increase_memory_point_list(&pI, NpI+1)) goto error;
 //             pI.list[NpI++] = clips.coords[jj];
@@ -473,7 +473,7 @@ int remove_intersection_convhulls(s_convh *A, s_convh *B, double EPS_degenerate,
 //     /* 6) Build new convex hull for A using the collected points */
 //     s_points p_newA = { NpI, pI.list };
 //     s_convh newA = convhull_NAN;
-//     if (convhull_from_points(&p_newA, EPS_degenerate, TOL, &newA) != 1) {
+//     if (convhull_from_points(&p_newA, &newA) != 1) {
 //         free_convhull(A);
 //         *A = convhull_NAN;
 //     } else {

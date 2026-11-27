@@ -1,5 +1,6 @@
 #include "points.h"
 #include "hash.h"
+#define LINALG_EPS_REL GEOM_EPS_REL
 #include "linalg.h"
 #include <stdint.h>
 #include <stdlib.h>
@@ -159,21 +160,21 @@ typedef struct idx_node {  /* Linked list of point ids */
     struct idx_node *next;
 } idx_node;
 
-static s_cell_quant cell_of_point(s_point p, double TOL)
+static s_cell_quant cell_of_point(s_point p, double tol_dup)
 {
     s_cell_quant c;
-    c.ix = floor(p.x / TOL);
-    c.iy = floor(p.y / TOL);
-    c.iz = floor(p.z / TOL);
+    c.ix = floor(p.x / tol_dup);
+    c.iy = floor(p.y / tol_dup);
+    c.iz = floor(p.z / tol_dup);
     return c;
 }
 
-int mark_duplicate_points(const s_points *points, double TOL, bool mark[points->N])
+int mark_duplicate_points(const s_points *points, double tol_dup, bool mark[points->N])
 {   /* Using hashing approach O(N) */ /* -1 ERROR, Ndup >=0 OK */
     memset(mark, 0, sizeof(bool) * points->N);
-    if (TOL == 0) return 0;
+    if (tol_dup == 0) return 0;
 
-    const double TOL2 = TOL * TOL;
+    const double tol2 = tol_dup * tol_dup;
     int Ndup = 0;
 
     idx_node *node_pool = malloc(points->N * sizeof(idx_node));
@@ -184,7 +185,7 @@ int mark_duplicate_points(const s_points *points, double TOL, bool mark[points->
     if (!hash_init(&grid, sizeof(s_cell_quant), sizeof(idx_node*), 2*points->N, points->N, cell_hash, cell_equals, NULL)) return -1;
 
     for (int ii=0; ii<points->N; ii++) {
-        s_cell_quant c = cell_of_point(points->p[ii], TOL);
+        s_cell_quant c = cell_of_point(points->p[ii], tol_dup);
         bool duplicate = false;
 
         /* scan this cell and all neighbors */
@@ -198,7 +199,7 @@ int mark_duplicate_points(const s_points *points, double TOL, bool mark[points->
             if (!bucket_slot) continue;          /* no cell present */
             for (idx_node *n = *bucket_slot; n; n = n->next) {
                 int jj = n->idx;
-                if (distance_squared(points->p[ii], points->p[jj]) <= TOL2) {
+                if (distance_squared(points->p[ii], points->p[jj]) <= tol2) {
                     duplicate = true;
                     mark[ii] = true;
                     Ndup++;
@@ -224,10 +225,10 @@ int mark_duplicate_points(const s_points *points, double TOL, bool mark[points->
 }
 
 
-s_points copy_points_remove_duplicates(const s_points *points, double TOL)
+s_points copy_points_remove_duplicates(const s_points *points, double tol_dup)
 {
     int *mark_dup = NULL;   s_points out = {0};
-    const double TOL2 = TOL * TOL;
+    const double tol2 = tol_dup * tol_dup;
 
     mark_dup = malloc(sizeof(int) * points->N);
     if (!mark_dup) goto error;
@@ -236,7 +237,7 @@ s_points copy_points_remove_duplicates(const s_points *points, double TOL)
     for(int ii=0; ii<points->N-1; ii++) {
         for (int jj=ii+1; jj<points->N; jj++) {
             double d2 = distance_squared(points->p[ii], points->p[jj]);
-            if (d2 <= TOL2) mark_dup[jj] = 1;
+            if (d2 <= tol2) mark_dup[jj] = 1;
         }
     }
 
@@ -346,10 +347,10 @@ s_point scale_point(s_point a, double s)
 }
 
 
-s_point normalize_vec(s_point v, double EPS)
-{
+s_point normalize_vec(s_point v)
+{   /* Exact guard only: callers decide degeneracy with the *_is_degenerate checks. */
     double n = norm(v);
-    if (n < EPS) return point_NAN;
+    if (!(n > 0) || !isfinite(n)) return point_NAN;
     return scale_point(v, 1.0/n);
 }
 
@@ -548,12 +549,13 @@ double signed_volume_tetra(const s_point tetra[4])
 }
 
 
-int basis_vectors_plane(const s_point plane[3], double EPS_degenerate, s_point *out_n, s_point *out_t1, s_point *out_t2)
+int basis_vectors_plane(const s_point plane[3], s_point *out_n, s_point *out_t1, s_point *out_t2)
 {
     /* Compute normal */
     s_point d1 = subtract_points(plane[1], plane[0]);
     s_point d2 = subtract_points(plane[2], plane[0]);
-    s_point n = normalize_vec(cross_prod(d1, d2), EPS_degenerate);
+    s_point n = tri_is_degenerate(plane[0], plane[1], plane[2]) ? point_NAN
+                                                                : normalize_vec(cross_prod(d1, d2));
     if (out_n) *out_n = n;
     if (!point_is_valid(n)) {
         if (out_t1) *out_t1 = (s_point){0};
@@ -567,8 +569,9 @@ int basis_vectors_plane(const s_point plane[3], double EPS_degenerate, s_point *
     s_point ref = (ref_coord == 0) ?   (s_point){{{1,0,0}}} :
                   ( (ref_coord == 1) ? (s_point){{{0,1,0}}} :
                                        (s_point){{{0,0,1}}} );
-    if (out_t1) *out_t1 = normalize_vec(cross_prod(ref, *out_n), EPS_degenerate);
-    if (out_t2) *out_t2 = normalize_vec(cross_prod(*out_n, *out_t1), EPS_degenerate);
+    s_point t1 = normalize_vec(cross_prod(ref, n));
+    if (out_t1) *out_t1 = t1;
+    if (out_t2) *out_t2 = normalize_vec(cross_prod(n, t1));
     return 1;
 }
 
@@ -581,16 +584,17 @@ static s_point make_any_perpendicular(const s_point n)
 }
 
 
-int plane_from_point_normal(const s_point p0, const s_point n, double EPS_degenerate, s_point out[3])
+int plane_from_point_normal(const s_point p0, const s_point n, s_point out[3])
 {
-    /* normalize normal (important for numerical stability) */
-    s_point nn = normalize_vec(n, EPS_degenerate);
+    /* normalize normal (important for numerical stability); n is a direction:
+     * only an exactly zero (or non-finite) n is rejected */
+    s_point nn = normalize_vec(n);
     if (!point_is_valid(nn)) return 0;
 
     /* first tangent */
     s_point a = make_any_perpendicular(nn);
     s_point u = cross_prod(nn, a);
-    u = normalize_vec(u, EPS_degenerate);
+    u = normalize_vec(u);
     if (!point_is_valid(u)) return 0;
 
     /* second tangent */
@@ -604,25 +608,26 @@ int plane_from_point_normal(const s_point p0, const s_point n, double EPS_degene
 }
 
 
-int plane_equation_from_points(const s_point plane[3], double EPS_degenerate, s_point *abc_out, double *d_out)
+int plane_equation_from_points(const s_point plane[3], s_point *abc_out, double *d_out)
 {   /* Plane: x  s.t.  dot(abc_out, x) + d_out = 0; */
     s_point u = subtract_points(plane[1], plane[0]);
     s_point v = subtract_points(plane[2], plane[0]);
     
     s_point n = cross_prod(u, v);
 
-    *abc_out = normalize_vec(n, EPS_degenerate);
+    *abc_out = tri_is_degenerate(plane[0], plane[1], plane[2]) ? point_NAN : normalize_vec(n);
     if (!point_is_valid(*abc_out)) { *d_out = NAN; return 0; }
     *d_out = -dot_prod(*abc_out, plane[0]);
     return 1;
 }
 
 
-s_point project_point_to_plane(s_point p, const s_point plane[3], double EPS_degenerate) 
+s_point project_point_to_plane(s_point p, const s_point plane[3]) 
 {
+    if (tri_is_degenerate(plane[0], plane[1], plane[2])) return point_NAN;
     s_point n = cross_prod(subtract_points(plane[1], plane[0]),
                            subtract_points(plane[2], plane[0]));
-    n = normalize_vec(n, EPS_degenerate);
+    n = normalize_vec(n);
     if (!point_is_valid(n)) return point_NAN; 
 
     double d = dot_prod(n, plane[0]);
@@ -638,11 +643,12 @@ void project_point_to_plane_2D(s_point p, s_point p0_in_plane, s_point t1, s_poi
 }
 
 
-double signed_distance_point_to_plane(s_point p, const s_point plane[3], double EPS_degenerate)
+double signed_distance_point_to_plane(s_point p, const s_point plane[3])
 {
+    if (tri_is_degenerate(plane[0], plane[1], plane[2])) return NAN;
     s_point n = cross_prod(subtract_points(plane[1], plane[0]),
                            subtract_points(plane[2], plane[0]));
-    n = normalize_vec(n, EPS_degenerate);
+    n = normalize_vec(n);
     if (!point_is_valid(n)) return NAN; 
 
     double d = dot_prod(n, plane[0]);
@@ -655,9 +661,9 @@ double signed_distance_point_to_plane_v2(s_point p, s_point plane_n, double plan
 }
 
 
-s_point closest_point_on_triangle(const s_point triangle[3], double EPS_degenerate, s_point p)
+s_point closest_point_on_triangle(const s_point triangle[3], s_point p)
 {   /* From "C Ericson. Real-Time Collision Detection" */
-    if (area_triangle(triangle) < EPS_degenerate) return point_NAN;
+    if (tri_is_degenerate(triangle[0], triangle[1], triangle[2])) return point_NAN;
 
     s_point A = triangle[0], B = triangle[1], C = triangle[2];
     s_point AB = {{{B.x-A.x, B.y-A.y, B.z-A.z}}};
@@ -702,21 +708,21 @@ s_point closest_point_on_triangle(const s_point triangle[3], double EPS_degenera
 
     // Inside face region
     // Barycentric coordinates (u,v,w)
-    double denom = va + vb + vc;
-    if (denom < EPS_degenerate) return point_NAN;
+    double denom = va + vb + vc;   /* > 0 for a non-degenerate triangle */
+    if (!(denom > 0)) return point_NAN;
     double v = vb / denom;
     double w = vc / denom;
     return (s_point){{{A.x + AB.x*v + AC.x*w, A.y + AB.y*v + AC.y*w, A.z + AB.z*v + AC.z*w}}};
 }
 
 
-s_point closest_point_on_segment(const s_point segment[2], double EPS_degenerate, s_point p)
+s_point closest_point_on_segment(const s_point segment[2], s_point p)
 {
+    if (vec_is_degenerate(segment[0], segment[1])) return point_NAN;
     s_point AB = subtract_points(segment[1], segment[0]);
     s_point pA = subtract_points(p, segment[0]);
-    // Project c onto ab, computing parameterized position d(t) = a + t*(b – a)
+    // Project c onto ab, computing parameterized position d(t) = a + t*(b - a)
     double denom = dot_prod(AB, AB);
-    if (denom < EPS_degenerate) return point_NAN;
     double t = dot_prod(pA, AB) / denom;
     // If outside segment, clamp t (and therefore d) to the closest endpoint
     if (t < 0) t = 0;
@@ -725,11 +731,11 @@ s_point closest_point_on_segment(const s_point segment[2], double EPS_degenerate
 }
 
 
-double distance_sq_point_line(const s_point line[2], double EPS_degenerate, s_point p)
+double distance_sq_point_line(const s_point line[2], s_point p)
 {
+    if (vec_is_degenerate(line[0], line[1])) return NAN;
     s_point ab = subtract_points(line[1], line[0]);
     double denom = norm_squared(ab);
-    if (denom < EPS_degenerate) return NAN;
     s_point ap = subtract_points(p, line[0]);
     return norm_squared(cross_prod(ap, ab)) / denom;
 }
@@ -737,7 +743,6 @@ double distance_sq_point_line(const s_point line[2], double EPS_degenerate, s_po
 
 /* From Ericson, "Real-Time Collision Detection", section 5.1.9. */
 double distance_segment_segment(const s_point seg_a[2], const s_point seg_b[2],
-                                double EPS_degenerate,
                                 s_point *out_pa, s_point *out_pb)
 {
     s_point d1 = subtract_points(seg_a[1], seg_a[0]);
@@ -747,7 +752,7 @@ double distance_segment_segment(const s_point seg_a[2], const s_point seg_b[2],
     double a = dot_prod(d1, d1);
     double e = dot_prod(d2, d2);
 
-    if (a < EPS_degenerate || e < EPS_degenerate) {
+    if (vec_is_degenerate(seg_a[0], seg_a[1]) || vec_is_degenerate(seg_b[0], seg_b[1])) {
         if (out_pa) *out_pa = point_NAN;
         if (out_pb) *out_pb = point_NAN;
         return NAN;
@@ -760,7 +765,7 @@ double distance_segment_segment(const s_point seg_a[2], const s_point seg_b[2],
     double s, t;
     double denom = a * e - b * b;
 
-    if (denom > EPS_degenerate) {
+    if (denom > GEOM_EPS_REL * a * e) {   /* a*e*sin^2: not parallel */
         s = fmax(0.0, fmin(1.0, (b * f - c * e) / denom));
     } else {
         s = 0.0;  /* parallel: arbitrary, corrected by the t-clamp below */
@@ -787,9 +792,9 @@ double distance_segment_segment(const s_point seg_a[2], const s_point seg_b[2],
 
 
 
-int circumcentre_tetrahedron(const s_point p[4], double EPS_degenerate, s_point *out)
+int circumcentre_tetrahedron(const s_point p[4], s_point *out)
 {
-    if (fabs(signed_volume_tetra(p)) < EPS_degenerate) return 0;
+    if (tet_is_degenerate(p)) return 0;
 
     /* Center & scale to reduce cancellation */
     s_point v[4];
@@ -810,17 +815,8 @@ int circumcentre_tetrahedron(const s_point p[4], double EPS_degenerate, s_point 
         rhs[ii]  = norm_squared(v[ii+1]) - norm2_v0;
     }
 
-    /* Scale aware pivot tolerance */
-    double maxabs = 0.0;
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j) maxabs = fmax(maxabs, fabs(A[i][j]));
-        maxabs = fmax(maxabs, fabs(rhs[i]));
-    }
-    if (maxabs == 0.0) maxabs = 1.0;
-    double pivot_eps = EPS_degenerate * maxabs;
-
     s_point x;
-    int rank = solve_3x3_ppivot_inplace(A, rhs, x.coords, pivot_eps);
+    int rank = solve_3x3_ppivot_inplace(A, rhs, x.coords);
     if (rank == 3) {
         // s_point center_scaled = sum_points(v[0], x);
         *out = sum_points(scale_point(x, scale), centroid);
@@ -835,9 +831,9 @@ int circumcentre_tetrahedron(const s_point p[4], double EPS_degenerate, s_point 
  * partial pivoting), so w == 0 is not bit-identical to w == NULL.  Near-zero
  * pivots are rejected: they mean nearly parallel radical planes. */
 int circumcentre_tetrahedron_w(const s_point c[4], const double w[4],
-                               double EPS_degenerate, s_point *out)
+                               s_point *out)
 {
-    if (!w) return circumcentre_tetrahedron(c, EPS_degenerate, out);
+    if (!w) return circumcentre_tetrahedron(c, out);
 
     double A[3][4];
     for (int k = 1; k <= 3; k++) {
@@ -845,8 +841,8 @@ int circumcentre_tetrahedron_w(const s_point c[4], const double w[4],
         s_point sk = sum_points(c[k], c[0]);
         A[k-1][0] = 2*dk.x; A[k-1][1] = 2*dk.y; A[k-1][2] = 2*dk.z;
         A[k-1][3] = dot_prod(dk, sk) - (w[k] - w[0]);
+        if (vec_is_degenerate(c[0], c[k])) return 0;
         double n = sqrt(A[k-1][0]*A[k-1][0] + A[k-1][1]*A[k-1][1] + A[k-1][2]*A[k-1][2]);
-        if (n <= EPS_degenerate) return 0;
         for (int j = 0; j < 4; j++) A[k-1][j] /= n;
     }
     for (int col = 0; col < 3; col++) {
@@ -855,7 +851,7 @@ int circumcentre_tetrahedron_w(const s_point c[4], const double w[4],
             if (fabs(A[r_][col]) > fabs(A[piv][col])) piv = r_;
         if (piv != col)
             for (int j = 0; j < 4; j++) { double t = A[col][j]; A[col][j] = A[piv][j]; A[piv][j] = t; }
-        if (fabs(A[col][col]) <= EPS_degenerate) return 0;
+        if (fabs(A[col][col]) <= GEOM_EPS_REL) return 0;   /* unit rows */
         for (int r_ = 0; r_ < 3; r_++) {
             if (r_ == col) continue;
             double f = A[r_][col]/A[col][col];

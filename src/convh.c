@@ -113,7 +113,7 @@ bool convhull_is_valid(const s_convh *convh)
 
 
 
-static int initialize_normals_convhull(s_convh *convh, double EPS_degenerate)
+static int initialize_normals_convhull(s_convh *convh)
 {   /* 0 if error, 1 if OK. UNNORMALIZED!
      * The face winding is TRUSTED as produced by quickhull_3d: every face is
      * oriented there with an exact predicate against a hull vertex strictly
@@ -131,23 +131,22 @@ static int initialize_normals_convhull(s_convh *convh, double EPS_degenerate)
         s_point v1 = convh->points.p[convh->faces[ii * 3 + 1]];
         s_point v2 = convh->points.p[convh->faces[ii * 3 + 2]];
 
-        s_point n = cross_prod(subtract_points(v1, v0), subtract_points(v2, v0));
-        if (norm(n) <= EPS_degenerate) n = point_NAN;
+        s_point n = tri_is_degenerate(v0, v1, v2) ? point_NAN
+                  : cross_prod(subtract_points(v1, v0), subtract_points(v2, v0));
         convh->fnormals[ii] = n;
     }
     return 1;
 }
 
 
-int convhull_from_points(const s_points *points, double EPS_degenerate, s_convh *out)
+int convhull_from_points(const s_points *points, s_convh *out)
 {
-    return convhull_from_points_mapped(points, EPS_degenerate, out, NULL);
+    return convhull_from_points_mapped(points, out, NULL);
 }
 
-int convhull_from_points_mapped(const s_points *points, double EPS_degenerate,
+int convhull_from_points_mapped(const s_points *points,
                                 s_convh *out, int *out_pmap)
-{   /* TOL both for deduping points and to establish min_face_area */
-    /* Returns  1 if OK,
+{   /* Returns  1 if OK,
                 0 if degeneracy ERROR.
                 -1 if other ERROR.
        If out_pmap != NULL it is filled (length points->N) with the input->output
@@ -160,7 +159,7 @@ int convhull_from_points_mapped(const s_points *points, double EPS_degenerate,
     isused = malloc(points->N * sizeof(bool));
     if (!isused) goto error;
 
-    int i = quickhull_3d(points, EPS_degenerate, isused, &out->faces, &out->Nf);
+    int i = quickhull_3d(points, isused, &out->faces, &out->Nf);
     if (i == -1) goto error;
     if (i == 0) goto degenerate;
 
@@ -197,7 +196,7 @@ int convhull_from_points_mapped(const s_points *points, double EPS_degenerate,
         }
     }
 
-    if (!initialize_normals_convhull(out, EPS_degenerate)) goto error;
+    if (!initialize_normals_convhull(out)) goto error;
 
     free(isused);
     if (pmap != out_pmap) free(pmap);        /* pmap already holds the caller's map */
@@ -221,12 +220,12 @@ int convhull_from_points_mapped(const s_points *points, double EPS_degenerate,
 }
 
 
-int convhull_from_csv(const char *filename, double EPS_degenerate, s_convh *out)
+int convhull_from_csv(const char *filename, s_convh *out)
 {
     s_points p = read_points_from_csv(filename);
     if (!points_is_valid(&p)) { *out = convhull_NAN; return -1; }
     
-    int i = convhull_from_points(&p, EPS_degenerate, out);
+    int i = convhull_from_points(&p, out);
     free_points(&p);
     return i;
 }
@@ -340,11 +339,10 @@ int list_edges_convhull(const s_convh *C, s_dynarray *out_edges)
 }
 
 
-static e_geom_test test_point_in_convhull_robust(const s_convh *convh, s_point query, double EPS_degenerate)
+static e_geom_test test_point_in_convhull_robust(const s_convh *convh, s_point query)
 {   
     if (!convhull_is_valid(convh)) return TEST_ERROR;
 
-    (void)EPS_degenerate;
     int prev_sign = 0;
     int on_boundary = 0;
     for (int f = 0; f < convh->Nf; ++f) {
@@ -386,11 +384,11 @@ static int sign_double(double x)
     else return 0;
 }
 
-e_geom_test test_point_in_convhull(const s_convh *C, s_point query, double EPS_degenerate, double TOL_boundary)
+e_geom_test test_point_in_convhull(const s_convh *C, s_point query, double tol_bdry)
 {
     if (!convhull_is_valid(C)) return TEST_ERROR;
     
-    if (TOL_boundary == 0) return test_point_in_convhull_robust(C, query, EPS_degenerate);
+    if (tol_bdry == 0) return test_point_in_convhull_robust(C, query);
     int on_boundary = 0, sign_ref = 0;
 
     for (int f = 0; f < C->Nf; ++f) {
@@ -398,10 +396,10 @@ e_geom_test test_point_in_convhull(const s_convh *C, s_point query, double EPS_d
                            C->points.p[C->faces[3*f + 1]],
                            C->points.p[C->faces[3*f + 2]]};
 
-        double s = signed_distance_point_to_plane(query, face, EPS_degenerate);
+        double s = signed_distance_point_to_plane(query, face);
         if (isnan(s)) continue;
-        if (fabs(s) <= TOL_boundary) {
-            e_geom_test inside_face = test_point_in_triangle_3D(face, query, EPS_degenerate, TOL_boundary);
+        if (fabs(s) <= tol_bdry) {
+            e_geom_test inside_face = test_point_in_triangle_3D(face, query, tol_bdry);
             if (inside_face == TEST_IN || inside_face == TEST_BOUNDARY) on_boundary = 1;
             continue;
         }
@@ -417,13 +415,13 @@ e_geom_test test_point_in_convhull(const s_convh *C, s_point query, double EPS_d
 }
 
 
-s_points_test test_points_in_convhull(const s_convh *convh, const s_points *query, double EPS_degenerate, double TOL_boundary, e_geom_test buff[query->N])
+s_points_test test_points_in_convhull(const s_convh *convh, const s_points *query, double tol_bdry, e_geom_test buff[query->N])
 {
     if (buff == NULL) buff = malloc(convh->points.N * sizeof(e_geom_test));
 
     int Nin = 0, Nout = 0, Nbdy = 0, Nerr = 0;
     for (int ii=0; ii<query->N; ii++) {
-        e_geom_test test = test_point_in_convhull(convh, query->p[ii], EPS_degenerate, TOL_boundary);
+        e_geom_test test = test_point_in_convhull(convh, query->p[ii], tol_bdry);
         if (test == TEST_IN) { buff[ii] = TEST_IN; Nin++; }
         else if (test == TEST_OUT) { buff[ii] = TEST_OUT; Nout++; }
         else if (test == TEST_BOUNDARY) { buff[ii] = TEST_BOUNDARY; Nbdy++; }
@@ -482,7 +480,7 @@ s_points points_boundary_convhull(const s_convh *convh, int buff_isboundary[conv
 
 
 s_point random_point_inside_convhull(double (*randd01)(void*), void *rctx,
-                                     const s_convh *convh, double EPS_degenerate, 
+                                     const s_convh *convh, 
                                      s_point min, s_point max)
 {
     if (!point_is_valid(min) || !point_is_valid(max)) 
@@ -491,7 +489,7 @@ s_point random_point_inside_convhull(double (*randd01)(void*), void *rctx,
     int MAX_IT = 10000;
     int it = 0;
     s_point out = random_point_uniform_3D(randd01, rctx, min, max);
-    while (test_point_in_convhull(convh, out, EPS_degenerate, 0) != TEST_IN) {
+    while (test_point_in_convhull(convh, out, 0) != TEST_IN) {
         out = random_point_uniform_3D(randd01, rctx, min, max);
         if (it++ >= MAX_IT) {
             fprintf(stderr, "Reached maximum iters looking for point inside convhull. Returning point_NAN\n");
@@ -502,7 +500,7 @@ s_point random_point_inside_convhull(double (*randd01)(void*), void *rctx,
 }
 
 
-s_point closest_point_on_convhull_boundary(const s_convh *convh, s_point query, double EPS_degenerate) 
+s_point closest_point_on_convhull_boundary(const s_convh *convh, s_point query) 
 {
     s_point out_point = {{{0, 0, 0}}};
     double best_d2 = DBL_MAX;
@@ -510,7 +508,7 @@ s_point closest_point_on_convhull_boundary(const s_convh *convh, s_point query, 
     for (int f=0; f<convh->Nf; f++) {
         s_point triangle[3];
         convh_get_face(convh, f, triangle);
-        s_point tmp = closest_point_on_triangle(triangle, EPS_degenerate, query);
+        s_point tmp = closest_point_on_triangle(triangle, query);
         double d2 = distance_squared(query, tmp);
         if ( d2 < best_d2) {
             out_point = tmp;
@@ -541,9 +539,9 @@ double volume_convhull(const s_convh *convh)
 
     // /* I used the following when debugging. If convhull was correct, results were the same. */
     // s_point ref1 = point_average(&convh->points);
-    // // printf("%.17g, %.17g, %.17g. Is inside: %d\n", ref1.x, ref1.y, ref1.z, test_point_in_convhull(convh, ref1, 0, 0) == TEST_IN);
+    // // printf("%.17g, %.17g, %.17g. Is inside: %d\n", ref1.x, ref1.y, ref1.z, test_point_in_convhull(convh, ref1, 0) == TEST_IN);
     // s_point ref2 = convh->points.p[12];
-    // // printf("%.17g, %.17g, %.17g. Is inside: %d\n", ref2.x, ref2.y, ref2.z, test_point_in_convhull(convh, ref2, 0, 0) == TEST_IN);
+    // // printf("%.17g, %.17g, %.17g. Is inside: %d\n", ref2.x, ref2.y, ref2.z, test_point_in_convhull(convh, ref2, 0) == TEST_IN);
     // // ref2 = sum_points(ref1, (s_point){{{0.01, 0.01, 0.01}}});
     // /* Kahan-like compensated summation in long double */
     // double total1 = 0, c1 = 0;
@@ -590,7 +588,7 @@ double surface_area_convhull(const s_convh *convh)
 }
 
 
-s_point convhull_volume_centroid(const s_convh *convh, double EPS_degenerate)
+s_point convhull_volume_centroid(const s_convh *convh)
 {
     if (!convhull_is_valid(convh)) return point_NAN;
 
@@ -607,7 +605,9 @@ s_point convhull_volume_centroid(const s_convh *convh, double EPS_degenerate)
         Vtot += vol_tet;
         pweighted = sum_points(pweighted, scale_point(c_tet, vol_tet));
     }
-    if (Vtot < EPS_degenerate) return point_NAN;
+    s_point lo, hi; bounding_box_points(&convh->points, &lo, &hi);
+    double diag = distance(lo, hi);
+    if (!(Vtot > GEOM_EPS_REL * diag * diag * diag)) return point_NAN;
     return scale_point(pweighted, 1.0 / Vtot);
 }
 
