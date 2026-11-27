@@ -833,3 +833,41 @@ int circumcentre_tetrahedron(const s_point p[4], double EPS_degenerate, s_point 
 }
 
 
+/* Separate solve from circumcentre_tetrahedron (rows normalized to unit length,
+ * partial pivoting), so w == 0 is not bit-identical to w == NULL.  Near-zero
+ * pivots are rejected: they mean nearly parallel radical planes. */
+int circumcentre_tetrahedron_w(const s_point c[4], const double w[4],
+                               double EPS_degenerate, s_point *out)
+{
+    if (!w) return circumcentre_tetrahedron(c, EPS_degenerate, out);
+
+    double A[3][4];
+    for (int k = 1; k <= 3; k++) {
+        s_point dk = subtract_points(c[k], c[0]);
+        s_point sk = sum_points(c[k], c[0]);
+        A[k-1][0] = 2*dk.x; A[k-1][1] = 2*dk.y; A[k-1][2] = 2*dk.z;
+        A[k-1][3] = dot_prod(dk, sk) - (w[k] - w[0]);
+        double n = sqrt(A[k-1][0]*A[k-1][0] + A[k-1][1]*A[k-1][1] + A[k-1][2]*A[k-1][2]);
+        if (n <= EPS_degenerate) return 0;
+        for (int j = 0; j < 4; j++) A[k-1][j] /= n;
+    }
+    for (int col = 0; col < 3; col++) {
+        int piv = col;
+        for (int r_ = col+1; r_ < 3; r_++)
+            if (fabs(A[r_][col]) > fabs(A[piv][col])) piv = r_;
+        if (piv != col)
+            for (int j = 0; j < 4; j++) { double t = A[col][j]; A[col][j] = A[piv][j]; A[piv][j] = t; }
+        if (fabs(A[col][col]) <= EPS_degenerate) return 0;
+        for (int r_ = 0; r_ < 3; r_++) {
+            if (r_ == col) continue;
+            double f = A[r_][col]/A[col][col];
+            for (int j = col; j < 4; j++) A[r_][j] -= f*A[col][j];
+        }
+    }
+    out->x = A[0][3]/A[0][0];
+    out->y = A[1][3]/A[1][1];
+    out->z = A[2][3]/A[2][2];
+    return 1;
+}
+
+

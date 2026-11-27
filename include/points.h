@@ -81,6 +81,9 @@ int basis_vectors_plane(const s_point plane[3], double EPS_degenerate, s_point *
 int plane_from_point_normal(const s_point p0, const s_point n, double EPS_degenerate, s_point out[3]);
 int plane_equation_from_points(const s_point plane[3], double EPS_degenerate, s_point *abc_out, double *d_out);
 int circumcentre_tetrahedron(const s_point p[4], double EPS_degenerate, s_point *out);
+/* Power circumcentre (equal power distance |x-p_i|^2 - w_i to all four). */
+int circumcentre_tetrahedron_w(const s_point p[4], const double w[4] /* NULL = unweighted */,
+                               double EPS_degenerate, s_point *out);
 
 /* The following return point_NAN / NAN if object is EPS-degenerate */
 s_point project_point_to_plane(s_point p, const s_point plane[3], double EPS_degenerate);  
