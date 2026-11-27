@@ -10,17 +10,15 @@
 #include <stdbool.h>
 
 
-int point_is_valid(s_point p)
+bool point_is_valid(s_point p)
 {
-    if (isnan(p.x) || isnan(p.y) || isnan(p.z)) return 0;
-    return 1;
+    return !(isnan(p.x) || isnan(p.y) || isnan(p.z));
 }
 
 
-int points_is_valid(const s_points *p)
+bool points_is_valid(const s_points *p)
 {
-    if (p->p == NULL) return 0;
-    else return 1;
+    return p->p != NULL;
 }
 
 

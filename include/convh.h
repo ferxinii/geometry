@@ -1,6 +1,7 @@
 #ifndef _GEOMETRY_CONVH_H
 #define _GEOMETRY_CONVH_H
 
+#include <stdbool.h>
 #include "points.h"
 #include "gtests.h"
 #include <stdlib.h>
@@ -15,7 +16,7 @@ typedef struct convhull {
 
 
 #define convhull_NAN (s_convh){0}
-int convhull_is_valid(const s_convh *convh);
+bool convhull_is_valid(const s_convh *convh);
 
 int convhull_from_points(const s_points *points, double EPS_DEG, s_convh *out);
 /* Same as convhull_from_points, but also fills out_pmap (length points->N):

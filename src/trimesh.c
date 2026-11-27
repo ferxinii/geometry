@@ -43,7 +43,7 @@ static bool hash_eq_edge(const void *k1, const void *k2)
  * trimesh_is_valid / free / copy
  * ----------------------------------------------------------------------- */
 
-int trimesh_is_valid(const s_trimesh *m)
+bool trimesh_is_valid(const s_trimesh *m)
 {
     return m->points.p != NULL && m->points.N > 0 &&
            m->Nf > 0 &&

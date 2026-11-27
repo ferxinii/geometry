@@ -32,9 +32,9 @@ typedef struct points {
 
 
 #define point_NAN (s_point){{{ NAN, NAN, NAN }}}
-int point_is_valid(s_point p);  /* Only way to check if point is NAN */
+bool point_is_valid(s_point p);  /* Only way to check if point is NAN */
 #define points_NAN (s_points){0, NULL}
-int points_is_valid(const s_points *p);
+bool points_is_valid(const s_points *p);
 
 void free_points(s_points *points);
 s_points copy_points(const s_points *points);

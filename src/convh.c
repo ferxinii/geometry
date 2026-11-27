@@ -106,11 +106,9 @@ int deserialize_convhull(const uint8_t *data, s_convh *out, size_t *bytes_read)
 
 
 
-int convhull_is_valid(const s_convh *convh) 
+bool convhull_is_valid(const s_convh *convh)
 {
-    if (!convh) return 0;
-    if (convh->Nf == 0) return 0;
-    else return 1;
+    return convh != NULL && convh->Nf != 0;
 }
 
 

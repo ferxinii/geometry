@@ -24,7 +24,7 @@ typedef struct trimesh {
 
 #define trimesh_NAN (s_trimesh){0}
 
-int       trimesh_is_valid(const s_trimesh *m);
+bool      trimesh_is_valid(const s_trimesh *m);
 
 /*
  * True iff the mesh bounds a convex solid. Exact and O(Nf):
