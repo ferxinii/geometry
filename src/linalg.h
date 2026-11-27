@@ -14,6 +14,8 @@
 /* Degenerate (singular) systems are detected RELATIVE to each row's own size:
  * a pivot is rejected when |pivot| <= LINALG_EPS_REL * (max |entry| of its
  * original row), so the result does not depend on the scale of any row.
+ * Pivots are chosen by |entry| / (row size) (scaled partial pivoting), so the
+ * pivot order -- and hence the rounding -- is also independent of row scales.
  * Return the rank reached (N on success). */
 #ifndef LINALG_EPS_REL
 #define LINALG_EPS_REL 1e-12
@@ -49,12 +51,12 @@ static inline int solve_3x3_ppivot_inplace(double A[3][3], double b[3], double x
     for (int col = 0; col < 3; col++) {
         /* find pivot */
         int piv = col;
-        double best = fabs(A[col][col]);
+        double best = rn[col] > 0 ? fabs(A[col][col]) / rn[col] : 0;
         for (int r = col + 1; r < 3; r++) {
-            double val = fabs(A[r][col]);
+            double val = rn[r] > 0 ? fabs(A[r][col]) / rn[r] : 0;
             if (val > best) { best = val; piv = r; }
         }
-        if (best <= LINALG_EPS_REL * rn[piv]) return col;
+        if (!(best > LINALG_EPS_REL)) return col;
         if (piv != col) {
             for (int c = col; c < 3; c++) {
                 double t = A[col][c]; A[col][c] = A[piv][c]; A[piv][c] = t;
@@ -99,12 +101,12 @@ static inline int solve_NxN_ppivot_inplace(int N, double *A, double *b, double *
     for (int col = 0; col < N; col++) {
         /* find pivot */
         int piv = col;
-        double best = fabs(A[col*N+col]);
+        double best = x[col] > 0 ? fabs(A[col*N+col]) / x[col] : 0;
         for (int r = col + 1; r < N; r++) {
-            double val = fabs(A[r*N+col]);
+            double val = x[r] > 0 ? fabs(A[r*N+col]) / x[r] : 0;
             if (val > best) { best = val; piv = r; }
         }
-        if (best <= LINALG_EPS_REL * x[piv]) return col;
+        if (!(best > LINALG_EPS_REL)) return col;
         if (piv != col) {
             for (int c = col; c < N; c++) {
                 double t = A[col*N+c]; A[col*N+c] = A[piv*N+c]; A[piv*N+c] = t;
