@@ -29,7 +29,9 @@ foreach(_tgt predicates_basic predicates_power predicates_lp)
         ${CMAKE_CURRENT_SOURCE_DIR}
     )
     target_compile_features(${_tgt} PRIVATE cxx_std_20)
-    target_link_libraries(${_tgt} INTERFACE stdc++)
+    # C-only consumers link with the C driver, which omits the C++ runtime;
+    # the C++ driver adds it itself (adding it again makes ld warn on macOS).
+    target_link_libraries(${_tgt} INTERFACE $<$<NOT:$<LINK_LANGUAGE:CXX>>:stdc++>)
 endforeach()
 
 # Define a flag: pass -DROBUST_PREDICATES_DEBUG=ON to cmake to opt into debug mode.
